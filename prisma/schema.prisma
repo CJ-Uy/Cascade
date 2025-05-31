@@ -24,6 +24,7 @@ model User {
   email        String?        @unique
   imageLink    String?
   businessUnit BusinessUnit[]
+  role         Role[] // People should only have 1 role but for flexibility we allow many just in case
   requisitions Requisition[]
 
   active Boolean @default(true) // Set to false if the account should be closed/locked
@@ -51,6 +52,7 @@ model Role {
   name           String
   businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
   businessUnitId String?
+  users          User[]
 }
 
 model Requisition {
@@ -63,6 +65,7 @@ model Requisition {
   fromBU         BusinessUnit @relation(fields: [businessUnitId], references: [id])
   businessUnitId String
 
-  approvals Json
+  stage     Int    @default(0) // This is the index of the array in approvals[] 
+  approvals Json[]
   values    Json
 }
