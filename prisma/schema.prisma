@@ -19,10 +19,11 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  username     String        @unique
+  username     String         @unique
   password     String
-  email        String        @unique
+  email        String?        @unique
   imageLink    String?
+  businessUnit BusinessUnit[]
   requisitions Requisition[]
 
   active Boolean @default(true) // Set to false if the account should be closed/locked
@@ -37,7 +38,9 @@ model BusinessUnit {
   roles       Role[]
   Requisition Requisition[]
 
-  approvalSystem Json
+  requisitionTemplate Json
+  approvalSystem      Json
+  users               User[]
 }
 
 model Role {
@@ -46,7 +49,7 @@ model Role {
   updatedAt DateTime @updatedAt
 
   name           String
-  BusinessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
+  businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
   businessUnitId String?
 }
 
@@ -61,4 +64,5 @@ model Requisition {
   businessUnitId String
 
   approvals Json
+  values    Json
 }
