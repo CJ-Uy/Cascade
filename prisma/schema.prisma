@@ -19,15 +19,21 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  username     String         @unique
-  password     String
-  email        String?        @unique
-  imageLink    String?
-  businessUnit BusinessUnit[]
-  role         Role[] // People should only have 1 role but for flexibility we allow many just in case
-  requisitions Requisition[]
+  name          String
+  password      String
+  email         String?
+  emailVerified Boolean
+  image         String?
+  businessUnit  BusinessUnit[]
+  role          Role[] // People should only have 1 role but for flexibility we allow many just in case
+  requisitions  Requisition[]
 
-  active Boolean @default(true) // Set to false if the account should be closed/locked
+  sessions Session[]
+  accounts Account[]
+  active   Boolean   @default(true) // Set to false if the account should be closed/locked
+
+  @@unique([email])
+  @@map("user")
 }
 
 model BusinessUnit {
@@ -68,4 +74,49 @@ model Requisition {
   stage     Int    @default(0) // This is the index of the array in approvals[] 
   approvals Json[]
   values    Json
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  expiresAt DateTime
+  token     String
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
 }
