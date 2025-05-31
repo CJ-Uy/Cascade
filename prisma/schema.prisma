@@ -15,7 +15,50 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(uuid())
-  username String @unique
-  password String
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  username     String        @unique
+  password     String
+  email        String        @unique
+  imageLink    String?
+  requisitions Requisition[]
+
+  active Boolean @default(true) // Set to false if the account should be closed/locked
+}
+
+model BusinessUnit {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String
+  roles       Role[]
+  Requisition Requisition[]
+
+  approvalSystem Json
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name           String
+  BusinessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
+  businessUnitId String?
+}
+
+model Requisition {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  initiator      User         @relation(fields: [userId], references: [id])
+  userId         String
+  fromBU         BusinessUnit @relation(fields: [businessUnitId], references: [id])
+  businessUnitId String
+
+  approvals Json
 }
