@@ -1,11 +1,14 @@
 "use client";
-import { DataTableDemo } from "@/components/initiator/dataTable";
+
+import { DataTableMultipleSelectDemo } from "@/components/dataTableMultipleSelectDemo";
+import { DataTableSingleOpenDemo } from "@/components/dataTableSingleOpenDemo";
 
 export default function Initiator() {
     return (
 			<>
 				<h1>Dashboard</h1>
-				<DataTableDemo />
+				<DataTableMultipleSelectDemo />
+				<DataTableSingleOpenDemo />
 			</>
 		);
 }

@@ -151,7 +151,7 @@ export const columns = [
 	},
 ];
 
-export function DataTableDemo() {
+export function DataTableMultipleSelectDemo() {
 	const [sorting, setSorting] = useState([]);
 	const [columnFilters, setColumnFilters] = useState([]);
 	const [columnVisibility, setColumnVisibility] = useState({});
@@ -178,6 +178,8 @@ export function DataTableDemo() {
 
 	return (
 		<div className="w-full">
+
+			{/* Filter Emails Input */}
 			<div className="flex items-center py-4">
 				<Input
 					placeholder="Filter emails..."
@@ -211,6 +213,8 @@ export function DataTableDemo() {
 				</DropdownMenu>
 			</div>
 			<div className="rounded-md border">
+
+				{/* Table Proper */}
 				<Table>
 					<TableHeader>
 						{table.getHeaderGroups().map((headerGroup) => (
