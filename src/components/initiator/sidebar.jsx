@@ -6,6 +6,7 @@ import {
 	Sidebar,
 	SidebarHeader,
 	SidebarContent,
+	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupContent,
 	SidebarGroupLabel,
@@ -13,6 +14,13 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import {
+	DropdownMenu,
+	DropdownMenuTrigger,
+	DropdownMenuContent,
+	DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { ChevronUp } from "lucide-react";
 
 // Menu items.
 const items = [
@@ -37,9 +45,12 @@ export function InitiatorSidebar() {
 	const path = usePathname();
 	return (
 		<Sidebar>
+			{/* Header */}
 			<SidebarHeader className="flex items-center justify-center">
 				<h1>Akiva Cascade</h1>
 			</SidebarHeader>
+
+			{/* Content */}
 			<SidebarContent>
 				<SidebarGroup>
 					<SidebarGroupLabel>Application</SidebarGroupLabel>
@@ -59,6 +70,33 @@ export function InitiatorSidebar() {
 					</SidebarGroupContent>
 				</SidebarGroup>
 			</SidebarContent>
+
+			{/* Footer */}
+			<SidebarFooter>
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<SidebarMenuButton>
+									Username
+									<ChevronUp className="ml-auto" />
+								</SidebarMenuButton>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent side="top" className="w-[--radix-popper-anchor-width]">
+								<DropdownMenuItem>
+									<span>Dark Mode</span>
+								</DropdownMenuItem>
+								<DropdownMenuItem>
+									<span>Report</span>
+								</DropdownMenuItem>
+								<DropdownMenuItem>
+									<span>Sign out</span>
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</SidebarMenuItem>
+				</SidebarMenu>
+			</SidebarFooter>
 		</Sidebar>
 	);
 }
