@@ -9,6 +9,19 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
+// For visualization, copy-Paste the output file to: https://dbdiagram.io/d 
+generator dbml {
+  provider            = "prisma-dbml-generator"
+  outputName          = "database.dbml"
+  projectName         = "Akiva Cascade"
+  projectDatabaseType = "PostgreSQL"
+  projectNote         = "Digital Mass Document Approval and Review System"
+}
+
+generator docs {
+  provider = "node node_modules/prisma-docs-generator"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")

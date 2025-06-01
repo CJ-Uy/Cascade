@@ -22,7 +22,7 @@ export default function Sample() {
 				});
 				const initiatorData = await response.json();
 				setInitatorDetails({
-					name: initiatorData.username,
+					name: initiatorData.name,
 					businessUnit: initiatorData.businessUnit[0],
 					role: initiatorData.role[0]
 				});
@@ -50,7 +50,7 @@ export default function Sample() {
 							key={i}
 							className="w-100 h-100 border-2 flex flex-col items-center justify-center"
 						>
-							<h1>{data.username}</h1>
+							<h1>{data.name}</h1>
 							<p>
 								{data?.businessUnit[0]?.name} || {data?.role[0]?.name}
 							</p>
