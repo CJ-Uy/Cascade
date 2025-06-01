@@ -68,6 +68,7 @@
 	"devDependencies": {
 		"@eslint/eslintrc": "^3",
 		"@tailwindcss/postcss": "^4",
+		"@tanstack/react-table": "^8.21.3",
 		"@types/node": "^20.17.55",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
