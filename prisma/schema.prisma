@@ -27,28 +27,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Post {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  title   String
-  content String
-
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("posts")
-}
-
 model User {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  name          String
-  password      String
-  email         String?
+  firstName String
+  lastName  String
+
+  name          String // actually username but haven't figured out how to change better-auth
+  email         String         @unique
   emailVerified Boolean
   image         String?
   businessUnit  BusinessUnit[]
@@ -57,11 +45,10 @@ model User {
 
   sessions Session[]
   accounts Account[]
-  posts Post[]
-  active   Boolean   @default(true) // Set to false if the account should be closed/locked
 
-  @@unique([email])
-  @@map("users")
+  active Boolean @default(true) // Set to false if the account should be closed/locked
+
+  @@map("users") // Makes the native table name in the database "users" for better-auth
 }
 
 model BusinessUnit {
@@ -73,9 +60,9 @@ model BusinessUnit {
   roles       Role[]
   Requisition Requisition[]
 
-  requisitionTemplate Json
-  approvalSystem      Json
-  users               User[]
+  requisitionTemplates Json
+  approvalSystem       Json
+  users                User[]
 }
 
 model Role {
@@ -110,20 +97,20 @@ model Session {
   updatedAt DateTime
 
   expiresAt DateTime
-  token     String @unique
+  token     String   @unique
   ipAddress String?
   userAgent String?
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
 
 model Account {
-  id                    String    @id @default(uuid())
-  createdAt             DateTime
-  updatedAt             DateTime
+  id        String   @id @default(uuid())
+  createdAt DateTime
+  updatedAt DateTime
 
   accountId             String
   providerId            String
@@ -134,21 +121,21 @@ model Account {
   refreshTokenExpiresAt DateTime?
   scope                 String?
   password              String?
-  
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("accounts")
 }
 
 model Verification {
-  id         String    @id @default(uuid())
-  createdAt  DateTime?
-  updatedAt  DateTime?
+  id        String    @id @default(uuid())
+  createdAt DateTime?
+  updatedAt DateTime?
 
   identifier String
   value      String
   expiresAt  DateTime
-  
+
   @@map("verifications")
 }

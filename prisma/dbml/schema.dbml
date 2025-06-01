@@ -7,20 +7,21 @@ Project "Akiva Cascade" {
   Note: 'Digital Mass Document Approval and Review System'
 }
 
-Table user {
+Table users {
   id String [pk]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
+  firstName String [not null]
+  lastName String [not null]
   name String [not null]
-  password String [not null]
-  email String [unique]
+  email String [unique, not null]
   emailVerified Boolean [not null]
   image String
   businessUnit BusinessUnit [not null]
   role Role [not null]
   requisitions Requisition [not null]
-  sessions session [not null]
-  accounts account [not null]
+  sessions sessions [not null]
+  accounts accounts [not null]
   active Boolean [not null, default: true]
 }
 
@@ -31,9 +32,9 @@ Table BusinessUnit {
   name String [not null]
   roles Role [not null]
   Requisition Requisition [not null]
-  requisitionTemplate Json [not null]
+  requisitionTemplates Json [not null]
   approvalSystem Json [not null]
-  users user [not null]
+  users users [not null]
 }
 
 Table Role {
@@ -43,14 +44,14 @@ Table Role {
   name String [not null]
   businessUnit BusinessUnit
   businessUnitId String
-  users user [not null]
+  users users [not null]
 }
 
 Table Requisition {
   id String [pk]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
-  initiator user [not null]
+  initiator users [not null]
   userId String [not null]
   fromBU BusinessUnit [not null]
   businessUnitId String [not null]
@@ -59,24 +60,24 @@ Table Requisition {
   values Json [not null]
 }
 
-Table session {
+Table sessions {
   id String [pk]
-  expiresAt DateTime [not null]
-  token String [unique, not null]
   createdAt DateTime [not null]
   updatedAt DateTime [not null]
+  expiresAt DateTime [not null]
+  token String [unique, not null]
   ipAddress String
   userAgent String
   userId String [not null]
-  user user [not null]
+  user users [not null]
 }
 
-Table account {
+Table accounts {
   id String [pk]
+  createdAt DateTime [not null]
+  updatedAt DateTime [not null]
   accountId String [not null]
   providerId String [not null]
-  userId String [not null]
-  user user [not null]
   accessToken String
   refreshToken String
   idToken String
@@ -84,35 +85,35 @@ Table account {
   refreshTokenExpiresAt DateTime
   scope String
   password String
-  createdAt DateTime [not null]
-  updatedAt DateTime [not null]
+  userId String [not null]
+  user users [not null]
 }
 
-Table verification {
+Table verifications {
   id String [pk]
+  createdAt DateTime
+  updatedAt DateTime
   identifier String [not null]
   value String [not null]
   expiresAt DateTime [not null]
-  createdAt DateTime
-  updatedAt DateTime
 }
 
 Table BusinessUnitToUser {
   businessunitId String [ref: > BusinessUnit.id]
-  usersId String [ref: > user.id]
+  usersId String [ref: > users.id]
 }
 
 Table RoleToUser {
   roleId String [ref: > Role.id]
-  usersId String [ref: > user.id]
+  usersId String [ref: > users.id]
 }
 
 Ref: Role.businessUnitId > BusinessUnit.id
 
-Ref: Requisition.userId > user.id
+Ref: Requisition.userId > users.id
 
 Ref: Requisition.businessUnitId > BusinessUnit.id
 
-Ref: session.userId > user.id [delete: Cascade]
+Ref: sessions.userId > users.id [delete: Cascade]
 
-Ref: account.userId > user.id [delete: Cascade]
+Ref: accounts.userId > users.id [delete: Cascade]
