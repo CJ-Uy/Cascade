@@ -12,7 +12,7 @@ generator client {
 // For visualization, copy-Paste the output file to: https://dbdiagram.io/d 
 generator dbml {
   provider            = "prisma-dbml-generator"
-  outputName          = "database.dbml"
+  outputName          = "schema.dbml"
   projectName         = "Akiva Cascade"
   projectDatabaseType = "PostgreSQL"
   projectNote         = "Digital Mass Document Approval and Review System"
