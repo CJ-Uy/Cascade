@@ -4,6 +4,7 @@ import { Home, MessagesSquare, FilePlus } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
 	Sidebar,
+	SidebarHeader,
 	SidebarContent,
 	SidebarGroup,
 	SidebarGroupContent,
@@ -33,9 +34,12 @@ const items = [
 ];
 
 export function InitiatorSidebar() {
-    const path = usePathname();
+	const path = usePathname();
 	return (
 		<Sidebar>
+			<SidebarHeader className="flex items-center justify-center">
+				<h1>Akiva Cascade</h1>
+			</SidebarHeader>
 			<SidebarContent>
 				<SidebarGroup>
 					<SidebarGroupLabel>Application</SidebarGroupLabel>

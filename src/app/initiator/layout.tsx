@@ -5,7 +5,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <InitiatorSidebar />
-      <main>
+      <main className="flex-grow">
         <SidebarTrigger />
         {children}
       </main>
