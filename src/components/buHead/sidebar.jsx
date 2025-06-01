@@ -1,6 +1,14 @@
 "use client";
 
-import { Home, MessagesSquare, FilePlus } from "lucide-react";
+import {
+	Home,
+	MessagesSquare,
+	FileCheck2,
+	FileClock,
+	UserRoundCog,
+	Signature,
+	LayoutTemplate,
+} from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
 	Sidebar,
@@ -26,22 +34,42 @@ import { ChevronUp } from "lucide-react";
 const items = [
 	{
 		title: "Dashboard",
-		url: "/initiator",
+		url: "/bu-head",
 		icon: Home,
 	},
 	{
-		title: "Create",
-		url: "/initiator/create",
-		icon: FilePlus,
+		title: "Running",
+		url: "/bu-head/running",
+		icon: FileClock,
+	},
+	{
+		title: "Completed",
+		url: "/bu-head/completed",
+		icon: FileCheck2,
+	},
+	{
+		title: "Employees",
+		url: "/bu-head/employees",
+		icon: UserRoundCog,
+	},
+	{
+		title: "Approval System",
+		url: "/bu-head/approval-system",
+		icon: Signature,
+	},
+	{
+		title: "Templates",
+		url: "/bu-head/req-templates",
+		icon: LayoutTemplate,
 	},
 	{
 		title: "Messages",
-		url: "/initiator/messages",
+		url: "/bu-head/messages",
 		icon: MessagesSquare,
 	},
 ];
 
-export function InitiatorSideBar() {
+export function BuHeadSideBar() {
 	const path = usePathname();
 	return (
 		<Sidebar>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, MessagesSquare, FilePlus } from "lucide-react";
+import { Home, MessagesSquare, FileCheck2, FileClock } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
 	Sidebar,
@@ -26,22 +26,24 @@ import { ChevronUp } from "lucide-react";
 const items = [
 	{
 		title: "Dashboard",
-		url: "/initiator",
+		url: "/akiva-approver",
 		icon: Home,
 	},
 	{
-		title: "Create",
-		url: "/initiator/create",
-		icon: FilePlus,
+		title: "Completed",
+		url: "/akiva-approver/completed",
+		icon: FileCheck2,
 	},
 	{
 		title: "Messages",
-		url: "/initiator/messages",
+		url: "/akiva-approver/messages",
 		icon: MessagesSquare,
 	},
+
+	// Include a group for each BU to view their system and details
 ];
 
-export function InitiatorSideBar() {
+export function AkivaApproverSideBar() {
 	const path = usePathname();
 	return (
 		<Sidebar>

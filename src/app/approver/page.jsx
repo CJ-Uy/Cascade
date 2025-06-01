@@ -2,12 +2,13 @@
 
 import { DashboardHeader } from "@/components/dashboardHeader";
 
-export default function Messages() {
+export default function Approver() {
 	return (
 		<>
 			<div className="flex flex-col items-center justify-center">
-				<DashboardHeader title="Messages" />
-				<div className="flex w-[80%] flex-col"></div>
+				<DashboardHeader title="Dashboard" />
+				<div className="flex w-[80%] flex-col">
+				</div>
 			</div>
 		</>
 	);

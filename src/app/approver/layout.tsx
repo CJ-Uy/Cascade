@@ -1,10 +1,10 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { InitiatorSideBar } from "@/components/initiator/sidebar"
+import { ApproverSideBar } from "@/components/approver/sidebar"
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
-      <InitiatorSideBar />
+      <ApproverSideBar />
       <main className="flex-grow">
         <SidebarTrigger />
         {children}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, MessagesSquare, FilePlus } from "lucide-react";
+import { Home, MessagesSquare, FilePlus, FileCheck2, FileClock } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
 	Sidebar,
@@ -26,8 +26,18 @@ import { ChevronUp } from "lucide-react";
 const items = [
 	{
 		title: "Dashboard",
-		url: "/initiator",
+		url: "/approver",
 		icon: Home,
+	},
+	{
+		title: "Running",
+		url: "/approver/running",
+		icon: FileClock,
+	},
+	{
+		title: "Completed",
+		url: "/approver/completed",
+		icon: FileCheck2,
 	},
 	{
 		title: "Create",
@@ -36,12 +46,12 @@ const items = [
 	},
 	{
 		title: "Messages",
-		url: "/initiator/messages",
+		url: "/approver/messages",
 		icon: MessagesSquare,
 	},
 ];
 
-export function InitiatorSideBar() {
+export function ApproverInitatorSideBar() {
 	const path = usePathname();
 	return (
 		<Sidebar>
