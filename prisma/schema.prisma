@@ -14,20 +14,41 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Post {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  title   String
+  content String
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("posts")
+}
+
 model User {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  username     String         @unique
-  password     String
-  email        String?        @unique
-  imageLink    String?
-  businessUnit BusinessUnit[]
-  role         Role[] // People should only have 1 role but for flexibility we allow many just in case
-  requisitions Requisition[]
+  name          String
+  password      String
+  email         String?
+  emailVerified Boolean
+  image         String?
+  businessUnit  BusinessUnit[]
+  role          Role[] // People should only have 1 role but for flexibility we allow many just in case
+  requisitions  Requisition[]
 
-  active Boolean @default(true) // Set to false if the account should be closed/locked
+  sessions Session[]
+  accounts Account[]
+  posts Post[]
+  active   Boolean   @default(true) // Set to false if the account should be closed/locked
+
+  @@unique([email])
+  @@map("users")
 }
 
 model BusinessUnit {
@@ -68,4 +89,53 @@ model Requisition {
   stage     Int    @default(0) // This is the index of the array in approvals[] 
   approvals Json[]
   values    Json
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  createdAt DateTime
+  updatedAt DateTime
+
+  expiresAt DateTime
+  token     String @unique
+  ipAddress String?
+  userAgent String?
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("accounts")
+}
+
+model Verification {
+  id         String    @id @default(uuid())
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  identifier String
+  value      String
+  expiresAt  DateTime
+  
+  @@map("verifications")
 }
