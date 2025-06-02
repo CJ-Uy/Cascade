@@ -1,5 +1,5 @@
-import { RegisterForm } from "@/components/register-form";
-import { ReturnButton } from "@/components/return-button";
+import { RegisterForm } from "@/components/auth/register-form";
+import { ReturnButton } from "@/components/auth/return-button";
 import Link from "next/link";
 
 export default function Page() {
