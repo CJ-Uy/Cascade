@@ -56,10 +56,11 @@ model BusinessUnit {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  name        String
-  roles       Role[]
-  Requisition Requisition[]
-
+  name       String
+  roles      Role[]
+  headRoleId String? // Role id of the admin of the business Unit
+  
+  requisitions         Requisition[]
   requisitionTemplates Json
   approvalSystem       Json
   users                User[]

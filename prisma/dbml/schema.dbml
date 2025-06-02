@@ -31,7 +31,8 @@ Table BusinessUnit {
   updatedAt DateTime [not null]
   name String [not null]
   roles Role [not null]
-  Requisition Requisition [not null]
+  headRoleId String
+  requisitions Requisition [not null]
   requisitionTemplates Json [not null]
   approvalSystem Json [not null]
   users users [not null]
