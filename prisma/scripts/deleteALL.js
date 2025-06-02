@@ -43,7 +43,11 @@ async function main() {
 		const { count: roleCount } = await prisma.role.deleteMany({});
 		console.log(`Deleted ${roleCount} role(s).`);
 
-		// 7. BusinessUnit (all known dependents like Requisition, Role, User M2M links should be gone)
+		// 7. HeadsRole
+		const { count: HeadsRoleCount } = await prisma.headsRole.deleteMany({});
+		console.log(`Deleted ${HeadsRoleCount} head role(s).`);
+
+		// 8. BusinessUnit (all known dependents like Requisition, Role, User M2M links should be gone)
 		const { count: businessUnitCount } = await prisma.businessUnit.deleteMany({});
 		console.log(`Deleted ${businessUnitCount} business unit(s).`);
 

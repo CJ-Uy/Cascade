@@ -54,9 +54,6 @@ async function main() {
 				data: {
 					name: "CEO",
 					isAkivaApprover: true,
-					businessUnit: {
-						connect: [{ id: BU_id }, { id: BUs[1].id }, { id: BUs[2].id }],
-					},
 				},
 			})
 		).id;
