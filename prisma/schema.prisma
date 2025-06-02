@@ -32,8 +32,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  firstName String
-  lastName  String
+  firstName String?
+  lastName  String?
 
   name          String // actually username but haven't figured out how to change better-auth
   email         String         @unique
