@@ -40,8 +40,11 @@ model User {
   emailVerified Boolean
   image         String?
   businessUnit  BusinessUnit[]
-  role          Role[] // People should only have 1 role but for flexibility we allow many just in case
   requisitions  Requisition[]
+
+  role        Role[] // People should only have 1 role but for flexibility we allow many just in case
+  headsRole   HeadsRole? @relation(fields: [headsRoleId], references: [id])
+  headsRoleId String?
 
   sessions Session[]
   accounts Account[]
@@ -56,16 +59,18 @@ model BusinessUnit {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  name       String
-  roles      Role[]
-  headRoleId String? // Role id of the admin of the business Unit
-  
+  name        String
+  head        HeadsRole? @relation(fields: [headsRoleId], references: [id])
+  headsRoleId String?
+  roles       Role[]
+  users       User[]
+
   requisitions         Requisition[]
   requisitionTemplates Json
   approvalSystem       Json
-  users                User[]
 }
 
+// Roles can be created by BU-Heads
 model Role {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
@@ -75,6 +80,19 @@ model Role {
   businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
   businessUnitId String?
   users          User[]
+}
+
+// HeadRoles needs to be isolated from the Role
+model HeadsRole {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name         String
+  users        User[]
+  businessUnit BusinessUnit[]
+
+  isAkivaApprover Boolean
 }
 
 model Requisition {

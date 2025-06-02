@@ -1,3 +1,4 @@
+import { connect } from "http2";
 import { PrismaClient } from "../../src/generated/prisma/index.js";
 import { faker } from "@faker-js/faker";
 
@@ -22,6 +23,56 @@ async function main() {
 		console.log("Business Units created: ", BUs.length);
 		const BU_id = BUs[0].id;
 
+		// Create Head Roles in Grocery Store Inc
+		const bu_head_role_id = (
+			await prisma.headsRole.create({
+				data: {
+					name: "Finance Head",
+					isAkivaApprover: false,
+					businessUnit: {
+						connect: [{ id: BU_id }],
+					},
+				},
+			})
+		).id;
+		console.log("Business Units Finance Head Role Created");
+		await prisma.user.create({
+			data: {
+				firstName: faker.person.firstName(),
+				lastName: faker.person.lastName(),
+				email: faker.internet.email(),
+				emailVerified: false,
+				name: faker.internet.username(),
+				headsRoleId: bu_head_role_id,
+			},
+		});
+		console.log("Business Units Finance Head User Created");
+
+		// Create Akiva Approver Role
+		const akiva_approver_role_id = (
+			await prisma.headsRole.create({
+				data: {
+					name: "CEO",
+					isAkivaApprover: true,
+					businessUnit: {
+						connect: [{ id: BU_id }, { id: BUs[1].id }, { id: BUs[2].id }],
+					},
+				},
+			})
+		).id;
+		console.log("CEO Role Created");
+		await prisma.user.create({
+			data: {
+				firstName: faker.person.firstName(),
+				lastName: faker.person.lastName(),
+				email: faker.internet.email(),
+				emailVerified: false,
+				name: faker.internet.username(),
+				headsRoleId: akiva_approver_role_id,
+			},
+		});
+		console.log("CEO User Created");
+
 		// Create Roles in Grocery Store Inc
 		const ROLE_NAMES = [
 			"Cashiers", // 0
@@ -37,8 +88,6 @@ async function main() {
 			"Operations Manager", // 8
 			"Human Resources Head", // 9
 			"General Manager", // 10
-
-			"Finance Head", // 11
 		];
 		const roles = [];
 		for (const ROLE_NAME of ROLE_NAMES) {
@@ -156,7 +205,7 @@ async function main() {
 				}),
 			);
 		}
-		console.log("Users created: ", users.length);
+		console.log("Users w/ roles created: ", users.length);
 	} catch (e) {
 		console.error(e);
 		process.exit(1);
