@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession } from "@/lib/auth-client";
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -147,6 +148,7 @@ export default function CreateRequisitionPage() {
 		mode: "onChange",
 	});
 
+	const { data: session } = useSession();
 	useEffect(() => {
 		async function loadTemplates() {
 			setIsLoading(true);
@@ -155,7 +157,7 @@ export default function CreateRequisitionPage() {
 				const response = await fetch("/api/businessUnit/getTemplates", {
 					method: "POST",
 					body: JSON.stringify({
-						id: "d8f5997b-eabc-4fe4-96fe-50d9c97146aa", // TODO: Replace with actual user ID when auth works
+						id: session?.user.id,
 					}),
 				});
 				if (!response.ok) {

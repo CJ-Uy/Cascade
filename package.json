@@ -13,7 +13,9 @@
 		"db:migrate": "prisma migrate dev",
 		"db:generate": "prisma generate",
 		"db:studio": "prisma studio",
-		"db:docs": "prisma-docs-generator serve"
+		"db:docs": "prisma-docs-generator serve",
+		"db:populate": "node --loader ts-node/esm prisma/scripts/populateDB.ts",
+		"db:delete": "node prisma/scripts/deleteALL.js"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^5.0.1",
@@ -62,6 +64,7 @@
 		"recharts": "^2.15.3",
 		"sonner": "^2.0.4",
 		"tailwind-merge": "^3.3.0",
+		"ts-node": "^10.9.2",
 		"vaul": "^1.1.2",
 		"zod": "^3.25.42",
 		"zustand": "^5.0.5"

@@ -10,15 +10,15 @@ export default function Home() {
 	const { data: session, isPending } = useSession();
 	const [serverData, setServerData] = useState();
 
-    useEffect(() => {
+	useEffect(() => {
 		if (session) {
 			async function fetchData() {
 				try {
 					let response = await fetch("/api/user/get", {
 						method: "POST",
-						body: JSON.stringify({id: session?.user.id})
+						body: JSON.stringify({ id: session?.user.id }),
 					});
-					const data = await response.json(); 
+					const data = await response.json();
 					setServerData(data["siteRole"]); // Data is now in serverData
 				} catch (err) {
 					console.error("Failed to fetch data:", err);
@@ -26,7 +26,7 @@ export default function Home() {
 			}
 
 			// Fetch the details from the api
-			fetchData()
+			fetchData();
 
 			// Situational Polling if you want to watch data from server
 			const intervalId = setInterval(fetchData, 2000); // fetchData every 2 seconds
@@ -34,7 +34,7 @@ export default function Home() {
 				clearInterval(intervalId); // Clear the interval
 			};
 		}
-    }, [session]);
+	}, [session]);
 
 	// Redirects user if serverData changes to a valid role.
 	useEffect(() => {
@@ -47,21 +47,25 @@ export default function Home() {
 		} else if (serverData == "approver") {
 			redirect("/approver");
 		}
-	}, [serverData])
+	}, [serverData]);
 
 	if (isPending) {
 		return (
-			<div className="flex flex-col justify-center items-center h-dvh gap-5">
-				<h1 className="text-8xl pb-5 font-bold">Cascade</h1>
-				<Button><Link href="/auth/register">Get Started</Link></Button>
+			<div className="flex h-dvh flex-col items-center justify-center gap-5">
+				<h1 className="pb-5 text-8xl font-bold">Cascade</h1>
+				<Button>
+					<Link href="/auth/register">Get Started</Link>
+				</Button>
 			</div>
 		);
 	}
 
 	return (
-		<div className="flex flex-col justify-center items-center h-dvh gap-5">
-			<h1 className="text-8xl pb-5 font-bold">Cascade</h1>
-			<Button><Link href="/auth/login">Get Started</Link></Button>
+		<div className="flex h-dvh flex-col items-center justify-center gap-5">
+			<h1 className="pb-5 text-8xl font-bold">Cascade</h1>
+			<Button>
+				<Link href="/auth/login">Get Started</Link>
+			</Button>
 		</div>
 	);
 }

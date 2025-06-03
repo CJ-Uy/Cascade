@@ -17,15 +17,15 @@ export const LoginForm = () => {
 		try {
 			let response = await fetch("/api/user/get", {
 				method: "POST",
-				body: JSON.stringify({id: session?.user.id})
+				body: JSON.stringify({ id: session?.user.id }),
 			});
-			const data = await response.json(); 
+			const data = await response.json();
 			setServerData(data["siteRole"]); // Data is now in serverData
 		} catch (err) {
 			console.error("Failed to fetch data:", err);
 		}
 	}
-	
+
 	// Redirects user if canRedirect is set to true.
 	useEffect(() => {
 		if (canRedirect && serverData != null) {
@@ -39,7 +39,7 @@ export const LoginForm = () => {
 				redirect("/approver");
 			}
 		}
-	}, [serverData])
+	}, [serverData]);
 
 	const [isPending, setIsPending] = useState(false);
 
@@ -53,26 +53,29 @@ export const LoginForm = () => {
 		const password = String(formData.get("password"));
 		if (!password) return toast.error("Please enter your password");
 
-    await signIn.email({
-        email,
-        password,
-    }, {
-        onRequest: () => {
-          setIsPending(true);
-        },
-        onResponse: () => {
-          setIsPending(false); 
-        },
-        onError: (ctx) => {
-            toast.error(ctx.error.message);
-        },
-        onSuccess: () => {
-			toast.success("Login successful. Welcome back.");
-			fetchData();
-			setCanRedirect(true);
-        },
-    });
-  }
+		await signIn.email(
+			{
+				email,
+				password,
+			},
+			{
+				onRequest: () => {
+					setIsPending(true);
+				},
+				onResponse: () => {
+					setIsPending(false);
+				},
+				onError: (ctx) => {
+					toast.error(ctx.error.message);
+				},
+				onSuccess: () => {
+					toast.success("Login successful. Welcome back.");
+					fetchData();
+					setCanRedirect(true);
+				},
+			},
+		);
+	}
 
 	return (
 		<form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
