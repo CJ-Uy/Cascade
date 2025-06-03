@@ -127,14 +127,14 @@ async function main() {
 								title: "Items",
 								optional: false,
 								default: [
-									{ name: "", quantity: 0, cost: 0, remark: "" },
-									["name", "quantity", "cost", "remark"],
+									{ name: "", quantity: 0, cost: 0, totalCost: 0, remark: "" },
+									["name", "quantity", "cost", "totalCost", "remark"],
 								],
 							},
 							{
 								title: "People repair will benefit",
 								optional: false,
-								default: [{ name: ""}],
+								default: [{ name: "" }],
 							},
 							{
 								title: "Notes",
@@ -155,8 +155,8 @@ async function main() {
 								title: "Items",
 								optional: false,
 								default: [
-									{ name: "", quantity: 0, cost: 0, remark: "" },
-									["name", "quantity", "cost", "remark"],
+									{ name: "", quantity: 0, cost: 0, totalCost: 0, remark: "" },
+									["name", "quantity", "cost", "totalCost", "remark"],
 								],
 							},
 							{
@@ -178,8 +178,8 @@ async function main() {
 								title: "Items",
 								optional: false,
 								default: [
-									{ name: "", brand: "", supplier: "", quantity: 0, cost: 0, remark: "" },
-									["name", "brand", "supplier", "quantity", "cost", "remark"],
+									{ name: "", brand: "", supplier: "", quantity: 0, cost: 0, totalCost:0, remark: "" },
+									["name", "brand", "supplier", "quantity", "cost", "totalCost", "remark"],
 								],
 							},
 							{
