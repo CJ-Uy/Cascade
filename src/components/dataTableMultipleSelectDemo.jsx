@@ -178,7 +178,6 @@ export function DataTableMultipleSelectDemo() {
 
 	return (
 		<div className="w-full">
-
 			{/* Filter Emails Input */}
 			<div className="flex items-center py-4">
 				<Input
@@ -213,7 +212,6 @@ export function DataTableMultipleSelectDemo() {
 				</DropdownMenu>
 			</div>
 			<div className="rounded-md border">
-
 				{/* Table Proper */}
 				<Table>
 					<TableHeader>

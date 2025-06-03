@@ -7,9 +7,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export default async function Page() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+	const session = await auth.api.getSession({
+		headers: await headers(),
+	});
 
   if (!session) redirect("/auth/login");
 

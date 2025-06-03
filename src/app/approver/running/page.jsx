@@ -7,8 +7,7 @@ export default function Completed() {
 		<>
 			<div className="flex flex-col items-center justify-center">
 				<DashboardHeader title="Running Requests" />
-				<div className="flex w-[80%] flex-col">
-				</div>
+				<div className="flex w-[80%] flex-col"></div>
 			</div>
 		</>
 	);

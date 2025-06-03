@@ -7,8 +7,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export const SignOutButton = () => {
-  const [isPending, setIsPending] = useState(false);
-  const router = useRouter();
+	const [isPending, setIsPending] = useState(false);
+	const router = useRouter();
 
   async function handleClick() {
     await signOut({
@@ -30,9 +30,9 @@ export const SignOutButton = () => {
     });
   }
 
-  return (
-    <Button onClick={handleClick} size="sm" variant="destructive" disabled={isPending}>
-      Sign Out
-    </Button>
-  );
+	return (
+		<Button onClick={handleClick} size="sm" variant="destructive" disabled={isPending}>
+			Sign Out
+		</Button>
+	);
 };

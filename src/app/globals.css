@@ -46,9 +46,9 @@
 	/* Your new palette for light mode */
 	--background: #faf7f5; /* Your --background */
 	--foreground: #31333f; /* Your --text */
-	--primary: #31333f;    /* Your --primary (dark blue) */
-	--secondary: #faf7f5;  /* Your --secondary (same as background) */
-	--accent: #8ad13d;     /* Your --accent (green) */
+	--primary: #31333f; /* Your --primary (dark blue) */
+	--secondary: #faf7f5; /* Your --secondary (same as background) */
+	--accent: #8ad13d; /* Your --accent (green) */
 
 	/* Derived and other variables */
 	--card: var(--background); /* Or oklch(1 0 0) for pure white if preferred */
@@ -84,9 +84,9 @@
 	/* Your new palette for dark mode */
 	--background: #0a0705; /* Your dark --background */
 	--foreground: #c0c2ce; /* Your dark --text */
-	--primary: #c0c2ce;    /* Your dark --primary (light color for elements/text) */
-	--secondary: #0a0705;  /* Your dark --secondary (same as background) */
-	--accent: #7ac22e;     /* Your dark --accent (darker green) */
+	--primary: #c0c2ce; /* Your dark --primary (light color for elements/text) */
+	--secondary: #0a0705; /* Your dark --secondary (same as background) */
+	--accent: #7ac22e; /* Your dark --accent (darker green) */
 
 	/* Derived and other variables */
 	--card: oklch(0.12 0 0); /* Slightly lighter than background (e.g. #1f1f1f) */
@@ -107,7 +107,7 @@
 	--chart-3: oklch(0.769 0.188 70.08);
 	--chart-4: oklch(0.627 0.265 303.9);
 	--chart-5: oklch(0.645 0.246 16.439);
-	--sidebar: oklch(0.10 0 0); /* Darker than card, lighter than main bg (e.g. #1a1a1a) */
+	--sidebar: oklch(0.1 0 0); /* Darker than card, lighter than main bg (e.g. #1a1a1a) */
 	--sidebar-foreground: var(--foreground);
 	--sidebar-primary: var(--primary);
 	--sidebar-primary-foreground: var(--primary-foreground);

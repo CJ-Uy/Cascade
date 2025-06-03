@@ -7,8 +7,7 @@ export default function RequisitionTemplates() {
 		<>
 			<div className="flex flex-col items-center justify-center">
 				<DashboardHeader title="Requisition Templates" />
-				<div className="flex w-[80%] flex-col">
-				</div>
+				<div className="flex w-[80%] flex-col"></div>
 			</div>
 		</>
 	);
