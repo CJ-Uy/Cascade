@@ -4,12 +4,57 @@ import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { useState, useEffect } from "react";
 
 export default function Home() {
 	const { data: session, isPending } = useSession();
 
-	if (session) {
-		redirect("/profile"); // Can change to whatever they have to go to if they are logged in.
+	const [serverData, setServerData] = useState();
+
+
+    // Run once on mount
+    useEffect(() => {
+		if (session) {
+			async function fetchData() {
+				try {
+					let response = await fetch("/api/user/get", {
+						method: "POST",
+						body: JSON.stringify({id: session?.user.id})
+					});
+					const data = await response.json(); 
+					setServerData(data["siteRole"]); // Data is now in serverData
+				} catch (err) {
+					console.error("Failed to fetch data:", err);
+				}
+			}
+
+			// Fetch the details from the api
+			fetchData()
+
+			// Situational Polling if you want to watch data from server
+			const intervalId = setInterval(fetchData, 2000); // fetchData every 2 seconds
+			return () => {
+				clearInterval(intervalId); // Clear the interval
+			};
+		}
+    }, [session]);
+
+	// Redirects user if serverData changes to
+	useEffect(() => {
+		if (serverData == "initiator") {
+			redirect("/initiator");
+		} else if (serverData == "bu-head") {
+			redirect("/bu-head");
+		} else if (serverData == "akiva-approver") {
+			redirect("/akiva-approver");
+		} else if (serverData == "approver") {
+			redirect("/approver");
+		}
+	}, [serverData])
+
+
+	if (session) {	
+		//redirect("/profile"); // Can change to whatever they have to go to if they are logged in.
 	}
 
 	if (isPending) {
