@@ -31,17 +31,18 @@ export async function POST(request) {
 			id: bu[0].id,
 		},
 		select: {
+			id: true,
 			requisitionTemplates: true,
 		},
 	});
 
 	// Filter the templates based on the user's role
-	const templatesToShow = {};
+	const templatesToShow = { id: bu[0].id, requisitionTemplates: {} };
 	for (const key in templates) {
 		for (const role of userRole) {
 			if (templates[key].initiatorAccess.includes(role.id)) {
 				delete templates[key].initiatorAccess;
-				templatesToShow[key] = templates[key];
+				templatesToShow.requisitionTemplates[key] = templates[key];
 			}
 		}
 	}

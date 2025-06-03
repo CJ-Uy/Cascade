@@ -138,6 +138,7 @@ export default function CreateRequisitionPage() {
 	const [templatesData, setTemplatesData] = useState<TemplatesData | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>("");
+	const [buId, setBuId] = useState<string>("");
 
 	const [dynamicSchema, setDynamicSchema] = useState(() => z.object({}));
 	const [dynamicDefaults, setDynamicDefaults] = useState<Record<string, any>>({});
@@ -164,11 +165,8 @@ export default function CreateRequisitionPage() {
 					throw new Error(`API error: ${response.statusText}`);
 				}
 				const data = await response.json();
-				console.log(
-					"Fetched templatesData (New Default Structure Check):",
-					JSON.stringify(data, null, 2),
-				);
-				setTemplatesData(data);
+				setTemplatesData(data.requisitionTemplates);
+				setBuId(data.id);
 			} catch (err) {
 				console.error("Failed to fetch templates:", err);
 				toast.error(
@@ -179,8 +177,12 @@ export default function CreateRequisitionPage() {
 				setIsLoading(false);
 			}
 		}
-		loadTemplates();
-	}, []);
+
+		if (session) {
+			loadTemplates();
+		}
+
+	}, [session]);
 
 	useEffect(() => {
 		if (!templatesData) {
@@ -207,6 +209,10 @@ export default function CreateRequisitionPage() {
 		toast("You submitted the following values:", {
 			description: (
 				<pre className="mt-2 w-full max-w-md overflow-x-auto rounded-md bg-neutral-950 p-4">
+					{session?.user.id}
+					<br />
+					{buId}
+					<br />
 					<code className="text-white">{JSON.stringify(data, null, 2)}</code>
 				</pre>
 			),
