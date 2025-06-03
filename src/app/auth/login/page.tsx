@@ -1,5 +1,5 @@
-import { LoginForm } from "@/components/login-form";
-import { ReturnButton } from "@/components/return-button";
+import { LoginForm } from "@/components/auth/login-form";
+import { ReturnButton } from "@/components/auth/return-button";
 import Link from "next/link";
 
 export default function Page() {

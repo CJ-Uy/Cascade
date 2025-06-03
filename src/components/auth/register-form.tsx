@@ -1,14 +1,46 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { signUp } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { signUp, useSession } from "@/lib/auth-client";
+import { redirect, useRouter } from "next/navigation";
 
 export const RegisterForm = () => {
+	const { data: session } = useSession();
+	const [serverData, setServerData] = useState();
+	const [canRedirect, setCanRedirect] = useState(false);
+
+	async function fetchData() {
+		try {
+			let response = await fetch("/api/user/get", {
+				method: "POST",
+				body: JSON.stringify({id: session?.user.id})
+			});
+			const data = await response.json(); 
+			setServerData(data["siteRole"]); // Data is now in serverData
+		} catch (err) {
+			console.error("Failed to fetch data:", err);
+		}
+	}
+	
+	// Redirects user if canRedirect is set to true.
+	useEffect(() => {
+		if (canRedirect && serverData != null) {
+			if (serverData == "initiator") {
+				redirect("/initiator");
+			} else if (serverData == "bu-head") {
+				redirect("/bu-head");
+			} else if (serverData == "akiva-approver") {
+				redirect("/akiva-approver");
+			} else if (serverData == "approver") {
+				redirect("/approver");
+			}
+		}
+	}, [serverData])
+
 	const [isPending, setIsPending] = useState(false);
 	const router = useRouter();
 
@@ -43,7 +75,8 @@ export const RegisterForm = () => {
 				},
 				onSuccess: () => {
 					toast.success("Registration successful. Welcome to Cascade bro.");
-					router.push("/profile");
+					fetchData();
+					setCanRedirect(true);
 				},
 			},
 		);

@@ -30,6 +30,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronUp } from "lucide-react";
 
+// Sign out imports.
+import { signOut } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+
 // Menu items.
 const items = [
 	{
@@ -70,7 +76,31 @@ const items = [
 ];
 
 export function BuHeadSideBar() {
+	// Sign out function.
+	const [isPending, setIsPending] = useState(false);
+	const router = useRouter();
+	async function handleClick() {
+		await signOut({
+		  fetchOptions: {
+			onRequest: () => {
+			  setIsPending(true);
+			},
+			onResponse: () => {
+			  setIsPending(false); 
+			},
+			onError: (ctx) => {
+			  toast.error(ctx.error.message);
+			},
+			onSuccess: () => {
+			  toast.success("You've logged out.");
+			  router.push("/auth/login");
+			},
+		  },
+		});
+	}
+
 	const path = usePathname();
+	
 	return (
 		<Sidebar>
 			{/* Header */}
@@ -117,7 +147,7 @@ export function BuHeadSideBar() {
 								<DropdownMenuItem>
 									<span>Report</span>
 								</DropdownMenuItem>
-								<DropdownMenuItem>
+								<DropdownMenuItem onSelect={handleClick}>
 									<span>Sign out</span>
 								</DropdownMenuItem>
 							</DropdownMenuContent>
