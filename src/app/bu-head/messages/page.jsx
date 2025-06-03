@@ -7,8 +7,7 @@ export default function Messages() {
 		<>
 			<div className="flex flex-col items-center justify-center">
 				<DashboardHeader title="Messaging" />
-				<div className="flex w-[80%] flex-col">
-				</div>
+				<div className="flex w-[80%] flex-col"></div>
 			</div>
 		</>
 	);

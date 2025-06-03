@@ -17,11 +17,11 @@ export async function POST(request) {
 		where: {
 			id: roleData.users[0].id,
 		},
-        include: {
-            password: false,
-            businessUnit: true,
-            role: true,
-        },
+		include: {
+			password: false,
+			businessUnit: true,
+			role: true,
+		},
 	});
 
 	return NextResponse.json(userData);

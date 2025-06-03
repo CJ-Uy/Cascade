@@ -178,7 +178,15 @@ async function main() {
 								title: "Items",
 								optional: false,
 								default: [
-									{ name: "", brand: "", supplier: "", quantity: 0, cost: 0, totalCost:0, remark: "" },
+									{
+										name: "",
+										brand: "",
+										supplier: "",
+										quantity: 0,
+										cost: 0,
+										totalCost: 0,
+										remark: "",
+									},
 									["name", "brand", "supplier", "quantity", "cost", "totalCost", "remark"],
 								],
 							},

@@ -151,10 +151,11 @@ export default function CreateRequisitionPage() {
 		async function loadTemplates() {
 			setIsLoading(true);
 			try {
+				// Fetch templates from the API
 				const response = await fetch("/api/businessUnit/getTemplates", {
 					method: "POST",
 					body: JSON.stringify({
-						id: "c02b5bfb-bdb1-4673-963b-fccff73d0c98",
+						id: "d8f5997b-eabc-4fe4-96fe-50d9c97146aa", // TODO: Replace with actual user ID when auth works
 					}),
 				});
 				if (!response.ok) {
@@ -339,7 +340,7 @@ export default function CreateRequisitionPage() {
 											);
 										}
 									})}
-									<Button type="submit" className="w-full md:w-auto bg-accent hover:bg-accent/80">
+									<Button type="submit" className="bg-accent hover:bg-accent/80 w-full md:w-auto">
 										Submit
 									</Button>
 								</form>

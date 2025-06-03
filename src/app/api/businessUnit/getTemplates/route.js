@@ -22,10 +22,10 @@ export async function POST(request) {
 				},
 			},
 		},
-    });
+	});
 
-    // Get the templates from said business unit
-    // TODO: add support for multiple business units next time
+	// Get the templates from said business unit
+	// TODO: add support for multiple business units next time
 	const { requisitionTemplates: templates } = await prisma.businessUnit.findFirst({
 		where: {
 			id: bu[0].id,
@@ -35,15 +35,15 @@ export async function POST(request) {
 		},
 	});
 
-    // Filter the templates based on the user's role
-    const templatesToShow = {};
-    for (const key in templates) {
-        for (const role of userRole) {
-            if (templates[key].initiatorAccess.includes(role.id)) {
-                delete templates[key].initiatorAccess;
-                templatesToShow[key] = templates[key];
-            }
-        }
+	// Filter the templates based on the user's role
+	const templatesToShow = {};
+	for (const key in templates) {
+		for (const role of userRole) {
+			if (templates[key].initiatorAccess.includes(role.id)) {
+				delete templates[key].initiatorAccess;
+				templatesToShow[key] = templates[key];
+			}
+		}
 	}
 
 	return NextResponse.json(templatesToShow);
