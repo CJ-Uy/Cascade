@@ -8,11 +8,8 @@ import { useState, useEffect } from "react";
 
 export default function Home() {
 	const { data: session, isPending } = useSession();
-
 	const [serverData, setServerData] = useState();
 
-
-    // Run once on mount
     useEffect(() => {
 		if (session) {
 			async function fetchData() {
@@ -39,7 +36,7 @@ export default function Home() {
 		}
     }, [session]);
 
-	// Redirects user if serverData changes to
+	// Redirects user if serverData changes to a valid role.
 	useEffect(() => {
 		if (serverData == "initiator") {
 			redirect("/initiator");
@@ -51,11 +48,6 @@ export default function Home() {
 			redirect("/approver");
 		}
 	}, [serverData])
-
-
-	if (session) {	
-		//redirect("/profile"); // Can change to whatever they have to go to if they are logged in.
-	}
 
 	if (isPending) {
 		return (

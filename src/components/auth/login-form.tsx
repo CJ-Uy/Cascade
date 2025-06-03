@@ -1,16 +1,47 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { signIn } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { signIn, useSession } from "@/lib/auth-client";
+import { redirect } from "next/navigation";
 
 export const LoginForm = () => {
+	const { data: session } = useSession();
+	const [serverData, setServerData] = useState();
+	const [canRedirect, setCanRedirect] = useState(false);
+
+	async function fetchData() {
+		try {
+			let response = await fetch("/api/user/get", {
+				method: "POST",
+				body: JSON.stringify({id: session?.user.id})
+			});
+			const data = await response.json(); 
+			setServerData(data["siteRole"]); // Data is now in serverData
+		} catch (err) {
+			console.error("Failed to fetch data:", err);
+		}
+	}
+	
+	// Redirects user if canRedirect is set to true.
+	useEffect(() => {
+		if (canRedirect && serverData != null) {
+			if (serverData == "initiator") {
+				redirect("/initiator");
+			} else if (serverData == "bu-head") {
+				redirect("/bu-head");
+			} else if (serverData == "akiva-approver") {
+				redirect("/akiva-approver");
+			} else if (serverData == "approver") {
+				redirect("/approver");
+			}
+		}
+	}, [serverData])
+
 	const [isPending, setIsPending] = useState(false);
-	const router = useRouter();
 
 	async function handleSubmit(evt: React.FormEvent<HTMLFormElement>) {
 		evt.preventDefault();
@@ -36,8 +67,9 @@ export const LoginForm = () => {
             toast.error(ctx.error.message);
         },
         onSuccess: () => {
-          toast.success("Login successful. Welcome back chat.");
-          router.push("/profile"); // This can be changed to where the person will go if they manage to successfully register.
+			toast.success("Login successful. Welcome back.");
+			fetchData();
+			setCanRedirect(true);
         },
     });
   }
