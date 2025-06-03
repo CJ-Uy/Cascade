@@ -104,6 +104,7 @@ model Requisition {
   userId         String
   fromBU         BusinessUnit @relation(fields: [businessUnitId], references: [id])
   businessUnitId String
+  templateName   String
 
   stage     Int    @default(0) // This is the index of the array in approvals[] 
   approvals Json[]

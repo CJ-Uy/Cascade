@@ -181,7 +181,6 @@ export default function CreateRequisitionPage() {
 		if (session) {
 			loadTemplates();
 		}
-
 	}, [session]);
 
 	useEffect(() => {
@@ -205,19 +204,25 @@ export default function CreateRequisitionPage() {
 		}
 	}, [selectedTemplateKey, templatesData, form.reset]);
 
-	function onSubmit(data: Record<string, any>) {
-		toast("You submitted the following values:", {
-			description: (
-				<pre className="mt-2 w-full max-w-md overflow-x-auto rounded-md bg-neutral-950 p-4">
-					{session?.user.id}
-					<br />
-					{buId}
-					<br />
-					<code className="text-white">{JSON.stringify(data, null, 2)}</code>
-				</pre>
-			),
+	async function onSubmit(data: Record<string, any>) {
+		const response = await fetch("/api/requisition/save", {
+			method: "POST",
+			body: JSON.stringify({
+				userId: session?.user.id,
+				businessUnitId: buId,
+				templateName: selectedTemplateKey,
+				values: data,
+			}),
 		});
-		console.log("Form data submitted:", data);
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			toast.error(`Failed to save requisition: ${errorText}`);
+		} else {
+			toast.success("Requisition saved successfully!");
+			form.reset();
+			setSelectedTemplateKey("");
+		}
 	}
 
 	if (isLoading) {

@@ -69,6 +69,7 @@ Table Requisition {
   userId String [not null]
   fromBU BusinessUnit [not null]
   businessUnitId String [not null]
+  templateName String [not null]
   stage Int [not null, default: 0]
   approvals Json[] [not null]
   values Json [not null]
