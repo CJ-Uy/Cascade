@@ -5,15 +5,15 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { signIn, useSession } from "@/lib/auth-client";
+import { getSession, signIn, useSession } from "@/lib/auth-client";
 import { redirect } from "next/navigation";
 
 export const LoginForm = () => {
-	const { data: session } = useSession();
 	const [serverData, setServerData] = useState();
 	const [canRedirect, setCanRedirect] = useState(false);
 
 	async function fetchData() {
+		const { data: session } = await getSession();
 		try {
 			let response = await fetch("/api/user/get", {
 				method: "POST",
@@ -24,10 +24,13 @@ export const LoginForm = () => {
 		} catch (err) {
 			console.error("Failed to fetch data:", err);
 		}
+
+		setCanRedirect(true);
 	}
 
 	// Redirects user if canRedirect is set to true.
 	useEffect(() => {
+		console.log(serverData);
 		if (canRedirect && serverData != null) {
 			if (serverData == "initiator") {
 				redirect("/initiator");
@@ -39,7 +42,7 @@ export const LoginForm = () => {
 				redirect("/approver");
 			}
 		}
-	}, [serverData]);
+	}, [canRedirect]);
 
 	const [isPending, setIsPending] = useState(false);
 
@@ -71,7 +74,6 @@ export const LoginForm = () => {
 				onSuccess: () => {
 					toast.success("Login successful. Welcome back.");
 					fetchData();
-					setCanRedirect(true);
 				},
 			},
 		);
