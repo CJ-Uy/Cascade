@@ -1,4 +1,3 @@
-import { connect } from "http2";
 import { PrismaClient } from "../../src/generated/prisma/index.js";
 import { faker } from "@faker-js/faker";
 
@@ -120,14 +119,22 @@ async function main() {
 						initiatorAccess: [roles[0], roles[1], roles[2], roles[3], roles[4]],
 						values: [
 							{
-								title: "Purpose",
+								title: "Description",
 								optional: false,
 								default: "",
 							},
 							{
 								title: "Items",
 								optional: false,
-								default: [], // JSON[] => each element being {name:"", cost:0, remark:""}
+								default: [
+									{ name: "", quantity: 0, cost: 0, remark: "" },
+									["name", "quantity", "cost", "remark"],
+								],
+							},
+							{
+								title: "People repair will benefit",
+								optional: false,
+								default: [{ name: ""}],
 							},
 							{
 								title: "Notes",
@@ -147,7 +154,10 @@ async function main() {
 							{
 								title: "Items",
 								optional: false,
-								default: [], // JSON[] => each element being {name:"", cost:0, remark:""}
+								default: [
+									{ name: "", quantity: 0, cost: 0, remark: "" },
+									["name", "quantity", "cost", "remark"],
+								],
 							},
 							{
 								title: "Notes",
@@ -167,7 +177,10 @@ async function main() {
 							{
 								title: "Items",
 								optional: false,
-								default: [], // JSON[] => each element being {name:"", cost:0, remark:""}
+								default: [
+									{ name: "", brand: "", supplier: "", quantity: 0, cost: 0, remark: "" },
+									["name", "brand", "supplier", "quantity", "cost", "remark"],
+								],
 							},
 							{
 								title: "Notes",
