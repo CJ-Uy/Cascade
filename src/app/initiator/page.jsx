@@ -42,7 +42,7 @@ export default function Initiator() {
 			<div className="flex flex-col items-center justify-center">
 				<DashboardHeader title="Dashboard" />
 				<div className="flex w-[80%] flex-col">
-					<RequisitionTable data={myRequests} />
+					<RequisitionTable data={myRequests} siteRole="initiator" />
 				</div>
 			</div>
 		</>

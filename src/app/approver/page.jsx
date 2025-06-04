@@ -17,7 +17,7 @@ export default function Approver() {
 
 		async function fetchData() {
 			try {
-				const response = await fetch("/api/requisition/getAll/asInitiator", {
+				const response = await fetch("/api/requisition/getAll/asApprover", {
 					method: "POST",
 					body: JSON.stringify({ id: session?.user?.id }),
 				});
@@ -41,7 +41,7 @@ export default function Approver() {
 			<div className="flex flex-col items-center justify-center">
 				<DashboardHeader title="Dashboard" />
 				<div className="flex w-[80%] flex-col">
-					<RequisitionTable data={myRequests} />
+					<RequisitionTable data={myRequests} siteRole="approver" />
 				</div>
 			</div>
 		</>

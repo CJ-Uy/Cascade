@@ -78,4 +78,5 @@ export interface Requisition {
 	values: RequisitionValues;
 	initiator: Initiator;
 	fromBU: BusinessUnit;
+	approversRoleNames: string[];
 }

@@ -17,7 +17,7 @@ export default function AkivaApprover() {
 
 		async function fetchData() {
 			try {
-				const response = await fetch("/api/requisition/getAll/asInitiator", {
+				const response = await fetch("/api/requisition/getAll/asAkivaApprover", {
 					method: "POST",
 					body: JSON.stringify({ id: session?.user?.id }),
 				});
@@ -42,7 +42,7 @@ export default function AkivaApprover() {
 			<div className="flex flex-col items-center justify-center">
 				<DashboardHeader title="Dashboard" />
 				<div className="flex w-[80%] flex-col">
-					<RequisitionTable data={myRequests} />
+					<RequisitionTable data={myRequests} siteRole="akiva-approver" />
 				</div>
 			</div>
 		</>

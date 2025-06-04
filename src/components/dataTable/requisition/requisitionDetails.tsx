@@ -24,7 +24,7 @@ interface RequisitionDetailsProps {
 const formatCurrency = (amount: number) =>
 	new Intl.NumberFormat("en-US", {
 		style: "currency",
-		currency: "USD", // Adjust currency as needed
+		currency: "PHP", 
 	}).format(amount);
 
 const RequisitionDetails: React.FC<RequisitionDetailsProps> = ({ requisition }) => {
@@ -167,8 +167,7 @@ const RequisitionDetails: React.FC<RequisitionDetailsProps> = ({ requisition }) 
 												>
 													<TableCell>{index + 1}</TableCell>
 													<TableCell className="max-w-[150px] truncate">
-														{approval.approverRole}
-														??sigma
+														{requisition.approversRoleNames[index]}
 													</TableCell>
 													<TableCell>
 														<Badge

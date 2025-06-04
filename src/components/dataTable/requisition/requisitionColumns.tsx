@@ -78,7 +78,7 @@ export const columns: ColumnDef<RequisitionDisplayItem>[] = [
 			const amount = parseFloat(row.getValue("totalCost"));
 			const formatted = new Intl.NumberFormat("en-US", {
 				style: "currency",
-				currency: "USD", // Adjust currency as needed
+				currency: "PHP", // Adjust currency as needed
 			}).format(amount);
 			return <div className="text-right font-medium">{formatted}</div>;
 		},
