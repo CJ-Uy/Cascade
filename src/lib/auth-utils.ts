@@ -28,7 +28,7 @@ const ROLE_PATHS: Record<string, string> = {
 };
 
 // Define the default path to redirect to if no specific role path is found or on error
-const DEFAULT_LOGIN_PATH = "/auth/login";
+const DEFAULT_LOGIN_PATH = "/norole";
 
 /**
  * Fetches the user's site role and determines the appropriate redirect path.

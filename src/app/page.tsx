@@ -38,15 +38,20 @@ export default function Home() {
 
 	// Redirects user if serverData changes to a valid role.
 	useEffect(() => {
-		if (serverData == "initiator") {
-			redirect("/initiator");
-		} else if (serverData == "bu-head") {
-			redirect("/bu-head");
-		} else if (serverData == "akiva-approver") {
-			redirect("/akiva-approver");
-		} else if (serverData == "approver") {
-			redirect("/approver");
+		if (serverData != null || serverData != undefined) {
+			if (serverData == "initiator") {
+				redirect("/initiator");
+			} else if (serverData == "bu-head") {
+				redirect("/bu-head");
+			} else if (serverData == "akiva-approver") {
+				redirect("/akiva-approver");
+			} else if (serverData == "approver") {
+				redirect("/approver");
+			} else {
+				redirect("/norole");
+			}
 		}
+		
 	}, [serverData]);
 
 	if (isPending) {

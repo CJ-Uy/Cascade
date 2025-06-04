@@ -1,8 +1,10 @@
+"use client";
+
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { useSession } from "@/lib/auth-client";
 import { redirect } from "next/navigation";
 
-export default async function Page() {
+export default function Page() {
   const { data: session, isPending: isSessionPending } = useSession();
   if (!session) redirect("/auth/login");
 
@@ -12,7 +14,7 @@ export default async function Page() {
         <h1 className="text-3xl font-bold">Logged In!</h1>
 
         <p>
-          However, it seems that the higher authorities have not given this email a role yet.
+          However, it seems like the authorities have not given this email a role yet.
         </p>
 
         <p>

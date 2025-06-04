@@ -30,8 +30,7 @@ export const LoginForm = () => {
 
 	// Redirects user if canRedirect is set to true.
 	useEffect(() => {
-		console.log(serverData);
-		if (canRedirect && serverData != null) {
+		if (serverData != null || serverData != undefined) {
 			if (serverData == "initiator") {
 				redirect("/initiator");
 			} else if (serverData == "bu-head") {
@@ -40,6 +39,8 @@ export const LoginForm = () => {
 				redirect("/akiva-approver");
 			} else if (serverData == "approver") {
 				redirect("/approver");
+			} else {
+				redirect("/norole");
 			}
 		}
 	}, [canRedirect]);
