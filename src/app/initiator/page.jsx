@@ -1,12 +1,12 @@
 "use client";
 
-import { DashboardHeader } from "@/components/dashboardHeader";
-import { DataTableMultipleSelectDemo } from "@/components/dataTableMultipleSelectDemo";
-import { DataTableSingleOpenDemo } from "@/components/dataTableSingleOpenDemo";
 import { fetchRoleAndGetRedirectPath } from "@/lib/auth-utils";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "@/lib/auth-client";
+
+import { DashboardHeader } from "@/components/dashboardHeader";
+import { RequisitionTable } from "@/components/dataTable/requisition/requisitionTable";
 
 export default function Initiator() {
 	const router = useRouter();
@@ -73,9 +73,7 @@ export default function Initiator() {
 			<div className="flex flex-col items-center justify-center">
 				<DashboardHeader title="Dashboard" />
 				<div className="flex w-[80%] flex-col">
-					<DataTableMultipleSelectDemo />
-					<DataTableSingleOpenDemo />
-					<pre>{JSON.stringify(myRequests, null, 2)}</pre>
+					<RequisitionTable data={myRequests} />
 				</div>
 			</div>
 		</>

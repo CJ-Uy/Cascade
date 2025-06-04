@@ -1,10 +1,12 @@
 "use client";
 
-import { DashboardHeader } from "@/components/dashboardHeader";
 import { fetchRoleAndGetRedirectPath } from "@/lib/auth-utils";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "@/lib/auth-client";
+
+import { DashboardHeader } from "@/components/dashboardHeader";
+import { RequisitionTable } from "@/components/dataTable/requisition/requisitionTable";
 
 export default function Approver() {
 	const router = useRouter();
@@ -63,7 +65,7 @@ export default function Approver() {
 			<div className="flex flex-col items-center justify-center">
 				<DashboardHeader title="Dashboard" />
 				<div className="flex w-[80%] flex-col">
-					<pre>{JSON.stringify(myRequests, null, 2)}</pre>
+					<RequisitionTable data={myRequests} />
 				</div>
 			</div>
 		</>
