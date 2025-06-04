@@ -41,11 +41,11 @@ const RequisitionDetails: React.FC<RequisitionDetailsProps> = ({ requisition }) 
 					<CardTitle>General Information</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-1 text-sm">
-					<p>
+					{/* <p>
 						<strong>ID:</strong> {requisition.id}
-					</p>
+					</p> */}
 					<p>
-						<strong>Template:</strong> {requisition.templateName}
+						<strong>Name:</strong> {requisition.templateName}
 					</p>
 					<p>
 						<strong>Created:</strong> {new Date(requisition.createdAt).toLocaleString()}
@@ -66,10 +66,10 @@ const RequisitionDetails: React.FC<RequisitionDetailsProps> = ({ requisition }) 
 				defaultValue={["values", "approvals"]}
 			>
 				<AccordionItem value="values">
-					<AccordionTrigger>Request Values</AccordionTrigger>
+					<AccordionTrigger>Summary</AccordionTrigger>
 					<AccordionContent>
 						<Card>
-							<CardContent className="space-y-3 pt-4 text-sm">
+							<CardContent className="space-y-3 text-sm">
 								{values.description && (
 									<p>
 										<strong>Description:</strong> {values.description}
@@ -150,7 +150,7 @@ const RequisitionDetails: React.FC<RequisitionDetailsProps> = ({ requisition }) 
 										<TableHeader>
 											<TableRow>
 												<TableHead className="w-[30px]">#</TableHead>
-												<TableHead>Role ID</TableHead>
+												<TableHead>Role</TableHead>
 												<TableHead>Status</TableHead>
 												<TableHead>Comments</TableHead>
 											</TableRow>
@@ -168,6 +168,7 @@ const RequisitionDetails: React.FC<RequisitionDetailsProps> = ({ requisition }) 
 													<TableCell>{index + 1}</TableCell>
 													<TableCell className="max-w-[150px] truncate">
 														{approval.approverRole}
+														??sigma
 													</TableCell>
 													<TableCell>
 														<Badge
@@ -205,15 +206,12 @@ const RequisitionDetails: React.FC<RequisitionDetailsProps> = ({ requisition }) 
 					<AccordionTrigger>Initiator Details</AccordionTrigger>
 					<AccordionContent>
 						<Card>
-							<CardContent className="space-y-1 pt-4 text-sm">
+							<CardContent className="space-y-1 text-sm">
 								<p>
 									<strong>Name:</strong> {initiator.name}
 								</p>
 								<p>
 									<strong>Email:</strong> {initiator.email}
-								</p>
-								<p>
-									<strong>ID:</strong> {initiator.id}
 								</p>
 							</CardContent>
 						</Card>
@@ -224,12 +222,9 @@ const RequisitionDetails: React.FC<RequisitionDetailsProps> = ({ requisition }) 
 					<AccordionTrigger>Business Unit</AccordionTrigger>
 					<AccordionContent>
 						<Card>
-							<CardContent className="space-y-1 pt-4 text-sm">
+							<CardContent className="space-y-1 text-sm">
 								<p>
 									<strong>Name:</strong> {fromBU.name}
-								</p>
-								<p>
-									<strong>ID:</strong> {fromBU.id}
 								</p>
 							</CardContent>
 						</Card>
