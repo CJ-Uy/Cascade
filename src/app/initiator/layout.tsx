@@ -6,6 +6,7 @@ import { InitiatorSideBar } from "@/components/initiator/sidebar";
 import { fetchRoleAndGetRedirectPath } from "@/lib/auth-utils";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
 	const [shouldRenderPageContent, setShouldRenderPageContent] = useState(false);
@@ -25,7 +26,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 	}, [router]);
 
 	if (!shouldRenderPageContent) {
-		return <p>Verifying access...</p>; // Or null, or a loader
+		return <LoadingScreen />
 	}
 
 	return (
