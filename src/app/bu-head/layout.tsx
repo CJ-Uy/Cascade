@@ -28,7 +28,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 	}, [router]);
 
 	if (!shouldRenderPageContent) {
-		return <LoadingScreen />
+		return (
+			<LoadingScreen />
+		)
 	}
 
 	return (
