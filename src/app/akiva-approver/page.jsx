@@ -1,7 +1,5 @@
 "use client";
 
-import { fetchRoleAndGetRedirectPath } from "@/lib/auth-utils";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 
@@ -9,32 +7,17 @@ import { DashboardHeader } from "@/components/dashboardHeader";
 import { RequisitionTable } from "@/components/dataTable/requisition/requisitionTable";
 
 export default function AkivaApprover() {
-	const router = useRouter();
-	const [shouldRenderPageContent, setShouldRenderPageContent] = useState(false);
 	const { data: session, isPending: isSessionPending } = useSession();
 	const [myRequests, setMyRequests] = useState([]);
 
 	useEffect(() => {
-		async function redirectToPath() {
-			const targetPath = await fetchRoleAndGetRedirectPath();
-			const currentPath = window.location.pathname;
-			if (targetPath !== currentPath) {
-				router.push(targetPath);
-			} else {
-				setShouldRenderPageContent(true);
-			}
-		}
-		redirectToPath();
-	}, [router]);
-
-	useEffect(() => {
-		if (!shouldRenderPageContent || isSessionPending || !session?.user?.id) {
+		if (isSessionPending || !session?.user?.id) {
 			return; // Don't fetch if not ready or no user ID
 		}
 
 		async function fetchData() {
 			try {
-				const response = await fetch("/api/requisition/getAll/asAkivaApprover", {
+				const response = await fetch("/api/requisition/getAll/asInitiator", {
 					method: "POST",
 					body: JSON.stringify({ id: session?.user?.id }),
 				});
@@ -50,15 +33,9 @@ export default function AkivaApprover() {
 		}
 
 		fetchData(); // Initial fetch
-	}, [shouldRenderPageContent, session, isSessionPending]);
 
-	if (isSessionPending) {
-		return <p>Loading session...</p>; // Or a loader component
-	}
+	}, [session, isSessionPending]);
 
-	if (!shouldRenderPageContent) {
-		return <p>Verifying access...</p>; // Or null, or a loader
-	}
 
 	return (
 		<>
