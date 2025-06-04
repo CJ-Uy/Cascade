@@ -1,7 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 
-const protectedRoutes = ["/profile", "/initiator", "bu-head", "approver", "akiva-approver"];
+const protectedRoutes = ["/norole", "/initiator", "bu-head", "approver", "akiva-approver"];
 
 export async function middleware(req: NextRequest) {
   const { nextUrl } = req;
@@ -17,8 +17,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/auth/login", req.url));
   }
 
+
   if (isOnAuthRoute && isLoggedIn) {
-    return NextResponse.redirect(new URL("/profile", req.url));
+    return NextResponse.redirect(new URL("/norole", req.url));
   }
 
   return res;
