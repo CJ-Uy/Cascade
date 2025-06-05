@@ -15,7 +15,7 @@ export type RequisitionDisplayItem = {
 	businessUnitName: string;
 	createdAt: string;
 	totalCost: number;
-	status: string;
+	status: string; // Will store "PENDING", "APPROVED", "REJECTED", "NO_APPROVAL"
 	originalData: Requisition;
 };
 
@@ -84,16 +84,35 @@ export const columns: ColumnDef<RequisitionDisplayItem>[] = [
 		},
 	},
 	{
-		accessorKey: "status",
-		header: "Status",
+		accessorKey: "status", // This now refers to the overall status for sorting
+		header: "Progress", // Changed header
 		cell: ({ row }) => {
-			const status = row.getValue("status") as string;
-			let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
-			if (status === "PENDING") variant = "default";
-			if (status === "APPROVED") variant = "outline"; // Or create a "success" variant
-			if (status === "REJECTED") variant = "destructive";
+			const requisition = row.original.originalData;
+			const currentStageDisplay = requisition.stage + 1; // 1-indexed
+			const totalStages = requisition.approvals?.length || 0;
+			const overallStatus = row.original.status as string; // From transformData
 
-			return <Badge variant={variant}>{status.toUpperCase()}</Badge>;
+			let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
+
+			if (overallStatus === "APPROVED") {
+				variant = "outline"; // Typically for success/approved states
+			} else if (overallStatus === "REJECTED") {
+				variant = "destructive";
+			} else if (overallStatus === "PENDING") {
+				variant = "default"; // Or any color you use for pending
+			} else if (overallStatus === "NO_APPROVAL") {
+				variant = "secondary";
+			}
+
+			const displayText = totalStages > 0 ? `${currentStageDisplay - 1} / ${totalStages}` : "N/A";
+
+			return (
+				<div className="flex items-center justify-center">
+					<Badge variant={variant} className="px-2.5 py-0.5 text-xs font-medium">
+						{displayText}
+					</Badge>
+				</div>
+			);
 		},
 	},
 ];

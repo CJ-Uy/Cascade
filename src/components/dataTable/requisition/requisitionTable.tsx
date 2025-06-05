@@ -29,7 +29,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
-import { useRouter } from "next/navigation";
 import { Requisition } from "./types";
 import { columns as tableColumns, RequisitionDisplayItem } from "./requisitionColumns";
 import RequisitionDetails from "./requisitionDetails";
@@ -41,21 +40,42 @@ interface RequisitionTableProps {
 }
 
 const transformData = (rawData: Requisition[]): RequisitionDisplayItem[] => {
-	return rawData.map((req) => ({
-		id: req.id,
-		displayId: req.id.substring(0, 8) + "...",
-		templateName: req.templateName,
-		initiatorName: req.initiator.name,
-		businessUnitName: req.fromBU.name,
-		createdAt: req.createdAt, // Sorting will use this, display is handled in cell
-		totalCost: req.values.items.reduce((sum: number, item: any) => sum + (item.totalCost || 0), 0),
-		status: req.approvals[req.stage]?.status || "UNKNOWN",
-		originalData: req,
-	}));
+	return rawData.map((req) => {
+		let overallStatus: string;
+
+		if (!req.approvals || req.approvals.length === 0) {
+			overallStatus = "NO_APPROVAL"; // Or "COMPLETED" if no approval means auto-approved
+		} else {
+			const anyRejected = req.approvals.some((appr) => appr.status === "REJECTED");
+			const allApproved = req.approvals.every((appr) => appr.status === "APPROVED");
+
+			if (anyRejected) {
+				overallStatus = "REJECTED";
+			} else if (allApproved) {
+				overallStatus = "APPROVED";
+			} else {
+				overallStatus = "PENDING"; // Still in progress (some are PENDING or WAITING)
+			}
+		}
+
+		return {
+			id: req.id,
+			displayId: req.id.substring(0, 8) + "...",
+			templateName: req.templateName,
+			initiatorName: req.initiator.name,
+			businessUnitName: req.fromBU.name,
+			createdAt: req.createdAt,
+			totalCost: req.values.items.reduce(
+				(sum: number, item: any) => sum + (item.totalCost || 0),
+				0,
+			),
+			status: overallStatus, // This is the overall status for badge color
+			originalData: req,
+		};
+	});
 };
 
 export function RequisitionTable({ data: rawData, siteRole, userId }: RequisitionTableProps) {
-	const router = useRouter();
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [selectedRequisition, setSelectedRequisition] = React.useState<Requisition | null>(null);
 	const [isDetailModalOpen, setIsDetailModalOpen] = React.useState(false);
@@ -92,17 +112,20 @@ export function RequisitionTable({ data: rawData, siteRole, userId }: Requisitio
 
 		const response = await fetch("/api/requisition/approve", {
 			method: "POST",
-			body: JSON.stringify({ userId, comment: comment, requisitionId: selectedRequisition.id }),
+			body: JSON.stringify({
+				userId,
+				comment: comment,
+				requisitionId: selectedRequisition.id,
+			}),
 		});
 
 		handleCloseModal();
-		router.refresh();
+		window.location.reload();
 	};
 
 	const handleDelete = () => {
 		if (!selectedRequisition) return;
 		console.log("Delete clicked for:", selectedRequisition.id, "Comment:", comment);
-		// Implement actual delete logic here
 		if (window.confirm(`Are you sure you want to delete requisition ${selectedRequisition.id}?`)) {
 			alert(`Requisition ${selectedRequisition.id} deleted with comment: ${comment}`);
 			handleCloseModal();
@@ -112,7 +135,6 @@ export function RequisitionTable({ data: rawData, siteRole, userId }: Requisitio
 	const handleReturnForRevision = () => {
 		if (!selectedRequisition) return;
 		console.log("Return for Revision clicked for:", selectedRequisition.id, "Comment:", comment);
-		// Implement actual return logic here
 		alert(`Requisition ${selectedRequisition.id} returned for revision with comment: ${comment}`);
 		handleCloseModal();
 	};
