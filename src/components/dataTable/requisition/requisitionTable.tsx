@@ -26,16 +26,18 @@ import {
 	DialogTitle,
 	DialogDescription,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button"; // Added import
-import { Textarea } from "@/components/ui/textarea"; // Added import
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
-import { Requisition } from "./types"; // Adjust path
-import { columns as tableColumns, RequisitionDisplayItem } from "./requisitionColumns"; // Adjust path
-import RequisitionDetails from "./requisitionDetails"; // Adjust path
+import { useRouter } from "next/navigation";
+import { Requisition } from "./types";
+import { columns as tableColumns, RequisitionDisplayItem } from "./requisitionColumns";
+import RequisitionDetails from "./requisitionDetails";
 
 interface RequisitionTableProps {
 	data: Requisition[];
-	siteRole: string; // New prop
+	siteRole: string;
+	userId: string;
 }
 
 const transformData = (rawData: Requisition[]): RequisitionDisplayItem[] => {
@@ -52,11 +54,12 @@ const transformData = (rawData: Requisition[]): RequisitionDisplayItem[] => {
 	}));
 };
 
-export function RequisitionTable({ data: rawData, siteRole }: RequisitionTableProps) {
+export function RequisitionTable({ data: rawData, siteRole, userId }: RequisitionTableProps) {
+	const router = useRouter();
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [selectedRequisition, setSelectedRequisition] = React.useState<Requisition | null>(null);
 	const [isDetailModalOpen, setIsDetailModalOpen] = React.useState(false);
-	const [comment, setComment] = React.useState(""); // State for comment box
+	const [comment, setComment] = React.useState("");
 
 	const processedData = React.useMemo(() => transformData(rawData), [rawData]);
 
@@ -84,12 +87,16 @@ export function RequisitionTable({ data: rawData, siteRole }: RequisitionTablePr
 	};
 
 	// Placeholder action handlers
-	const handleApprove = () => {
+	const handleApprove = async () => {
 		if (!selectedRequisition) return;
-		console.log("Approve clicked for:", selectedRequisition.id, "Comment:", comment);
-		// Implement actual approval logic here
-		alert(`Requisition ${selectedRequisition.id} approved with comment: ${comment}`);
+
+		const response = await fetch("/api/requisition/approve", {
+			method: "POST",
+			body: JSON.stringify({ userId, comment: comment, requisitionId: selectedRequisition.id }),
+		});
+
 		handleCloseModal();
+		router.refresh();
 	};
 
 	const handleDelete = () => {

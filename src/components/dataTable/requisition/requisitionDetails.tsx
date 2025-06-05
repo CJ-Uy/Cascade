@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Accordion,
 	AccordionContent,
@@ -41,9 +41,6 @@ const RequisitionDetails: React.FC<RequisitionDetailsProps> = ({ requisition }) 
 					<CardTitle>General Information</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-1 text-sm">
-					{/* <p>
-						<strong>ID:</strong> {requisition.id}
-					</p> */}
 					<p>
 						<strong>Name:</strong> {requisition.templateName}
 					</p>
@@ -61,7 +58,6 @@ const RequisitionDetails: React.FC<RequisitionDetailsProps> = ({ requisition }) 
 
 			<Accordion
 				type="multiple"
-				collapsible
 				className="w-full"
 				defaultValue={["values", "approvals"]}
 			>

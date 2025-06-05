@@ -33,16 +33,24 @@ export default function AkivaApprover() {
 		}
 
 		fetchData(); // Initial fetch
-
 	}, [session, isSessionPending]);
-
 
 	return (
 		<>
 			<div className="flex flex-col items-center justify-center">
 				<DashboardHeader title="Dashboard" />
 				<div className="flex w-[80%] flex-col">
-					<RequisitionTable data={myRequests} siteRole="akiva-approver" />
+					{!isSessionPending && session?.user?.id && (
+						<RequisitionTable
+							data={myRequests}
+							siteRole="akiva-approver"
+							userId={session.user.id}
+						/>
+					)}
+					{isSessionPending && <p>Loading data...</p>}
+					{!isSessionPending && !session?.user?.id && (
+						<p>User not authenticated or ID missing.</p>
+					)}
 				</div>
 			</div>
 		</>
