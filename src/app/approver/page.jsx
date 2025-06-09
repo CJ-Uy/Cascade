@@ -5,7 +5,8 @@ import { useSession } from "@/lib/auth-client";
 
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { RequisitionTable } from "@/components/dataTable/requisition/requisitionTable";
-
+import { DataTableSingleOpenDemo } from "@/components/dataTableSingleOpenDemo";
+	
 export default function Approver() {
 	const { data: session, isPending: isSessionPending } = useSession();
 	const [myRequests, setMyRequests] = useState([]);
@@ -40,20 +41,15 @@ export default function Approver() {
 		<>
 			<div className="flex flex-col items-center justify-center">
 				<DashboardHeader title="Dashboard" />
+				<DataTableSingleOpenDemo />
 				<div className="flex w-[80%] flex-col">
 					{/* Conditional rendering using logical AND */}
 					{!isSessionPending && session?.user?.id && (
-						<RequisitionTable
-							data={myRequests}
-							siteRole="approver"
-							userId={session.user.id}
-						/>
+						<RequisitionTable data={myRequests} siteRole="approver" userId={session.user.id} />
 					)}
 					{/* You might want a loading indicator or message if not ready */}
 					{isSessionPending && <p>Loading data...</p>}
-					{!isSessionPending && !session?.user?.id && (
-						<p>User not authenticated or ID missing.</p>
-					)}
+					{!isSessionPending && !session?.user?.id && <p>User not authenticated or ID missing.</p>}
 				</div>
 			</div>
 		</>
