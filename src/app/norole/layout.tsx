@@ -3,7 +3,7 @@
 import { fetchRoleAndGetRedirectPath } from "@/lib/auth-utils";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LoadingScreen } from "@/components/ui/loading-screen";
+import { LoadingScreen } from "@/components/utils/loading-screen";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
 	const [shouldRenderPageContent, setShouldRenderPageContent] = useState(false);
@@ -23,11 +23,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 		checkAuthAndSetRender();
 	}, [router]);
 
-	if (!shouldRenderPageContent) {
-		return <LoadingScreen />
-	}
-
 	return (
-		<>{children}</>
+		
+		<>
+			{children}
+			<LoadingScreen isLoading={!shouldRenderPageContent} />
+		</>
 	);
 }
