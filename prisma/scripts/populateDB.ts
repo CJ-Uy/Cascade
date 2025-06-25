@@ -1,10 +1,39 @@
 import { PrismaClient } from "../../src/generated/prisma/index.js";
 import { faker } from "@faker-js/faker";
 import { signUp } from "../../src/lib/auth-client.js"; // Assuming this path is correct
+import { printUserDetails } from "./printUserDetails.js";
 
 const prisma = new PrismaClient();
 
 async function main() {
+	try {
+		console.log("🧹 Clearing existing data...");
+		// Delete in reverse order of dependency
+		await prisma.requisitionValue.deleteMany();
+		await prisma.requisitionTag.deleteMany();
+		await prisma.tag.deleteMany();
+		await prisma.notification.deleteMany();
+		await prisma.attachment.deleteMany();
+		await prisma.comment.deleteMany();
+		await prisma.requisitionApproval.deleteMany();
+		await prisma.requisition.deleteMany();
+		await prisma.fieldOption.deleteMany();
+		await prisma.templateField.deleteMany();
+		await prisma.templateInitiatorAccess.deleteMany();
+		await prisma.requisitionTemplate.deleteMany();
+		await prisma.approvalStepDefinition.deleteMany();
+		await prisma.approvalWorkflow.deleteMany();
+		await prisma.userRoleAssignment.deleteMany();
+		await prisma.userBusinessUnit.deleteMany();
+		await prisma.role.deleteMany();
+		await prisma.businessUnit.deleteMany();
+		await prisma.user.deleteMany();
+		console.log("✅ Database cleared.");
+	} catch (e) {
+		console.error("Error deleting data:", e);
+		process.exit(1);
+	}
+
 	console.log("🚀 Starting population script...");
 
 	try {
@@ -30,6 +59,10 @@ async function main() {
 		});
 		await prisma.userRoleAssignment.create({
 			data: { userId: ceoAccount!.user.id, roleId: ceoRole.id },
+		});
+		await prisma.user.update({
+			where: { id: ceoAccount!.user.id },
+			data: { status: "ACTIVE" },
 		});
 
 		// Create the main user for the Grocery Store BU Head
@@ -521,6 +554,9 @@ async function main() {
 	} finally {
 		await prisma.$disconnect();
 		console.log("🔌 Disconnected from database.");
+
+		// Display the user details for login uses
+		await printUserDetails();
 	}
 }
 
