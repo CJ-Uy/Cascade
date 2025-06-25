@@ -17,19 +17,24 @@ Table users {
   email String [unique, not null]
   emailVerified Boolean
   image String
-  active Boolean [not null, default: true]
-  roleAssignments UserRoleAssignment [not null]
-  initiatedRequisitions Requisition [not null]
-  assignedApprovals RequisitionApproval [not null]
+  status UserStatus [not null, default: 'UNASSIGNED']
   sessions sessions [not null]
   accounts accounts [not null]
+  roleAssignments UserRoleAssignment [not null]
   businessUnits UserBusinessUnit [not null]
   headedBusinessUnit BusinessUnit
+  initiatedRequisitions Requisition [not null]
+  assignedApprovals RequisitionApproval [not null]
+  comments Comment [not null]
+  uploadedAttachments Attachment [not null]
+  notifications Notification [not null]
+  createdTags Tag [not null]
+  tagAssignments RequisitionTag [not null]
 }
 
 Table sessions {
   id String [pk]
-  createdAt DateTime [not null]
+  createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
   expiresAt DateTime [not null]
   token String [unique, not null]
@@ -41,7 +46,7 @@ Table sessions {
 
 Table accounts {
   id String [pk]
-  createdAt DateTime [not null]
+  createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
   accountId String [not null]
   providerId String [not null]
@@ -58,7 +63,7 @@ Table accounts {
 
 Table verifications {
   id String [pk]
-  createdAt DateTime
+  createdAt DateTime [default: `now()`]
   updatedAt DateTime
   identifier String [not null]
   value String [not null]
@@ -70,8 +75,8 @@ Table BusinessUnit {
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
   name String [not null]
-  head users [not null]
   headId String [unique, not null]
+  head users [not null]
   members UserBusinessUnit [not null]
   roles Role [not null]
   requisitionTemplates RequisitionTemplate [not null]
@@ -81,6 +86,7 @@ Table BusinessUnit {
 Table UserBusinessUnit {
   userId String [not null]
   businessUnitId String [not null]
+  membershipType BUMembershipType [not null, default: 'MEMBER']
   user users [not null]
   businessUnit BusinessUnit [not null]
 
@@ -95,8 +101,9 @@ Table Role {
   updatedAt DateTime [not null]
   name String [not null]
   scope RoleScope [not null, default: 'BU']
-  businessUnit BusinessUnit
+  isBUAdmin Boolean [not null, default: false]
   businessUnitId String
+  businessUnit BusinessUnit
   userAssignments UserRoleAssignment [not null]
   accessibleTemplates TemplateInitiatorAccess [not null]
   approvalStepDefinitions ApprovalStepDefinition [not null]
@@ -109,9 +116,9 @@ Table Role {
 Table UserRoleAssignment {
   userId String [not null]
   roleId String [not null]
+  assignedAt DateTime [default: `now()`, not null]
   user users [not null]
   role Role [not null]
-  assignedAt DateTime [default: `now()`, not null]
 
   indexes {
     (userId, roleId) [pk]
@@ -128,8 +135,8 @@ Table RequisitionTemplate {
   businessUnit BusinessUnit [not null]
   fields TemplateField [not null]
   initiatorAccess TemplateInitiatorAccess [not null]
-  approvalWorkflow ApprovalWorkflow
   approvalWorkflowId String
+  approvalWorkflow ApprovalWorkflow
   requisitions Requisition [not null]
 
   indexes {
@@ -214,9 +221,13 @@ Table Requisition {
   fromBU BusinessUnit [not null]
   templateId String [not null]
   template RequisitionTemplate [not null]
+  overallStatus RequisitionStatus [not null, default: 'PENDING']
   approvalHistory RequisitionApproval [not null]
   submittedValues RequisitionValue [not null]
-  overallStatus RequisitionStatus [not null, default: 'PENDING']
+  attachments Attachment [not null]
+  actionLog Comment [not null]
+  notifications Notification [not null]
+  tags RequisitionTag [not null]
 }
 
 Table RequisitionApproval {
@@ -229,8 +240,7 @@ Table RequisitionApproval {
   stepDefinition ApprovalStepDefinition [not null]
   approverId String
   approver users
-  status ApprovalStatus [not null, default: 'PENDING']
-  comment String
+  status ApprovalStatus [not null, default: 'WAITING']
   actionedAt DateTime
 }
 
@@ -248,9 +258,83 @@ Table RequisitionValue {
   }
 }
 
+Table Attachment {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  url String [not null]
+  filename String [not null]
+  filetype String [not null]
+  size Int
+  uploaderId String [not null]
+  uploader users [not null]
+  requisitionId String
+  requisition Requisition
+  commentId String
+  comment Comment
+}
+
+Table Comment {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  content String [not null]
+  action ActionType [not null]
+  authorId String [not null]
+  author users [not null]
+  requisitionId String [not null]
+  requisition Requisition [not null]
+  attachments Attachment [not null]
+}
+
+Table Notification {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  message String [not null]
+  isRead Boolean [not null, default: false]
+  recipientId String [not null]
+  recipient users [not null]
+  requisitionId String
+  requisition Requisition
+}
+
+Table Tag {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  label String [unique, not null]
+  color String [not null, default: '#cccccc']
+  creatorId String [not null]
+  creator users [not null]
+  requisitions RequisitionTag [not null]
+}
+
+Table RequisitionTag {
+  requisitionId String [not null]
+  tagId String [not null]
+  requisition Requisition [not null]
+  tag Tag [not null]
+  assignedBy users [not null]
+  assignedById String [not null]
+  assignedAt DateTime [default: `now()`, not null]
+
+  indexes {
+    (requisitionId, tagId) [pk]
+  }
+}
+
+Enum UserStatus {
+  UNASSIGNED
+  ACTIVE
+  DISABLED
+}
+
+Enum BUMembershipType {
+  MEMBER
+  AUDITOR
+}
+
 Enum RoleScope {
   BU
   SYSTEM
+  AUDITOR
 }
 
 Enum FieldType {
@@ -267,9 +351,11 @@ Enum FieldType {
 }
 
 Enum RequisitionStatus {
+  DRAFT
   PENDING
+  NEEDS_CLARIFICATION
+  IN_REVISION
   APPROVED
-  DECLINED
   CANCELED
 }
 
@@ -277,8 +363,19 @@ Enum ApprovalStatus {
   WAITING
   PENDING
   APPROVED
-  DECLINED
-  SKIPPED
+  REQUESTED_CLARIFICATION
+  REQUESTED_REVISION
+}
+
+Enum ActionType {
+  SUBMIT
+  APPROVE
+  REQUEST_REVISION
+  REQUEST_CLARIFICATION
+  CLARIFY
+  RESUBMIT
+  COMMENT
+  CANCEL
 }
 
 Ref: sessions.userId > users.id [delete: Cascade]
@@ -330,3 +427,25 @@ Ref: RequisitionApproval.approverId > users.id
 Ref: RequisitionValue.requisitionId > Requisition.id [delete: Cascade]
 
 Ref: RequisitionValue.templateFieldId > TemplateField.id
+
+Ref: Attachment.uploaderId > users.id
+
+Ref: Attachment.requisitionId > Requisition.id [delete: Cascade]
+
+Ref: Attachment.commentId > Comment.id [delete: Cascade]
+
+Ref: Comment.authorId > users.id
+
+Ref: Comment.requisitionId > Requisition.id [delete: Cascade]
+
+Ref: Notification.recipientId > users.id [delete: Cascade]
+
+Ref: Notification.requisitionId > Requisition.id [delete: Cascade]
+
+Ref: Tag.creatorId > users.id
+
+Ref: RequisitionTag.requisitionId > Requisition.id [delete: Cascade]
+
+Ref: RequisitionTag.tagId > Tag.id [delete: Cascade]
+
+Ref: RequisitionTag.assignedById > users.id
