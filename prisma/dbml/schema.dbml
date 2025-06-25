@@ -22,14 +22,17 @@ Table users {
   accounts accounts [not null]
   roleAssignments UserRoleAssignment [not null]
   businessUnits UserBusinessUnit [not null]
+  notifications Notification [not null]
   headedBusinessUnit BusinessUnit
   initiatedRequisitions Requisition [not null]
   assignedApprovals RequisitionApproval [not null]
   comments Comment [not null]
   uploadedAttachments Attachment [not null]
-  notifications Notification [not null]
   createdTags Tag [not null]
-  tagAssignments RequisitionTag [not null]
+  taggedRequisitions RequisitionTag [not null]
+  chats ChatParticipant [not null]
+  sentChatMessages ChatMessage [not null]
+  createdGroupChats Chat [not null]
 }
 
 Table sessions {
@@ -271,6 +274,8 @@ Table Attachment {
   requisition Requisition
   commentId String
   comment Comment
+  chatMessageId String
+  chatMessage ChatMessage
 }
 
 Table Comment {
@@ -318,6 +323,42 @@ Table RequisitionTag {
   indexes {
     (requisitionId, tagId) [pk]
   }
+}
+
+Table Chat {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  chatType ChatType [not null]
+  groupName String
+  groupImageUrl String
+  creatorId String
+  creator users
+  participants ChatParticipant [not null]
+  messages ChatMessage [not null]
+}
+
+Table ChatParticipant {
+  chatId String [not null]
+  userId String [not null]
+  chat Chat [not null]
+  user users [not null]
+  lastReadAt DateTime
+
+  indexes {
+    (chatId, userId) [pk]
+  }
+}
+
+Table ChatMessage {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  content String
+  senderId String [not null]
+  sender users [not null]
+  chatId String [not null]
+  chat Chat [not null]
+  attachments Attachment [not null]
 }
 
 Enum UserStatus {
@@ -378,6 +419,11 @@ Enum ActionType {
   CANCEL
 }
 
+Enum ChatType {
+  PRIVATE
+  GROUP
+}
+
 Ref: sessions.userId > users.id [delete: Cascade]
 
 Ref: accounts.userId > users.id [delete: Cascade]
@@ -434,6 +480,8 @@ Ref: Attachment.requisitionId > Requisition.id [delete: Cascade]
 
 Ref: Attachment.commentId > Comment.id [delete: Cascade]
 
+Ref: Attachment.chatMessageId > ChatMessage.id [delete: Cascade]
+
 Ref: Comment.authorId > users.id
 
 Ref: Comment.requisitionId > Requisition.id [delete: Cascade]
@@ -449,3 +497,13 @@ Ref: RequisitionTag.requisitionId > Requisition.id [delete: Cascade]
 Ref: RequisitionTag.tagId > Tag.id [delete: Cascade]
 
 Ref: RequisitionTag.assignedById > users.id
+
+Ref: Chat.creatorId > users.id
+
+Ref: ChatParticipant.chatId > Chat.id [delete: Cascade]
+
+Ref: ChatParticipant.userId > users.id [delete: Cascade]
+
+Ref: ChatMessage.senderId > users.id
+
+Ref: ChatMessage.chatId > Chat.id [delete: Cascade]

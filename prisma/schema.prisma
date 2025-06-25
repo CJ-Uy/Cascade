@@ -41,19 +41,30 @@ model User {
   image         String?
   status        UserStatus @default(UNASSIGNED)
 
-  // --- Relations to other parts of the system ---
-  sessions              Session[]
-  accounts              Account[]
-  roleAssignments       UserRoleAssignment[]
-  businessUnits         UserBusinessUnit[]
-  headedBusinessUnit    BusinessUnit?         @relation("BUHead")
+  // Authentication
+  sessions Session[]
+  accounts Account[]
+
+  // Relations
+  roleAssignments UserRoleAssignment[]
+  businessUnits   UserBusinessUnit[]
+  notifications   Notification[]       @relation("Recipient")
+
+  // Admin
+  headedBusinessUnit BusinessUnit? @relation("BUHead")
+
+  // Actions
   initiatedRequisitions Requisition[]
   assignedApprovals     RequisitionApproval[] @relation("Approver")
   comments              Comment[]
   uploadedAttachments   Attachment[]
-  notifications         Notification[]        @relation("Recipient")
   createdTags           Tag[]
-  tagAssignments        RequisitionTag[]
+  taggedRequisitions    RequisitionTag[]
+
+  // Chat & Messaging
+  chats             ChatParticipant[]
+  sentChatMessages  ChatMessage[]     @relation("SentMessages")
+  createdGroupChats Chat[]            @relation("GroupCreator")
 
   @@map("users")
 }
@@ -340,21 +351,26 @@ model RequisitionValue {
 
 // Represents a file attachment linked to a requisition or a comment
 model Attachment {
-  id            String       @id @default(uuid())
-  createdAt     DateTime     @default(now())
-  url           String
-  filename      String
-  filetype      String
-  size          Int?
-  uploaderId    String
-  uploader      User         @relation(fields: [uploaderId], references: [id])
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+  url        String
+  filename   String
+  filetype   String
+  size       Int?
+  uploaderId String
+  uploader   User     @relation(fields: [uploaderId], references: [id])
+
+  // Relation of the attachment to the system
   requisitionId String?
   requisition   Requisition? @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
   commentId     String?
   comment       Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  chatMessageId String?
+  chatMessage   ChatMessage? @relation(fields: [chatMessageId], references: [id], onDelete: Cascade)
 
   @@index([requisitionId])
   @@index([commentId])
+  @@index([chatMessageId])
 }
 
 // The central audit trail for all actions and comments on a requisition
@@ -425,4 +441,70 @@ model RequisitionTag {
   assignedAt DateTime @default(now())
 
   @@id([requisitionId, tagId]) // Ensures a tag can only be applied once to a requisition.
+}
+
+// --- CHAT & MESSAGING SYSTEM ---
+// Represents a single conversation, either between two people or a group.
+model Chat {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // Will update when a new message is sent.
+
+  // The type of chat, which dictates its behavior.
+  chatType ChatType
+
+  // For GROUP chats, these fields can store metadata.
+  groupName     String?
+  groupImageUrl String?
+
+  // The user who created the group chat. Null for private chats.
+  creatorId String?
+  creator   User?   @relation("GroupCreator", fields: [creatorId], references: [id])
+
+  // A list of all users participating in this chat.
+  participants ChatParticipant[]
+
+  // The complete history of messages sent in this chat.
+  messages ChatMessage[]
+}
+
+// Enum to distinguish between private and group chats.
+enum ChatType {
+  PRIVATE // A 1-on-1 conversation.
+  GROUP // A conversation with 3 or more participants.
+}
+
+// The join table connecting Users to Chats. This is the heart of the chat system.
+model ChatParticipant {
+  chatId String
+  userId String
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // A timestamp of when the user last viewed this chat.
+  // Crucial for "unread message" indicators.
+  lastReadAt DateTime?
+
+  @@id([chatId, userId])
+}
+
+// Represents a single message sent within a chat.
+model ChatMessage {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  // The text content of the message. Nullable because a message could be just an attachment.
+  content String?
+
+  // The user who sent the message.
+  senderId String
+  sender   User   @relation("SentMessages", fields: [senderId], references: [id])
+
+  // The chat this message belongs to.
+  chatId String
+  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  // A list of attachments included with this message.
+  attachments Attachment[]
 }
