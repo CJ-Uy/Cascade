@@ -15,64 +15,16 @@ Table users {
   lastName String
   name String [not null]
   email String [unique, not null]
-  emailVerified Boolean [not null]
+  emailVerified Boolean
   image String
-  businessUnit BusinessUnit [not null]
-  requisitions Requisition [not null]
-  role Role [not null]
-  headsRole HeadsRole
-  headsRoleId String
+  active Boolean [not null, default: true]
+  roleAssignments UserRoleAssignment [not null]
+  initiatedRequisitions Requisition [not null]
+  assignedApprovals RequisitionApproval [not null]
   sessions sessions [not null]
   accounts accounts [not null]
-  active Boolean [not null, default: true]
-}
-
-Table BusinessUnit {
-  id String [pk]
-  createdAt DateTime [default: `now()`, not null]
-  updatedAt DateTime [not null]
-  name String [not null]
-  head HeadsRole
-  headsRoleId String
-  roles Role [not null]
-  users users [not null]
-  requisitions Requisition [not null]
-  requisitionTemplates Json [not null]
-  approvalSystem Json [not null]
-}
-
-Table Role {
-  id String [pk]
-  createdAt DateTime [default: `now()`, not null]
-  updatedAt DateTime [not null]
-  name String [not null]
-  businessUnit BusinessUnit
-  businessUnitId String
-  users users [not null]
-}
-
-Table HeadsRole {
-  id String [pk]
-  createdAt DateTime [default: `now()`, not null]
-  updatedAt DateTime [not null]
-  name String [not null]
-  users users [not null]
-  businessUnit BusinessUnit [not null]
-  isAkivaApprover Boolean [not null]
-}
-
-Table Requisition {
-  id String [pk]
-  createdAt DateTime [default: `now()`, not null]
-  updatedAt DateTime [not null]
-  initiator users [not null]
-  userId String [not null]
-  fromBU BusinessUnit [not null]
-  businessUnitId String [not null]
-  templateName String [not null]
-  stage Int [not null, default: 0]
-  approvals Json[] [not null]
-  values Json [not null]
+  businessUnits UserBusinessUnit [not null]
+  headedBusinessUnit BusinessUnit
 }
 
 Table sessions {
@@ -113,26 +65,268 @@ Table verifications {
   expiresAt DateTime [not null]
 }
 
-Table BusinessUnitToUser {
-  businessunitId String [ref: > BusinessUnit.id]
-  usersId String [ref: > users.id]
+Table BusinessUnit {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  name String [not null]
+  head users [not null]
+  headId String [unique, not null]
+  members UserBusinessUnit [not null]
+  roles Role [not null]
+  requisitionTemplates RequisitionTemplate [not null]
+  requisitions Requisition [not null]
 }
 
-Table RoleToUser {
-  roleId String [ref: > Role.id]
-  usersId String [ref: > users.id]
+Table UserBusinessUnit {
+  userId String [not null]
+  businessUnitId String [not null]
+  user users [not null]
+  businessUnit BusinessUnit [not null]
+
+  indexes {
+    (userId, businessUnitId) [pk]
+  }
 }
 
-Ref: users.headsRoleId > HeadsRole.id
+Table Role {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  name String [not null]
+  scope RoleScope [not null, default: 'BU']
+  businessUnit BusinessUnit
+  businessUnitId String
+  userAssignments UserRoleAssignment [not null]
+  accessibleTemplates TemplateInitiatorAccess [not null]
+  approvalStepDefinitions ApprovalStepDefinition [not null]
 
-Ref: BusinessUnit.headsRoleId > HeadsRole.id
+  indexes {
+    (name, businessUnitId) [unique]
+  }
+}
 
-Ref: Role.businessUnitId > BusinessUnit.id
+Table UserRoleAssignment {
+  userId String [not null]
+  roleId String [not null]
+  user users [not null]
+  role Role [not null]
+  assignedAt DateTime [default: `now()`, not null]
 
-Ref: Requisition.userId > users.id
+  indexes {
+    (userId, roleId) [pk]
+  }
+}
 
-Ref: Requisition.businessUnitId > BusinessUnit.id
+Table RequisitionTemplate {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  name String [not null]
+  description String
+  businessUnitId String [not null]
+  businessUnit BusinessUnit [not null]
+  fields TemplateField [not null]
+  initiatorAccess TemplateInitiatorAccess [not null]
+  approvalWorkflow ApprovalWorkflow
+  approvalWorkflowId String
+  requisitions Requisition [not null]
+
+  indexes {
+    (name, businessUnitId) [unique]
+  }
+}
+
+Table TemplateField {
+  id String [pk]
+  templateId String [not null]
+  template RequisitionTemplate [not null]
+  label String [not null]
+  fieldType FieldType [not null]
+  isRequired Boolean [not null, default: true]
+  placeholder String
+  order Int [not null]
+  options FieldOption [not null]
+  listColumns TemplateField [not null]
+  parentListFieldId String
+  parentListField TemplateField
+  submittedValues RequisitionValue [not null]
+
+  indexes {
+    (templateId, label, parentListFieldId) [unique]
+  }
+}
+
+Table FieldOption {
+  id String [pk]
+  fieldId String [not null]
+  field TemplateField [not null]
+  label String [not null]
+  value String [not null]
+  order Int [not null]
+
+  indexes {
+    (fieldId, value) [unique]
+  }
+}
+
+Table TemplateInitiatorAccess {
+  templateId String [not null]
+  roleId String [not null]
+  template RequisitionTemplate [not null]
+  role Role [not null]
+
+  indexes {
+    (templateId, roleId) [pk]
+  }
+}
+
+Table ApprovalWorkflow {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  name String [not null]
+  steps ApprovalStepDefinition [not null]
+  templates RequisitionTemplate [not null]
+}
+
+Table ApprovalStepDefinition {
+  id String [pk]
+  workflowId String [not null]
+  workflow ApprovalWorkflow [not null]
+  stepNumber Int [not null]
+  approverRoleId String [not null]
+  approverRole Role [not null]
+  requisitionApprovals RequisitionApproval [not null]
+
+  indexes {
+    (workflowId, stepNumber) [unique]
+  }
+}
+
+Table Requisition {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  initiatorId String [not null]
+  initiator users [not null]
+  businessUnitId String [not null]
+  fromBU BusinessUnit [not null]
+  templateId String [not null]
+  template RequisitionTemplate [not null]
+  approvalHistory RequisitionApproval [not null]
+  submittedValues RequisitionValue [not null]
+  overallStatus RequisitionStatus [not null, default: 'PENDING']
+}
+
+Table RequisitionApproval {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  requisitionId String [not null]
+  requisition Requisition [not null]
+  stepDefinitionId String [not null]
+  stepDefinition ApprovalStepDefinition [not null]
+  approverId String
+  approver users
+  status ApprovalStatus [not null, default: 'PENDING']
+  comment String
+  actionedAt DateTime
+}
+
+Table RequisitionValue {
+  id String [pk]
+  requisitionId String [not null]
+  requisition Requisition [not null]
+  templateFieldId String [not null]
+  templateField TemplateField [not null]
+  value String [not null]
+  rowIndex Int
+
+  indexes {
+    (requisitionId, templateFieldId, rowIndex) [unique]
+  }
+}
+
+Enum RoleScope {
+  BU
+  SYSTEM
+}
+
+Enum FieldType {
+  TEXT
+  TEXT_AREA
+  NUMBER
+  BOOLEAN
+  DATE
+  CURRENCY
+  SELECT
+  MULTIPLE_CHOICE
+  CHECKBOX
+  LIST
+}
+
+Enum RequisitionStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELED
+}
+
+Enum ApprovalStatus {
+  WAITING
+  PENDING
+  APPROVED
+  DECLINED
+  SKIPPED
+}
 
 Ref: sessions.userId > users.id [delete: Cascade]
 
 Ref: accounts.userId > users.id [delete: Cascade]
+
+Ref: BusinessUnit.headId - users.id
+
+Ref: UserBusinessUnit.userId > users.id [delete: Cascade]
+
+Ref: UserBusinessUnit.businessUnitId > BusinessUnit.id [delete: Cascade]
+
+Ref: Role.businessUnitId > BusinessUnit.id
+
+Ref: UserRoleAssignment.userId > users.id [delete: Cascade]
+
+Ref: UserRoleAssignment.roleId > Role.id [delete: Cascade]
+
+Ref: RequisitionTemplate.businessUnitId > BusinessUnit.id
+
+Ref: RequisitionTemplate.approvalWorkflowId > ApprovalWorkflow.id
+
+Ref: TemplateField.templateId > RequisitionTemplate.id [delete: Cascade]
+
+Ref: TemplateField.parentListFieldId > TemplateField.id
+
+Ref: FieldOption.fieldId > TemplateField.id [delete: Cascade]
+
+Ref: TemplateInitiatorAccess.templateId > RequisitionTemplate.id [delete: Cascade]
+
+Ref: TemplateInitiatorAccess.roleId > Role.id [delete: Cascade]
+
+Ref: ApprovalStepDefinition.workflowId > ApprovalWorkflow.id [delete: Cascade]
+
+Ref: ApprovalStepDefinition.approverRoleId > Role.id
+
+Ref: Requisition.initiatorId > users.id
+
+Ref: Requisition.businessUnitId > BusinessUnit.id
+
+Ref: Requisition.templateId > RequisitionTemplate.id
+
+Ref: RequisitionApproval.requisitionId > Requisition.id [delete: Cascade]
+
+Ref: RequisitionApproval.stepDefinitionId > ApprovalStepDefinition.id
+
+Ref: RequisitionApproval.approverId > users.id
+
+Ref: RequisitionValue.requisitionId > Requisition.id [delete: Cascade]
+
+Ref: RequisitionValue.templateFieldId > TemplateField.id

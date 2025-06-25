@@ -14,7 +14,7 @@
 		"db:generate": "prisma generate",
 		"db:studio": "prisma studio",
 		"db:docs": "prisma-docs-generator serve",
-		"db:populate": "node --loader ts-node/esm prisma/scripts/populateDB.ts",
+		"db:populate": "tsx prisma/scripts/populateDB.ts",
 		"db:delete": "node prisma/scripts/deleteALL.js"
 	},
 	"dependencies": {
@@ -51,6 +51,7 @@
 		"clsx": "^2.1.1",
 		"cmdk": "^1.1.1",
 		"date-fns": "^4.1.0",
+		"dotenv": "^16.5.0",
 		"embla-carousel-react": "^8.6.0",
 		"input-otp": "^1.4.2",
 		"lucide-react": "^0.511.0",

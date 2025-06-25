@@ -32,106 +32,44 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  firstName String?
-  lastName  String?
-
-  name          String // actually username but haven't figured out how to change better-auth
-  email         String         @unique
-  emailVerified Boolean
+  firstName     String?
+  lastName      String?
+  name          String
+  email         String   @unique
+  emailVerified Boolean?
   image         String?
-  businessUnit  BusinessUnit[]
-  requisitions  Requisition[]
+  active        Boolean  @default(true)
 
-  role        Role[] // People should only have 1 role but for flexibility we allow many just in case
-  headsRole   HeadsRole? @relation(fields: [headsRoleId], references: [id])
-  headsRoleId String?
+  roleAssignments       UserRoleAssignment[]
+  initiatedRequisitions Requisition[]
+  assignedApprovals     RequisitionApproval[] @relation("Approver")
+  sessions              Session[]
+  accounts              Account[]
 
-  sessions Session[]
-  accounts Account[]
+  businessUnits      UserBusinessUnit[]
+  headedBusinessUnit BusinessUnit?      @relation("BUHead")
 
-  active Boolean @default(true) // Set to false if the account should be closed/locked
-
-  @@map("users") // Makes the native table name in the database "users" for better-auth
-}
-
-model BusinessUnit {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  name        String
-  head        HeadsRole? @relation(fields: [headsRoleId], references: [id])
-  headsRoleId String?
-  roles       Role[]
-  users       User[]
-
-  requisitions         Requisition[]
-  requisitionTemplates Json
-  approvalSystem       Json
-}
-
-// Roles can be created by BU-Heads
-model Role {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  name           String
-  businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
-  businessUnitId String?
-  users          User[]
-}
-
-// HeadRoles needs to be isolated from the Role
-model HeadsRole {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  name         String
-  users        User[]
-  businessUnit BusinessUnit[]
-
-  isAkivaApprover Boolean
-}
-
-model Requisition {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  initiator      User         @relation(fields: [userId], references: [id])
-  userId         String
-  fromBU         BusinessUnit @relation(fields: [businessUnitId], references: [id])
-  businessUnitId String
-  templateName   String
-
-  stage     Int    @default(0) // This is the index of the array in approvals[] 
-  approvals Json[]
-  values    Json
+  @@map("users")
 }
 
 model Session {
   id        String   @id @default(uuid())
   createdAt DateTime
   updatedAt DateTime
-
   expiresAt DateTime
   token     String   @unique
   ipAddress String?
   userAgent String?
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
 
 model Account {
-  id        String   @id @default(uuid())
-  createdAt DateTime
-  updatedAt DateTime
-
+  id                    String    @id @default(uuid())
+  createdAt             DateTime
+  updatedAt             DateTime
   accountId             String
   providerId            String
   accessToken           String?
@@ -141,21 +79,325 @@ model Account {
   refreshTokenExpiresAt DateTime?
   scope                 String?
   password              String?
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("accounts")
 }
 
 model Verification {
-  id        String    @id @default(uuid())
-  createdAt DateTime?
-  updatedAt DateTime?
-
+  id         String    @id @default(uuid())
+  createdAt  DateTime?
+  updatedAt  DateTime?
   identifier String
   value      String
   expiresAt  DateTime
 
   @@map("verifications")
+}
+
+// --- BUSINESS UNIT AND ROLE HIERARCHY ---
+
+model BusinessUnit {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name String
+
+  // A BU has one designated head. The head is a User.
+  head   User   @relation("BUHead", fields: [headId], references: [id])
+  headId String @unique
+
+  // Users that are members of this BU.
+  members UserBusinessUnit[]
+
+  // Roles specific to this Business Unit.
+  roles Role[]
+
+  // Requisition templates owned by this BU.
+  requisitionTemplates RequisitionTemplate[]
+
+  // Requisitions originating from this BU.
+  requisitions Requisition[]
+}
+
+// Explicit join table for User <-> BusinessUnit relationship
+model UserBusinessUnit {
+  userId         String
+  businessUnitId String
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessUnit BusinessUnit @relation(fields: [businessUnitId], references: [id], onDelete: Cascade)
+
+  @@id([userId, businessUnitId])
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name  String
+  scope RoleScope @default(BU) // Use an ENUM to distinguish role types.
+
+  // If the role is BU-specific, it links to its BU
+  // This is nullable for SYSTEM-wide roles like CEO/CFO
+  businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
+  businessUnitId String?
+
+  // Users assigned to this role.
+  userAssignments UserRoleAssignment[]
+
+  // Templates that can be initiated by this role.
+  accessibleTemplates TemplateInitiatorAccess[]
+
+  // Approval steps that require this role.
+  approvalStepDefinitions ApprovalStepDefinition[]
+
+  @@unique([name, businessUnitId]) // A role name should be unique within its BU.
+}
+
+enum RoleScope {
+  BU // A role created and managed by a Business Unit Head (e.g., Manager, Team Lead)
+  SYSTEM // A global role, like CEO, CFO, Administrator
+}
+
+// Explicit join table to assign a Role to a User.
+model UserRoleAssignment {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@id([userId, roleId])
+}
+
+// --- REQUISITION TEMPLATES & WORKFLOWS ---
+
+model RequisitionTemplate {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name           String
+  description    String?
+  businessUnitId String
+  businessUnit   BusinessUnit @relation(fields: [businessUnitId], references: [id])
+
+  // The fields that make up this template form.
+  fields TemplateField[]
+
+  // The roles that are allowed to initiate a requisition using this template.
+  initiatorAccess TemplateInitiatorAccess[]
+
+  // The approval workflow associated with this template.
+  approvalWorkflow   ApprovalWorkflow? @relation(fields: [approvalWorkflowId], references: [id])
+  approvalWorkflowId String?
+
+  // Requisitions created from this template.
+  requisitions Requisition[]
+
+  @@unique([name, businessUnitId])
+}
+
+// A single field definition within a template.
+model TemplateField {
+  id         String              @id @default(uuid())
+  templateId String
+  template   RequisitionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  label       String // The user-facing question, e.g., "Reason for Purchase"
+  fieldType   FieldType // TEXT, NUMBER, SELECT, LIST, etc.
+  isRequired  Boolean   @default(true)
+  placeholder String? // E.g., "Enter a brief justification"
+  order       Int // To control display order
+
+  // For SELECT, MULTIPLE_CHOICE, CHECKBOX fields, this links to their available options.
+  options FieldOption[]
+
+  // For LIST fields, this links to the definition of its columns.
+  // This field is the "parent" of the list columns.
+  listColumns TemplateField[] @relation("ListParentChild")
+
+  // This defines the "parent" for a list column. It's null for top-level fields.
+  parentListFieldId String?
+  parentListField   TemplateField? @relation("ListParentChild", fields: [parentListFieldId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  // Link to submitted values for this field.
+  submittedValues RequisitionValue[]
+
+  @@unique([templateId, label, parentListFieldId]) // A label must be unique within its template/parent list
+}
+
+enum FieldType {
+  // Standard inputs
+  TEXT
+  TEXT_AREA
+  NUMBER
+  BOOLEAN
+  DATE
+  CURRENCY
+
+  // Option-based fields
+  SELECT // Dropdown menu (select one)
+  MULTIPLE_CHOICE // Radio buttons (select one)
+  CHECKBOX // A group of checkboxes (select many)
+
+  // Complex repeating structured field
+  LIST
+}
+
+// Stores a single predefined option for a SELECT, MULTIPLE_CHOICE, or CHECKBOX field.
+model FieldOption {
+  id      String        @id @default(uuid())
+  fieldId String
+  field   TemplateField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  label String // The text shown to the user, e.g., "Marketing Department"
+  value String // The value stored in the DB, e.g., "mktg_dept"
+  order Int
+
+  @@unique([fieldId, value])
+}
+
+// Join table for Template <-> Role (who can initiate).
+model TemplateInitiatorAccess {
+  templateId String
+  roleId     String
+
+  template RequisitionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  role     Role                @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, roleId])
+}
+
+// --- APPROVAL SYSTEM (Normalized from JSON) ---
+
+model ApprovalWorkflow {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name String
+
+  // The ordered list of approval steps for this workflow.
+  steps ApprovalStepDefinition[]
+
+  // The templates that use this workflow.
+  templates RequisitionTemplate[]
+}
+
+// A single step definition within a workflow template.
+model ApprovalStepDefinition {
+  id         String           @id @default(uuid())
+  workflowId String
+  workflow   ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  stepNumber Int // The order of the step (1, 2, 3...)
+
+  // The role required to approve this step.
+  approverRoleId String
+  approverRole   Role   @relation(fields: [approverRoleId], references: [id])
+
+  // The actual approval instances for this step definition.
+  requisitionApprovals RequisitionApproval[]
+
+  @@unique([workflowId, stepNumber])
+}
+
+// --- REQUISITION INSTANCE & DATA (Normalized from JSON) ---
+
+model Requisition {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The user who created the requisition.
+  initiatorId String
+  initiator   User   @relation(fields: [initiatorId], references: [id])
+
+  // The Business Unit this requisition belongs to.
+  businessUnitId String
+  fromBU         BusinessUnit @relation(fields: [businessUnitId], references: [id])
+
+  // The template used to create this requisition.
+  templateId String
+  template   RequisitionTemplate @relation(fields: [templateId], references: [id])
+
+  // The actual approval steps for this specific requisition instance.
+  // This is the audit trail.
+  approvalHistory RequisitionApproval[]
+
+  // The values submitted for the fields in this requisition.
+  submittedValues RequisitionValue[]
+
+  // A denormalized status for easy display/filtering.
+  // Can be derived from `approvalHistory` but is useful for performance.
+  overallStatus RequisitionStatus @default(PENDING)
+}
+
+enum RequisitionStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELED
+}
+
+// An instance of an approval step for a single requisition
+model RequisitionApproval {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  requisitionId String
+  requisition   Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+
+  // Link to the step definition this approval fulfills.
+  stepDefinitionId String
+  stepDefinition   ApprovalStepDefinition @relation(fields: [stepDefinitionId], references: [id])
+
+  // The actual user who approved/declined. Null until action is taken.
+  approverId String?
+  approver   User?   @relation("Approver", fields: [approverId], references: [id])
+
+  status     ApprovalStatus @default(PENDING)
+  comment    String?
+  actionedAt DateTime? // When the approver took action
+}
+
+enum ApprovalStatus {
+  WAITING // Not yet this step's turn.
+  PENDING // Awaiting action from an approver with the required role.
+  APPROVED
+  DECLINED
+  SKIPPED
+}
+
+// Stores the value for a single field in a single requisition. Replaces `values` JSON.
+model RequisitionValue {
+  id String @id @default(uuid())
+
+  requisitionId String
+  requisition   Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+
+  // The specific template field this value is for.
+  templateFieldId String
+  templateField   TemplateField @relation(fields: [templateFieldId], references: [id])
+
+  // The submitted value. Using a string is flexible.
+  // For better performance on numeric queries, you could use a JSONB type
+  // or have separate `stringValue`, `numberValue`, etc. columns.
+  // For most cases, `String` is a good starting point.
+  value String
+
+  // For LIST types, this acts as a row identifier.
+  // For a list with 3 rows, you'd have items with rowIndex 0, 1, and 2.
+  // For non-list fields, this can be 0 or null.
+  rowIndex Int?
+
+  @@unique([requisitionId, templateFieldId, rowIndex])
 }

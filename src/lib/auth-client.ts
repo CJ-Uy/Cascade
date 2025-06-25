@@ -1,4 +1,8 @@
 import { createAuthClient } from "better-auth/react";
+import dotenv from "dotenv";
+
+dotenv.config();
+
 const authClient = createAuthClient({
 	baseURL: process.env.NEXT_PUBLIC_AUTH_API_URL,
 });
