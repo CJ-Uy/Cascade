@@ -12,45 +12,28 @@ async function main() {
 	console.log("Proceeding with data deletion...");
 
 	try {
-		// The order of deletion is important to avoid foreign key constraint violations.
-		// Delete models that are depended upon by others last.
-
-		// 1. Verification (no direct FKs from other models in this list)
-		const { count: verificationCount } = await prisma.verification.deleteMany({});
-		console.log(`Deleted ${verificationCount} verification(s).`);
-
-		// 2. Session (depends on User, but User has onDelete: Cascade for sessions)
-		//    Explicitly deleting first is safer for a full wipe.
-		const { count: sessionCount } = await prisma.session.deleteMany({});
-		console.log(`Deleted ${sessionCount} session(s).`);
-
-		// 3. Account (depends on User, but User has onDelete: Cascade for accounts)
-		//    Explicitly deleting first is safer.
-		const { count: accountCount } = await prisma.account.deleteMany({});
-		console.log(`Deleted ${accountCount} account(s).`);
-
-		// 4. Requisition (depends on User and BusinessUnit)
-		const { count: requisitionCount } = await prisma.requisition.deleteMany({});
-		console.log(`Deleted ${requisitionCount} requisition(s).`);
-
-		// 5. User (M2M with Role, BusinessUnit; Session, Account, Requisition dependents deleted or cascaded)
-		//    Deleting users will also clean up entries in implicit M2M join tables (_RoleToUser, _BusinessUnitToUser).
-		const { count: userCount } = await prisma.user.deleteMany({});
-		console.log(`Deleted ${userCount} user(s).`);
-
-		// 6. Role (depends on BusinessUnit; M2M with User already cleared from User side)
-		const { count: roleCount } = await prisma.role.deleteMany({});
-		console.log(`Deleted ${roleCount} role(s).`);
-
-		// 7. HeadsRole
-		const { count: HeadsRoleCount } = await prisma.headsRole.deleteMany({});
-		console.log(`Deleted ${HeadsRoleCount} head role(s).`);
-
-		// 8. BusinessUnit (all known dependents like Requisition, Role, User M2M links should be gone)
-		const { count: businessUnitCount } = await prisma.businessUnit.deleteMany({});
-		console.log(`Deleted ${businessUnitCount} business unit(s).`);
-
-		console.log("\nAll data has been successfully deleted.");
+		console.log("🧹 Clearing existing data...");
+		// Delete in reverse order of dependency
+		await prisma.requisitionValue.deleteMany();
+		await prisma.requisitionTag.deleteMany();
+		await prisma.tag.deleteMany();
+		await prisma.notification.deleteMany();
+		await prisma.attachment.deleteMany();
+		await prisma.comment.deleteMany();
+		await prisma.requisitionApproval.deleteMany();
+		await prisma.requisition.deleteMany();
+		await prisma.fieldOption.deleteMany();
+		await prisma.templateField.deleteMany();
+		await prisma.templateInitiatorAccess.deleteMany();
+		await prisma.requisitionTemplate.deleteMany();
+		await prisma.approvalStepDefinition.deleteMany();
+		await prisma.approvalWorkflow.deleteMany();
+		await prisma.userRoleAssignment.deleteMany();
+		await prisma.userBusinessUnit.deleteMany();
+		await prisma.role.deleteMany();
+		await prisma.businessUnit.deleteMany();
+		await prisma.user.deleteMany();
+		console.log("✅ Database cleared.");
 	} catch (e) {
 		console.error("Error deleting data:", e);
 		process.exit(1);
