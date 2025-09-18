@@ -27,111 +27,72 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- CORE AUTH & USER MODELS ---
+
 model User {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  firstName String?
-  lastName  String?
-
-  name          String // actually username but haven't figured out how to change better-auth
-  email         String         @unique
-  emailVerified Boolean
+  id            String     @id @default(uuid())
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  firstName     String?
+  lastName      String?
+  name          String
+  email         String     @unique
+  emailVerified Boolean?
   image         String?
-  businessUnit  BusinessUnit[]
-  requisitions  Requisition[]
+  status        UserStatus @default(UNASSIGNED)
 
-  role        Role[] // People should only have 1 role but for flexibility we allow many just in case
-  headsRole   HeadsRole? @relation(fields: [headsRoleId], references: [id])
-  headsRoleId String?
-
+  // Authentication
   sessions Session[]
   accounts Account[]
 
-  active Boolean @default(true) // Set to false if the account should be closed/locked
+  // Relations
+  roleAssignments UserRoleAssignment[]
+  businessUnits   UserBusinessUnit[]
+  notifications   Notification[]       @relation("Recipient")
 
-  @@map("users") // Makes the native table name in the database "users" for better-auth
+  // Admin
+  headedBusinessUnit BusinessUnit? @relation("BUHead")
+
+  // Actions
+  initiatedRequisitions Requisition[]
+  assignedApprovals     RequisitionApproval[] @relation("Approver")
+  comments              Comment[]
+  uploadedAttachments   Attachment[]
+  createdTags           Tag[]
+  taggedRequisitions    RequisitionTag[]
+
+  // Chat & Messaging
+  chats             ChatParticipant[]
+  sentChatMessages  ChatMessage[]     @relation("SentMessages")
+  createdGroupChats Chat[]            @relation("GroupCreator")
+
+  @@map("users")
 }
 
-model BusinessUnit {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  name        String
-  head        HeadsRole? @relation(fields: [headsRoleId], references: [id])
-  headsRoleId String?
-  roles       Role[]
-  users       User[]
-
-  requisitions         Requisition[]
-  requisitionTemplates Json
-  approvalSystem       Json
-}
-
-// Roles can be created by BU-Heads
-model Role {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  name           String
-  businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
-  businessUnitId String?
-  users          User[]
-}
-
-// HeadRoles needs to be isolated from the Role
-model HeadsRole {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  name         String
-  users        User[]
-  businessUnit BusinessUnit[]
-
-  isAkivaApprover Boolean
-}
-
-model Requisition {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  initiator      User         @relation(fields: [userId], references: [id])
-  userId         String
-  fromBU         BusinessUnit @relation(fields: [businessUnitId], references: [id])
-  businessUnitId String
-  templateName   String
-
-  stage     Int    @default(0) // This is the index of the array in approvals[] 
-  approvals Json[]
-  values    Json
+enum UserStatus {
+  UNASSIGNED // The default state for a new user who has created an account but has not been assigned a role or BU.
+  ACTIVE // A fully operational user who can participate in workflows.
+  DISABLED // An account that has been disabled by an administrator and cannot be used.
 }
 
 model Session {
   id        String   @id @default(uuid())
-  createdAt DateTime
-  updatedAt DateTime
-
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   expiresAt DateTime
   token     String   @unique
   ipAddress String?
   userAgent String?
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
 
 model Account {
-  id        String   @id @default(uuid())
-  createdAt DateTime
-  updatedAt DateTime
-
+  id                    String    @id @default(uuid())
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
   accountId             String
   providerId            String
   accessToken           String?
@@ -141,21 +102,409 @@ model Account {
   refreshTokenExpiresAt DateTime?
   scope                 String?
   password              String?
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("accounts")
 }
 
 model Verification {
-  id        String    @id @default(uuid())
-  createdAt DateTime?
-  updatedAt DateTime?
-
+  id         String    @id @default(uuid())
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
   identifier String
   value      String
   expiresAt  DateTime
 
   @@map("verifications")
+}
+
+// --- BUSINESS UNIT AND ROLE HIERARCHY ---
+
+model BusinessUnit {
+  id                   String                @id @default(uuid())
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  name                 String
+  headId               String                @unique
+  head                 User                  @relation("BUHead", fields: [headId], references: [id])
+  members              UserBusinessUnit[]
+  roles                Role[]
+  requisitionTemplates RequisitionTemplate[]
+  requisitions         Requisition[]
+}
+
+// Explicit join table for the many-to-many relationship between User and BusinessUnit
+model UserBusinessUnit {
+  userId         String
+  businessUnitId String
+
+  membershipType BUMembershipType @default(MEMBER)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessUnit BusinessUnit @relation(fields: [businessUnitId], references: [id], onDelete: Cascade)
+
+  @@id([userId, businessUnitId])
+}
+
+// Describes the type of relationship a user has with a Business Unit.
+enum BUMembershipType {
+  MEMBER // A standard employee or member of the Business Unit.
+  AUDITOR // A user with an AUDITOR role who has been granted specific access to this Business Unit.
+}
+
+model Role {
+  id                      String                    @id @default(uuid())
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  name                    String // The user-facing name of the role (e.g., 'Operations Manager', 'Mechanic').
+  scope                   RoleScope                 @default(BU) // Defines the operational boundary and permission
+  isBUAdmin               Boolean                   @default(false)
+  businessUnitId          String?
+  businessUnit            BusinessUnit?             @relation(fields: [businessUnitId], references: [id])
+  userAssignments         UserRoleAssignment[]
+  accessibleTemplates     TemplateInitiatorAccess[]
+  approvalStepDefinitions ApprovalStepDefinition[]
+
+  @@unique([name, businessUnitId])
+}
+
+enum RoleScope {
+  BU // A standard role confined within a single Business Unit. Created and managed by BU Admins.
+  SYSTEM // A global role with system-wide permissions (e.g., can see all BUs). For CEO, CFO, System Administrators.
+
+  // The AUDITOR scope is still important. It defines WHAT a user can do. 
+  // The BUMembershipType defines WHERE they can do it.
+  AUDITOR // A special role for users external to approval flows who need read-only access for auditing and tagging.
+}
+
+model UserRoleAssignment {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+// --- REQUISITION TEMPLATES & DYNAMIC FORMS ---
+
+model RequisitionTemplate {
+  id                 String                    @id @default(uuid())
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  name               String
+  description        String?
+  businessUnitId     String
+  businessUnit       BusinessUnit              @relation(fields: [businessUnitId], references: [id])
+  fields             TemplateField[]
+  initiatorAccess    TemplateInitiatorAccess[]
+  approvalWorkflowId String?
+  approvalWorkflow   ApprovalWorkflow?         @relation(fields: [approvalWorkflowId], references: [id])
+  requisitions       Requisition[]
+
+  @@unique([name, businessUnitId])
+}
+
+model TemplateField {
+  id                String              @id @default(uuid())
+  templateId        String
+  template          RequisitionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  label             String
+  fieldType         FieldType
+  isRequired        Boolean             @default(true)
+  placeholder       String?
+  order             Int
+  options           FieldOption[]
+  listColumns       TemplateField[]     @relation("ListParentChild") // For LIST fields, defines the columns
+  parentListFieldId String?
+  parentListField   TemplateField?      @relation("ListParentChild", fields: [parentListFieldId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  submittedValues   RequisitionValue[]
+
+  @@unique([templateId, label, parentListFieldId])
+}
+
+enum FieldType {
+  TEXT
+  TEXT_AREA
+  NUMBER
+  BOOLEAN
+  DATE
+  CURRENCY
+  SELECT
+  MULTIPLE_CHOICE
+  CHECKBOX
+  LIST
+}
+
+model FieldOption {
+  id      String        @id @default(uuid())
+  fieldId String
+  field   TemplateField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  label   String
+  value   String
+  order   Int
+
+  @@unique([fieldId, value])
+}
+
+model TemplateInitiatorAccess {
+  templateId String
+  roleId     String
+  template   RequisitionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  role       Role                @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, roleId])
+}
+
+// --- APPROVAL SYSTEM ---
+
+model ApprovalWorkflow {
+  id        String                   @id @default(uuid())
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+  name      String
+  steps     ApprovalStepDefinition[]
+  templates RequisitionTemplate[]
+}
+
+model ApprovalStepDefinition {
+  id                   String                @id @default(uuid())
+  workflowId           String
+  workflow             ApprovalWorkflow      @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  stepNumber           Int
+  approverRoleId       String
+  approverRole         Role                  @relation(fields: [approverRoleId], references: [id])
+  requisitionApprovals RequisitionApproval[]
+
+  @@unique([workflowId, stepNumber])
+}
+
+// --- REQUISITION INSTANCE, DATA, & LIFECYCLE ---
+
+model Requisition {
+  id              String                @id @default(uuid())
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  initiatorId     String
+  initiator       User                  @relation(fields: [initiatorId], references: [id])
+  businessUnitId  String
+  fromBU          BusinessUnit          @relation(fields: [businessUnitId], references: [id])
+  templateId      String
+  template        RequisitionTemplate   @relation(fields: [templateId], references: [id])
+  overallStatus   RequisitionStatus     @default(PENDING)
+  approvalHistory RequisitionApproval[]
+  submittedValues RequisitionValue[]
+  attachments     Attachment[]
+  actionLog       Comment[]
+  notifications   Notification[]
+  tags            RequisitionTag[]
+}
+
+// The overall status of the requisition for easy queries
+enum RequisitionStatus {
+  DRAFT // Not yet submitted by initiator
+  PENDING // Submitted and awaiting approval at some step
+  NEEDS_CLARIFICATION // Sent back one step to a previous approver
+  IN_REVISION // Sent back to the initiator for edits
+  APPROVED // Fully approved by all steps
+  CANCELED // Terminated by an initiator or approver
+}
+
+// An instance of an approval step for a single requisition. Tracks state.
+model RequisitionApproval {
+  id               String                 @id @default(uuid())
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  requisitionId    String
+  requisition      Requisition            @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  stepDefinitionId String
+  stepDefinition   ApprovalStepDefinition @relation(fields: [stepDefinitionId], references: [id])
+  approverId       String?
+  approver         User?                  @relation("Approver", fields: [approverId], references: [id])
+  status           ApprovalStatus         @default(WAITING)
+  actionedAt       DateTime?
+}
+
+// Reflects the states of an individual approval step
+enum ApprovalStatus {
+  WAITING // Not yet this step's turn
+  PENDING // Awaiting action from an approver with the required role
+  APPROVED // This step has been approved
+  REQUESTED_CLARIFICATION // Asked for a clarification and sent the requisition one step back
+  REQUESTED_REVISION // Sent back to the initiator to modify values
+}
+
+// Stores the value for a single dynamic field in a single requisition
+model RequisitionValue {
+  id              String        @id @default(uuid())
+  requisitionId   String
+  requisition     Requisition   @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  templateFieldId String
+  templateField   TemplateField @relation(fields: [templateFieldId], references: [id])
+  value           String
+  rowIndex        Int? // For LIST fields, this identifies the row
+
+  @@unique([requisitionId, templateFieldId, rowIndex])
+}
+
+// Represents a file attachment linked to a requisition or a comment
+model Attachment {
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+  url        String
+  filename   String
+  filetype   String
+  size       Int?
+  uploaderId String
+  uploader   User     @relation(fields: [uploaderId], references: [id])
+
+  // Relation of the attachment to the system
+  requisitionId String?
+  requisition   Requisition? @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  commentId     String?
+  comment       Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  chatMessageId String?
+  chatMessage   ChatMessage? @relation(fields: [chatMessageId], references: [id], onDelete: Cascade)
+
+  @@index([requisitionId])
+  @@index([commentId])
+  @@index([chatMessageId])
+}
+
+// The central audit trail for all actions and comments on a requisition
+model Comment {
+  id            String       @id @default(uuid())
+  createdAt     DateTime     @default(now())
+  content       String
+  action        ActionType // The type of action performed
+  authorId      String
+  author        User         @relation(fields: [authorId], references: [id])
+  requisitionId String
+  requisition   Requisition  @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  attachments   Attachment[]
+}
+
+// Defines all possible state-changing actions a user can take
+enum ActionType {
+  SUBMIT
+  APPROVE
+  REQUEST_REVISION
+  REQUEST_CLARIFICATION
+  CLARIFY
+  RESUBMIT
+  COMMENT
+  CANCEL
+}
+
+// A notification to alert a user that an action is required
+model Notification {
+  id            String       @id @default(uuid())
+  createdAt     DateTime     @default(now())
+  message       String
+  isRead        Boolean      @default(false)
+  recipientId   String
+  recipient     User         @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  requisitionId String?
+  requisition   Requisition? @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+}
+
+// Tagging system
+model Tag {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  label String @unique // The text of the tag, e.g., "Q4-Review", "Compliance-Check". Must be unique.
+  color String @default("#cccccc") // A hex color code for the tag's UI display.
+
+  // The user (likely an Auditor) who created this tag.
+  creatorId String
+  creator   User   @relation(fields: [creatorId], references: [id])
+
+  // A list of all the requisitions this tag has been applied to.
+  requisitions RequisitionTag[]
+}
+
+// The explicit join table for the many-to-many relationship between Requisition and Tag.
+model RequisitionTag {
+  requisitionId String
+  tagId         String
+
+  requisition Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  // The user who applied this tag to this specific requisition.
+  assignedBy   User   @relation(fields: [assignedById], references: [id])
+  assignedById String
+
+  assignedAt DateTime @default(now())
+
+  @@id([requisitionId, tagId]) // Ensures a tag can only be applied once to a requisition.
+}
+
+// --- CHAT & MESSAGING SYSTEM ---
+// Represents a single conversation, either between two people or a group.
+model Chat {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // Will update when a new message is sent.
+
+  // The type of chat, which dictates its behavior.
+  chatType ChatType
+
+  // For GROUP chats, these fields can store metadata.
+  groupName     String?
+  groupImageUrl String?
+
+  // The user who created the group chat. Null for private chats.
+  creatorId String?
+  creator   User?   @relation("GroupCreator", fields: [creatorId], references: [id])
+
+  // A list of all users participating in this chat.
+  participants ChatParticipant[]
+
+  // The complete history of messages sent in this chat.
+  messages ChatMessage[]
+}
+
+// Enum to distinguish between private and group chats.
+enum ChatType {
+  PRIVATE // A 1-on-1 conversation.
+  GROUP // A conversation with 3 or more participants.
+}
+
+// The join table connecting Users to Chats. This is the heart of the chat system.
+model ChatParticipant {
+  chatId String
+  userId String
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // A timestamp of when the user last viewed this chat.
+  // Crucial for "unread message" indicators.
+  lastReadAt DateTime?
+
+  @@id([chatId, userId])
+}
+
+// Represents a single message sent within a chat.
+model ChatMessage {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  // The text content of the message. Nullable because a message could be just an attachment.
+  content String?
+
+  // The user who sent the message.
+  senderId String
+  sender   User   @relation("SentMessages", fields: [senderId], references: [id])
+
+  // The chat this message belongs to.
+  chatId String
+  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  // A list of attachments included with this message.
+  attachments Attachment[]
 }
