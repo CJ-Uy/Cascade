@@ -38,7 +38,7 @@ export function Hero() {
           Next.js
         </a>
       </p>
-      <div className="my-8 w-full bg-linear-to-r from-transparent via-foreground/10 to-transparent p-px" />
+      <div className="via-foreground/10 my-8 w-full bg-linear-to-r from-transparent to-transparent p-px" />
     </div>
   );
 }
