@@ -38,8 +38,8 @@ import {
   Home,
   MessagesSquare,
 } from "lucide-react";
-import { LogoutButton } from "@/components/dashboard/logout-button";
-import { ThemeToggleButton } from "@/components/dashboard/themeToggle";
+import { LogoutButton } from "@/components/nav/logout-button";
+import { ThemeToggleButton } from "@/components/nav/themeToggle";
 import { getMiddleInitial } from "@/lib/utils";
 
 const generalItems = [

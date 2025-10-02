@@ -1,4 +1,4 @@
-import { Navbar } from "@/components/dashboard/navbar";
+import { Navbar } from "@/components/nav/bar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 export default function ProtectedLayout({
