@@ -24,6 +24,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronUp } from "lucide-react";
 
 import { LogoutButton } from "@/components/dashboard/logout-button";
@@ -116,13 +117,30 @@ export function Navbar() {
       </SidebarContent>
 
       {/* Footer */}
-      <SidebarFooter>
+      <SidebarFooter className="bg-gray-200 hover:bg-gray-100">
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton>
-                  {`${profile.first_name}${getMiddleInitial(profile.middle_name)}${profile.last_name}`}
+                <SidebarMenuButton className="flex w-full items-center hover:bg-gray-100 active:bg-gray-100">
+                  <Avatar className="mr-3 h-8 w-8">
+                    {/* The image to display. It will be hidden if the src is invalid. */}
+                    <AvatarImage
+                      src={profile.image_url}
+                      alt={`${profile.first_name} ${profile.last_name}`}
+                    />
+
+                    {/* The fallback shown when the image isn't available. */}
+                    <AvatarFallback>
+                      {profile.first_name?.[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  {/* The user's name */}
+                  <span>
+                    {`${profile.first_name}${getMiddleInitial(profile.middle_name)}${profile.last_name}`}
+                  </span>
+
                   <ChevronUp className="ml-auto" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
