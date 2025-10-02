@@ -3,8 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "@/app/contexts/SessionProvider";
-
-import { Home, MessagesSquare, Settings } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
   Sidebar,
@@ -25,14 +23,26 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronUp } from "lucide-react";
-
+import {
+  ChevronUp,
+  FilePlus,
+  History,
+  Play,
+  CheckSquare,
+  Flag,
+  Users,
+  Building,
+  FileText,
+  Shield,
+  Settings,
+  Home,
+  MessagesSquare,
+} from "lucide-react";
 import { LogoutButton } from "@/components/dashboard/logout-button";
 import { ThemeToggleButton } from "@/components/dashboard/themeToggle";
 import { getMiddleInitial } from "@/lib/utils";
 
-// Menu items.
-const items = [
+const generalItems = [
   {
     title: "Dashboard",
     url: "/dashboard",
@@ -50,23 +60,53 @@ const items = [
   },
 ];
 
+// 1. Define the menu items for each group
+const requisitionItems = [
+  { title: "Create", url: "/requisitions/create", icon: FilePlus },
+  { title: "Running", url: "/requisitions/running", icon: Play },
+  { title: "History", url: "/requisitions/history", icon: History },
+];
+
+const approvalItems = [
+  { title: "To Approve", url: "/approvals", icon: CheckSquare },
+  { title: "Flagged", url: "/flagged", icon: Flag },
+];
+
+const adminItems = [
+  { title: "Employees", url: "/admin/employees", icon: Users },
+  { title: "Approval System", url: "/admin/approval-system", icon: FileText },
+  { title: "Templates", url: "/admin/templates", icon: Building },
+];
+
+const systemAdminItems = [
+  { title: "System Settings", url: "/system-admin/settings", icon: Settings },
+  { title: "- All BUs -", url: "/system-admin/all-bus", icon: Shield },
+];
+
 export function Navbar() {
   const path = usePathname();
-
-  const { authContext, currentBuPermission, hasSystemRole } = useSession();
+  const { authContext, currentBuPermission, hasSystemRole, selectedBuId } =
+    useSession();
 
   if (!authContext) {
-    return (
-      <div className="rounded border p-4">
-        <p>You are not logged in.</p>
-        <a href="/auth/login" className="text-blue-500 hover:underline">
-          Login
-        </a>
-      </div>
-    );
+    // User is logged out, show a minimal state or nothing
+    return null;
   }
 
   const { profile } = authContext;
+
+  // 2. Determine the user's permission level for the currently selected BU
+  // A 'MEMBER' is a user in a BU but with no specific role assigned.
+  const permissionLevel = currentBuPermission?.permission_level || "MEMBER";
+
+  // 3. Construct the full name robustly
+  const fullName = [
+    profile.first_name,
+    getMiddleInitial(profile.middle_name),
+    profile.last_name,
+  ]
+    .filter(Boolean) // Removes any null, undefined, or empty parts
+    .join(" "); // Joins the remaining parts with a space
 
   return (
     <Sidebar>
@@ -95,13 +135,13 @@ export function Navbar() {
         </div>
       </SidebarHeader>
 
-      {/* Content */}
       <SidebarContent>
+        {/* General */}
         <SidebarGroup>
           <SidebarGroupLabel>General</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {generalItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={path === item.url}>
                     <a href={item.url}>
@@ -114,33 +154,122 @@ export function Navbar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Group 1: Requisitions (Visible to almost everyone) */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Requisitions</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {requisitionItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={path.startsWith(item.url)}
+                  >
+                    <Link href={`${item.url}?bu_id=${selectedBuId}`}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Group 2: Approvals (Visible to Approvers, BU Admins, and System Admins) */}
+        {(permissionLevel === "APPROVER" ||
+          permissionLevel === "BU_ADMIN" ||
+          hasSystemRole("SYSTEM_ADMIN")) && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Approvals</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {approvalItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={path.startsWith(item.url)}
+                    >
+                      <Link href={`${item.url}?bu_id=${selectedBuId}`}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Group 3: Management (Visible to BU Admins and System Admins) */}
+        {(permissionLevel === "BU_ADMIN" || hasSystemRole("SYSTEM_ADMIN")) && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Management</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={path.startsWith(item.url)}
+                    >
+                      <Link href={`${item.url}?bu_id=${selectedBuId}`}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Group 4: System Administration (Visible ONLY to System Admins) */}
+        {hasSystemRole("SYSTEM_ADMIN") && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-red-500">
+              System Admin
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {systemAdminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={path.startsWith(item.url)}
+                    >
+                      <Link href={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
-      {/* Footer */}
-      <SidebarFooter className="bg-gray-200 hover:bg-gray-100">
+      <SidebarFooter className="bg-gray-200 hover:bg-gray-100 dark:bg-gray-900/50 dark:hover:bg-gray-800/50">
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton className="flex w-full items-center hover:bg-gray-100 active:bg-gray-100">
+                <SidebarMenuButton className="flex w-full items-center">
                   <Avatar className="mr-3 h-8 w-8">
-                    {/* The image to display. It will be hidden if the src is invalid. */}
                     <AvatarImage
-                      src={profile.image_url}
-                      alt={`${profile.first_name} ${profile.last_name}`}
+                      src={profile.image_url ?? undefined}
+                      alt={fullName}
                     />
-
-                    {/* The fallback shown when the image isn't available. */}
                     <AvatarFallback>
                       {profile.first_name?.[0]?.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-
-                  {/* The user's name */}
-                  <span>
-                    {`${profile.first_name}${getMiddleInitial(profile.middle_name)}${profile.last_name}`}
-                  </span>
-
+                  <span className="truncate">{fullName}</span>
                   <ChevronUp className="ml-auto" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
