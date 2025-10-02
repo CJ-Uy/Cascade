@@ -37,11 +37,9 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Toaster position="top-center" richColors />
-          {/* --- 4. WRAP WITH SESSION PROVIDER --- */}
-          {/* The server-fetched `authContext` is passed to the client-side provider */}
           <SessionProvider initialAuthContext={authContext}>
-            <main className="p-4">{children}</main>
+            <Toaster position="top-center" richColors />
+            <main>{children}</main>
           </SessionProvider>
         </ThemeProvider>
       </body>
