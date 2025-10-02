@@ -1,7 +1,7 @@
 "use client";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { InitiatorSideBar } from "@/components/initiator/sidebar";
+import { InitiatorSideBar } from "@/components/dashboard/old/sidebar";
 
 import { fetchRoleAndGetRedirectPath } from "@/lib/auth-utils";
 import { useRouter } from "next/navigation";

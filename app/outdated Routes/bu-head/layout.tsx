@@ -1,7 +1,7 @@
 "use client";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { BuHeadSideBar } from "@/components/buHead/sidebar";
+import { BuHeadSideBar } from "@/components/dashboard/old/buHead/sidebar";
 
 import { LoadingScreen } from "@/components/utils/loading-screen";
 
