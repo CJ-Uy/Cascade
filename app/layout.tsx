@@ -3,12 +3,10 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 
-const defaultUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+import { SessionProvider } from "@/app/contexts/SessionProvider";
+import { getUserAuthContext } from "@/lib/supabase/auth";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(defaultUrl),
   title: "Cascade",
   description: "Digital Mass Document Approval and Review System",
 };
@@ -19,11 +17,16 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-export default function RootLayout({
+// Good practice for layouts dealing with auth: ensures session is fresh on every request.
+export const revalidate = 0;
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const authContext = await getUserAuthContext();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.className} antialiased`}>
@@ -33,7 +36,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          {/* --- 4. WRAP WITH SESSION PROVIDER --- */}
+          {/* The server-fetched `authContext` is passed to the client-side provider */}
+          <SessionProvider initialAuthContext={authContext}>
+            <main className="p-4">{children}</main>
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -43,10 +43,9 @@ export function HomeNav() {
           Dashboard
         </Link>
         <Link
-          href={process.env.GFORM_SUPPORT_TICKET_LINK || "#"}
+          href={process.env.NEXT_PUBLIC_GFORM_SUPPORT_TICKET_LINK || "#"}
           className="text-gray-700 hover:text-blue-600"
           target="_blank"
-          rel="noopener noreferrer"
         >
           Support
         </Link>

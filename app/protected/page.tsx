@@ -1,20 +1,26 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getUserAuthContext } from "@/lib/supabase/auth";
 
 export default async function ProtectedPage() {
-  const supabase = await createClient();
+  const authContext = await getUserAuthContext();
 
-  const { data, error } = await supabase.auth.getClaims();
-  if (error || !data?.claims) {
-    redirect("/auth/login");
+  if (!authContext) {
+    return <div>Not logged in.</div>;
   }
 
   return (
-    <div className="flex flex-col items-start gap-2 m-10">
-      <h2 className="mb-4 text-2xl font-bold">Your user details</h2>
-      <pre className="rounded border p-3 font-mono text-xs">
-        {JSON.stringify(data.claims, null, 2)}
-      </pre>
+    <div className="m-10">
+      <h1 className="text-3xl font-bold">Welcome to the Protected Dashboard</h1>
+      <p className="mt-2">
+        Use the selector in the navbar to switch your Business Unit context.
+      </p>
+      <div className="mt-8">
+        <h2 className="text-xl font-bold">
+          Your Full Auth Data (from Server Component)
+        </h2>
+        <pre className="mt-2 rounded border p-3 font-mono text-xs">
+          {JSON.stringify(authContext, null, 2)}
+        </pre>
+      </div>
     </div>
   );
 }
