@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 
+import { Toaster } from "sonner";
 import { SessionProvider } from "@/app/contexts/SessionProvider";
 import { getUserAuthContext } from "@/lib/supabase/auth";
 
@@ -36,6 +37,7 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <Toaster position="top-center" richColors />
           {/* --- 4. WRAP WITH SESSION PROVIDER --- */}
           {/* The server-fetched `authContext` is passed to the client-side provider */}
           <SessionProvider initialAuthContext={authContext}>

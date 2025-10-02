@@ -39,7 +39,7 @@ export function HomeNav() {
         <Link href="/" className="text-gray-700 hover:text-blue-600">
           Home
         </Link>
-        <Link href="/protected" className="text-gray-700 hover:text-blue-600">
+        <Link href="/dashboard" className="text-gray-700 hover:text-blue-600">
           Dashboard
         </Link>
         <Link
