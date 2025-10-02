@@ -65,7 +65,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900">
+    <div className="bg-gray-50 dark:bg-gray-900 h-screen">
       <HomeNav />
       <main>
         <div className="relative isolate overflow-hidden px-6 pt-14 lg:px-8">
