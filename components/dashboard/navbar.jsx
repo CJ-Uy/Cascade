@@ -1,6 +1,10 @@
 "use client";
 
-import { Home, MessagesSquare, FilePlus } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import { useSession } from "@/app/contexts/SessionProvider";
+
+import { Home, MessagesSquare, Settings } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
   Sidebar,
@@ -24,6 +28,7 @@ import { ChevronUp } from "lucide-react";
 
 import { LogoutButton } from "@/components/dashboard/logout-button";
 import { ThemeToggleButton } from "@/components/dashboard/themeToggle";
+import { getMiddleInitial } from "@/lib/utils";
 
 // Menu items.
 const items = [
@@ -33,30 +38,66 @@ const items = [
     icon: Home,
   },
   {
-    title: "Create",
-    url: "/new-request",
-    icon: FilePlus,
-  },
-  {
     title: "Messages",
     url: "/chat",
     icon: MessagesSquare,
+  },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Settings,
   },
 ];
 
 export function Navbar() {
   const path = usePathname();
+
+  const { authContext, currentBuPermission, hasSystemRole } = useSession();
+
+  if (!authContext) {
+    return (
+      <div className="rounded border p-4">
+        <p>You are not logged in.</p>
+        <a href="/auth/login" className="text-blue-500 hover:underline">
+          Login
+        </a>
+      </div>
+    );
+  }
+
+  const { profile } = authContext;
+
   return (
     <Sidebar>
       {/* Header */}
       <SidebarHeader className="flex items-center justify-center">
-        <h1>Akiva Cascade</h1>
+        <div className="mt-2 flex-shrink-0">
+          <Link href="/" className="block">
+            {" "}
+            {/* Light Mode Logo */}
+            <Image
+              src="/svgs/Logo&TextBlack.svg"
+              alt="Akiva Cascade Logo"
+              width={150}
+              height={40}
+              className="block dark:hidden" // `block` by default, `hidden` in dark mode
+            />
+            {/* Dark Mode Logo */}
+            <Image
+              src="/svgs/Logo&TextWhite.svg"
+              alt="Akiva Cascade Logo"
+              width={150}
+              height={40}
+              className="hidden dark:block" // `hidden` by default, `block` in dark mode
+            />
+          </Link>
+        </div>
       </SidebarHeader>
 
       {/* Content */}
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Quick</SidebarGroupLabel>
+          <SidebarGroupLabel>General</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
@@ -81,7 +122,7 @@ export function Navbar() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton>
-                  Username
+                  {`${profile.first_name}${getMiddleInitial(profile.middle_name)}${profile.last_name}`}
                   <ChevronUp className="ml-auto" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
