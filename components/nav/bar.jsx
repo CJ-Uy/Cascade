@@ -38,9 +38,13 @@ import {
   Home,
   MessagesSquare,
 } from "lucide-react";
-import { LogoutButton } from "@/components/nav/logout-button";
-import { ThemeToggleButton } from "@/components/nav/themeToggle";
+
 import { getMiddleInitial } from "@/lib/utils";
+
+import { LogoutButton } from "@/components/nav/logout-button";
+import { ThemeToggleButton } from "@/components/nav/theme-toggle";
+import { ReturnToLanding } from "@/components/nav/return-to-landing";
+
 
 const generalItems = [
   {
@@ -279,6 +283,9 @@ export function Navbar() {
               >
                 <DropdownMenuItem>
                   <ThemeToggleButton />
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <ReturnToLanding />
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <LogoutButton />
