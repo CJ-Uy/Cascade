@@ -45,7 +45,6 @@ import { LogoutButton } from "@/components/nav/logout-button";
 import { ThemeToggleButton } from "@/components/nav/theme-toggle";
 import { ReturnToLanding } from "@/components/nav/return-to-landing";
 
-
 const generalItems = [
   {
     title: "Dashboard",
@@ -53,7 +52,7 @@ const generalItems = [
     icon: Home,
   },
   {
-    title: "Messages",
+    title: "Chat",
     url: "/chat",
     icon: MessagesSquare,
   },
@@ -72,14 +71,18 @@ const requisitionItems = [
 ];
 
 const approvalItems = [
-  { title: "To Approve", url: "/approvals", icon: CheckSquare },
-  { title: "Flagged", url: "/flagged", icon: Flag },
+  { title: "To Approve", url: "/approvals/to-approve", icon: CheckSquare },
+  { title: "Flagged", url: "/approvals/flagged", icon: Flag },
 ];
 
 const adminItems = [
-  { title: "Employees", url: "/admin/employees", icon: Users },
-  { title: "Approval System", url: "/admin/approval-system", icon: FileText },
-  { title: "Templates", url: "/admin/templates", icon: Building },
+  { title: "Employees", url: "/management/employees", icon: Users },
+  {
+    title: "Approval System",
+    url: "/management/approval-system",
+    icon: FileText,
+  },
+  { title: "Forms", url: "/management/forms", icon: Building },
 ];
 
 const systemAdminItems = [
