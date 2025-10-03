@@ -38,8 +38,10 @@ export function LoginForm({
         password,
       });
       if (error) throw error;
+
       // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/dashboard");
+      // Using router.push("/dashboard") creates a bug where it gets to the page before loading the data so a reload is needed (tried to also revalidate before that but it didn't work)
+      window.location.replace("/dashboard");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
