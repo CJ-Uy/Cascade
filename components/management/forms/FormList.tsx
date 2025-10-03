@@ -23,10 +23,9 @@ export interface Form {
 interface FormListProps {
   forms: Form[];
   onEdit: (form: Form) => void;
-  onPreview: (form: Form) => void;
 }
 
-export function FormList({ forms, onEdit, onPreview }: FormListProps) {
+export function FormList({ forms, onEdit }: FormListProps) {
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {forms.map((form) => (
@@ -37,22 +36,9 @@ export function FormList({ forms, onEdit, onPreview }: FormListProps) {
                 <FileText className="mr-3 h-6 w-6 text-emerald-500" />
                 {form.name}
               </span>
-              <div className="flex shrink-0 gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onPreview(form)}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onEdit(form)}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button variant="outline" size="sm" onClick={() => onEdit(form)}>
+                Edit
+              </Button>
             </CardTitle>
             <CardDescription>{form.description}</CardDescription>
           </CardHeader>
