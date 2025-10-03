@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Dialog,
@@ -17,7 +17,11 @@ interface RequisitionDetailsDialogProps {
   requisition: Requisition | null;
 }
 
-export function RequisitionDetailsDialog({ isOpen, onClose, requisition }: RequisitionDetailsDialogProps) {
+export function RequisitionDetailsDialog({
+  isOpen,
+  onClose,
+  requisition,
+}: RequisitionDetailsDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
@@ -27,19 +31,36 @@ export function RequisitionDetailsDialog({ isOpen, onClose, requisition }: Requi
             Viewing details for requisition: {requisition?.title}
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4 space-y-4">
+        <div className="space-y-4 py-4">
           {requisition ? (
             <>
-              <p><strong>Form:</strong> {requisition.formName}</p>
-              <p><strong>Initiator:</strong> {requisition.initiator}</p>
-              <p><strong>Status:</strong> {requisition.status}</p>
-              <p><strong>Current Approver:</strong> {requisition.currentApprover}</p>
-              <p><strong>Progress:</strong> Step {requisition.currentStep + 1} of {requisition.totalSteps}</p>
-              <p><strong>Submitted:</strong> {requisition.submittedDate}</p>
-              <p><strong>Last Updated:</strong> {requisition.lastUpdated}</p>
+              <p>
+                <strong>Form:</strong> {requisition.formName}
+              </p>
+              <p>
+                <strong>Initiator:</strong> {requisition.initiator}
+              </p>
+              <p>
+                <strong>Status:</strong> {requisition.status}
+              </p>
+              <p>
+                <strong>Current Approver:</strong> {requisition.currentApprover}
+              </p>
+              <p>
+                <strong>Progress:</strong> Step {requisition.currentStep + 1} of{" "}
+                {requisition.totalSteps}
+              </p>
+              <p>
+                <strong>Submitted:</strong> {requisition.submittedDate}
+              </p>
+              <p>
+                <strong>Last Updated:</strong> {requisition.lastUpdated}
+              </p>
               {/* TODO: Render the actual filled-out form data here */}
-              <div className="border p-4 rounded-md bg-gray-50">
-                <h4 className="font-semibold mb-2">Filled Form Data (Placeholder)</h4>
+              <div className="rounded-md border bg-gray-50 p-4">
+                <h4 className="mb-2 font-semibold">
+                  Filled Form Data (Placeholder)
+                </h4>
                 <p className="text-muted-foreground">
                   The actual filled-out form data would be displayed here.
                 </p>
@@ -50,7 +71,9 @@ export function RequisitionDetailsDialog({ isOpen, onClose, requisition }: Requi
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

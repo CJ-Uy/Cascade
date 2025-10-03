@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,13 +9,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Save } from 'lucide-react';
-import { Employee } from './EmployeeTable';
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Save } from "lucide-react";
+import { Employee } from "./EmployeeTable";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +25,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 
 interface EmployeeDialogProps {
   isOpen: boolean;
@@ -36,19 +36,24 @@ interface EmployeeDialogProps {
 
 // Dummy available roles for selection
 const allAvailableRoles = [
-  'Employee',
-  'Manager',
-  'Department Head',
-  'IT Department',
-  'HR Department',
-  'Finance',
-  'CEO',
-  'BU Head',
+  "Employee",
+  "Manager",
+  "Department Head",
+  "IT Department",
+  "HR Department",
+  "Finance",
+  "CEO",
+  "BU Head",
 ];
 
-export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDialogProps) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+export function EmployeeDialog({
+  isOpen,
+  onClose,
+  onSave,
+  employee,
+}: EmployeeDialogProps) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
@@ -60,8 +65,8 @@ export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDi
         setSelectedRoles(employee.roles);
       } else {
         // Reset for new employee
-        setName('');
-        setEmail('');
+        setName("");
+        setEmail("");
         setSelectedRoles([]);
       }
     }
@@ -69,7 +74,7 @@ export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDi
 
   const handleSave = () => {
     if (!name || !email) {
-      alert('Name and Email are required.');
+      alert("Name and Email are required.");
       return;
     }
     // Show confirmation dialog before saving
@@ -88,8 +93,8 @@ export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDi
   };
 
   const handleRoleToggle = (role: string) => {
-    setSelectedRoles(prev =>
-      prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role],
+    setSelectedRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
     );
   };
 
@@ -98,11 +103,13 @@ export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDi
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>{employee ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
+            <DialogTitle>
+              {employee ? "Edit Employee" : "Add New Employee"}
+            </DialogTitle>
             <DialogDescription>
               {employee
                 ? `Editing roles for ${employee.name}.`
-                : 'Add a new employee to your business unit.'}
+                : "Add a new employee to your business unit."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -132,9 +139,7 @@ export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDi
               />
             </div>
             <div className="grid grid-cols-4 items-start gap-4">
-              <Label className="text-right pt-2">
-                Roles
-              </Label>
+              <Label className="pt-2 text-right">Roles</Label>
               <div className="col-span-3 flex flex-wrap gap-2">
                 {allAvailableRoles.map((role) => (
                   <div key={role} className="flex items-center space-x-2">
@@ -150,8 +155,13 @@ export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDi
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              className="bg-emerald-600 hover:bg-emerald-500"
+            >
               <Save className="mr-2 h-4 w-4" /> Save
             </Button>
           </DialogFooter>
@@ -163,12 +173,16 @@ export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDi
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Save</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to save these changes to the employee's roles?
+              Are you sure you want to save these changes to the employee's
+              roles?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmSave} className="bg-emerald-600 hover:bg-emerald-500">
+            <AlertDialogAction
+              onClick={handleConfirmSave}
+              className="bg-emerald-600 hover:bg-emerald-500"
+            >
               Save Changes
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -11,8 +11,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { RequisitionProgressBar } from './RequisitionProgressBar';
+} from "@/components/ui/table";
+import { RequisitionProgressBar } from "./RequisitionProgressBar";
 
 export interface Requisition {
   id: string;
@@ -20,7 +20,7 @@ export interface Requisition {
   formName: string;
   initiator: string;
   currentApprover: string;
-  status: 'Pending' | 'Approved' | 'Rejected' | 'Flagged' | 'Draft';
+  status: "Pending" | "Approved" | "Rejected" | "Flagged" | "Draft";
   currentStep: number;
   totalSteps: number;
   submittedDate: string;
@@ -30,7 +30,11 @@ export interface Requisition {
 
 interface RequisitionTableProps {
   requisitions: Requisition[];
-  columns: { key: keyof Requisition | 'actions' | 'progress'; header: string; render?: (requisition: Requisition) => React.ReactNode }[];
+  columns: {
+    key: keyof Requisition | "actions" | "progress";
+    header: string;
+    render?: (requisition: Requisition) => React.ReactNode;
+  }[];
   onViewDetails: (requisition: Requisition) => void;
   // Add other action handlers as needed for specific pages
   onApprove?: (requisition: Requisition) => void;
@@ -41,8 +45,16 @@ interface RequisitionTableProps {
 
 const ITEMS_PER_PAGE = 5;
 
-export function RequisitionTable({ requisitions, columns, onViewDetails, onApprove, onReject, onFlag, onWithdraw }: RequisitionTableProps) {
-  const [searchTerm, setSearchTerm] = useState('');
+export function RequisitionTable({
+  requisitions,
+  columns,
+  onViewDetails,
+  onApprove,
+  onReject,
+  onFlag,
+  onWithdraw,
+}: RequisitionTableProps) {
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredRequisitions = useMemo(() => {
@@ -78,7 +90,10 @@ export function RequisitionTable({ requisitions, columns, onViewDetails, onAppro
           <TableHeader>
             <TableRow>
               {columns.map((column) => (
-                <TableHead key={column.key} className={column.key === 'actions' ? 'text-right' : ''}>
+                <TableHead
+                  key={column.key}
+                  className={column.key === "actions" ? "text-right" : ""}
+                >
                   {column.header}
                 </TableHead>
               ))}
@@ -89,25 +104,28 @@ export function RequisitionTable({ requisitions, columns, onViewDetails, onAppro
               paginatedRequisitions.map((requisition) => (
                 <TableRow key={requisition.id}>
                   {columns.map((column) => (
-                    <TableCell key={column.key} className={column.key === 'actions' ? 'text-right' : ''}>
+                    <TableCell
+                      key={column.key}
+                      className={column.key === "actions" ? "text-right" : ""}
+                    >
                       {column.render ? (
                         column.render(requisition)
-                      ) : column.key === 'progress' ? (
+                      ) : column.key === "progress" ? (
                         <RequisitionProgressBar
                           currentStep={requisition.currentStep}
                           totalSteps={requisition.totalSteps}
                           status={requisition.status}
                         />
-                      ) : column.key === 'status' ? (
+                      ) : column.key === "status" ? (
                         <Badge
                           variant={
-                            requisition.status === 'Approved'
-                              ? 'default'
-                              : requisition.status === 'Rejected'
-                              ? 'destructive'
-                              : requisition.status === 'Pending'
-                              ? 'secondary'
-                              : 'outline'
+                            requisition.status === "Approved"
+                              ? "default"
+                              : requisition.status === "Rejected"
+                                ? "destructive"
+                                : requisition.status === "Pending"
+                                  ? "secondary"
+                                  : "outline"
                           }
                         >
                           {requisition.status}
@@ -121,7 +139,10 @@ export function RequisitionTable({ requisitions, columns, onViewDetails, onAppro
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   No requisitions found.
                 </TableCell>
               </TableRow>
@@ -141,7 +162,9 @@ export function RequisitionTable({ requisitions, columns, onViewDetails, onAppro
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+          onClick={() =>
+            setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+          }
           disabled={currentPage === totalPages}
         >
           Next

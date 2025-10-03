@@ -76,11 +76,13 @@ export function FormBuilderDialog({
           className="flex max-h-[90vh] flex-col"
         >
           <DialogHeader>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="h-auto border-none p-0 text-2xl font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
-            />
+            <DialogTitle asChild>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="h-auto border-none p-0 text-2xl font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            </DialogTitle>
           </DialogHeader>
 
           <Tabs

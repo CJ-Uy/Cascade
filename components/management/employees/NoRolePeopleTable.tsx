@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -10,8 +10,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { PlusCircle } from 'lucide-react';
+} from "@/components/ui/table";
+import { PlusCircle } from "lucide-react";
 
 export interface NoRolePerson {
   id: string;
@@ -26,8 +26,11 @@ interface NoRolePeopleTableProps {
 
 const ITEMS_PER_PAGE = 5;
 
-export function NoRolePeopleTable({ people, onAddToBu }: NoRolePeopleTableProps) {
-  const [searchTerm, setSearchTerm] = useState('');
+export function NoRolePeopleTable({
+  people,
+  onAddToBu,
+}: NoRolePeopleTableProps) {
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredPeople = useMemo(() => {
@@ -72,7 +75,11 @@ export function NoRolePeopleTable({ people, onAddToBu }: NoRolePeopleTableProps)
                   <TableCell className="font-medium">{person.name}</TableCell>
                   <TableCell>{person.email}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm" onClick={() => onAddToBu(person)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onAddToBu(person)}
+                    >
                       <PlusCircle className="mr-2 h-4 w-4" /> Add to BU
                     </Button>
                   </TableCell>
@@ -100,7 +107,9 @@ export function NoRolePeopleTable({ people, onAddToBu }: NoRolePeopleTableProps)
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+          onClick={() =>
+            setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+          }
           disabled={currentPage === totalPages}
         >
           Next

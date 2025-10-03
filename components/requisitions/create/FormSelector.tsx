@@ -1,8 +1,14 @@
-'use client';
+"use client";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { type Form } from '@/components/management/forms/FormList';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { type Form } from "@/components/management/forms/FormList";
 
 interface FormSelectorProps {
   availableForms: Form[];
@@ -10,7 +16,11 @@ interface FormSelectorProps {
   onSelectForm: (formId: string) => void;
 }
 
-export function FormSelector({ availableForms, selectedFormId, onSelectForm }: FormSelectorProps) {
+export function FormSelector({
+  availableForms,
+  selectedFormId,
+  onSelectForm,
+}: FormSelectorProps) {
   return (
     <div className="space-y-2">
       <Label htmlFor="form-select">Select a Form</Label>
@@ -19,7 +29,7 @@ export function FormSelector({ availableForms, selectedFormId, onSelectForm }: F
           <SelectValue placeholder="Choose a form to fill out" />
         </SelectTrigger>
         <SelectContent>
-          {availableForms.map(form => (
+          {availableForms.map((form) => (
             <SelectItem key={form.id} value={form.id}>
               {form.name}
             </SelectItem>

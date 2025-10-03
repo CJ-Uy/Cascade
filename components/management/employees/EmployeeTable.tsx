@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Edit } from 'lucide-react';
+import { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Edit } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -11,8 +11,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 
 export interface Employee {
   id: string;
@@ -29,7 +29,7 @@ interface EmployeeTableProps {
 const ITEMS_PER_PAGE = 5; // Define how many items per page
 
 export function EmployeeTable({ employees, onEdit }: EmployeeTableProps) {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredEmployees = useMemo(() => {
@@ -85,7 +85,11 @@ export function EmployeeTable({ employees, onEdit }: EmployeeTableProps) {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => onEdit(employee)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEdit(employee)}
+                      >
                         <Edit className="mr-2 h-4 w-4" /> Edit
                       </Button>
                     </div>
@@ -114,7 +118,9 @@ export function EmployeeTable({ employees, onEdit }: EmployeeTableProps) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+          onClick={() =>
+            setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+          }
           disabled={currentPage === totalPages}
         >
           Next
