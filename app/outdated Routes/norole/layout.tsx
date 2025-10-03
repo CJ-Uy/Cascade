@@ -14,9 +14,5 @@ export default async function Layout({
     redirect("/auth/login");
   }
 
-  return (
-    <>
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }
