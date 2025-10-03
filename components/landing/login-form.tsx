@@ -3,17 +3,9 @@
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function LoginForm({
@@ -24,7 +16,6 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +31,6 @@ export function LoginForm({
       if (error) throw error;
 
       // Update this route to redirect to an authenticated route. The user already has an active session.
-      // Using router.push("/dashboard") creates a bug where it gets to the page before loading the data so a reload is needed (tried to also revalidate before that but it didn't work)
       window.location.replace("/dashboard");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
@@ -50,63 +40,68 @@ export function LoginForm({
   };
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            Enter your email below to login to your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <Link
-                    href="/auth/forgot-password"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                  >
-                    Forgot your password?
-                  </Link>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Logging in..." : "Login"}
-              </Button>
-            </div>
-            <div className="mt-4 text-center text-sm">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/auth/sign-up"
-                className="underline underline-offset-4"
-              >
-                Sign up
-              </Link>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+    <div className={cn("flex flex-col gap-10", className)} {...props}>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-4xl font-bold tracking-tight text-gray-900">
+          Enhance productivity
+          <br /> with <span className="text-emerald-500">Cascade</span>
+        </h1>
+        <p className="text-sm text-gray-500">
+          Brought to you by AKIVA Holdings
+        </p>
+      </div>
+
+      <form onSubmit={handleLogin} className="flex flex-col gap-6">
+        <div className="grid gap-2">
+          <Label htmlFor="email" className="font-medium text-gray-700">
+            Email
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="rounded-lg border-gray-200 bg-green-50/50 px-4 py-5 text-sm focus:border-green-400 focus:ring-green-400"
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="password" className="font-medium text-gray-700">
+            Password
+          </Label>
+          <Input
+            id="password"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="rounded-lg border-gray-200 bg-green-50/50 px-4 py-5 text-sm focus:border-green-400 focus:ring-green-400"
+          />
+          <Link
+            href="/auth/forgot-password"
+            className="mt-1 text-xs text-gray-500 hover:text-gray-800"
+          >
+            Forgot Username/Password?
+          </Link>
+        </div>
+        {error && <p className="text-sm text-red-500">{error}</p>}
+        <Button
+          type="submit"
+          className="w-full rounded-lg bg-emerald-400 py-6 text-sm font-semibold text-gray-900 hover:bg-emerald-300"
+          disabled={isLoading}
+        >
+          {isLoading ? "Logging in..." : "Login"}
+        </Button>
+        <div className="text-center text-sm text-gray-600">
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/auth/sign-up"
+            className="font-medium text-emerald-500 hover:underline"
+          >
+            Register
+          </Link>
+        </div>
+      </form>
     </div>
   );
 }
