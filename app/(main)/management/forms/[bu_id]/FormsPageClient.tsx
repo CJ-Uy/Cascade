@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState, useTransition } from 'react';
-import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
-import { FormList, type Form } from '@/components/management/forms/FormList';
-import { FormBuilderDialog } from '@/components/management/forms/FormBuilderDialog';
-import { saveFormAction } from '../actions';
-import { toast } from 'sonner';
+import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { PlusCircle } from "lucide-react";
+import { FormList, type Form } from "@/components/management/forms/FormList";
+import { FormBuilderDialog } from "@/components/management/forms/FormBuilderDialog";
+import { saveFormAction } from "../actions";
+import { toast } from "sonner";
 
 type FormsPageClientProps = {
   initialForms: Form[];
@@ -14,7 +14,11 @@ type FormsPageClientProps = {
   pathname: string;
 };
 
-export function FormsPageClient({ initialForms, businessUnitId, pathname }: FormsPageClientProps) {
+export function FormsPageClient({
+  initialForms,
+  businessUnitId,
+  pathname,
+}: FormsPageClientProps) {
   const [isPending, startTransition] = useTransition();
   const [forms, setForms] = useState(initialForms);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);

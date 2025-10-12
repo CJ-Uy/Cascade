@@ -80,9 +80,7 @@ export default function Settings() {
         <Card>
           <CardHeader>
             <CardTitle>Profile</CardTitle>
-            <CardDescription>
-              Update your profile information.
-            </CardDescription>
+            <CardDescription>Update your profile information.</CardDescription>
           </CardHeader>
           <CardContent>
             <form
@@ -90,8 +88,14 @@ export default function Settings() {
               className="flex flex-col gap-6"
             >
               <div className="flex flex-col items-center gap-4">
-                <Avatar className="h-24 w-24 cursor-pointer" onClick={handleAvatarClick}>
-                  <AvatarImage src={avatarUrl || "/placeholder-avatar.jpg"} alt="Avatar" />
+                <Avatar
+                  className="h-24 w-24 cursor-pointer"
+                  onClick={handleAvatarClick}
+                >
+                  <AvatarImage
+                    src={avatarUrl || "/placeholder-avatar.jpg"}
+                    alt="Avatar"
+                  />
                   <AvatarFallback>CN</AvatarFallback>
                 </Avatar>
                 <input
@@ -101,14 +105,18 @@ export default function Settings() {
                   className="hidden"
                   accept="image/*"
                 />
-                <Button type="button" variant="outline" onClick={handleAvatarClick}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAvatarClick}
+                >
                   Upload New Picture
                 </Button>
               </div>
 
               <Separator className="my-4" />
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
                   <Label htmlFor="firstName">First Name</Label>
                   <Input

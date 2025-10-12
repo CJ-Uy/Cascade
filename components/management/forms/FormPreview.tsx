@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Table } from "lucide-react";
 
 interface FormPreviewProps {
   fields: FormField[];
@@ -138,8 +138,10 @@ export function FormPreview({ fields }: FormPreviewProps) {
   };
 
   return (
-    <div className="h-full overflow-y-auto rounded-md border bg-white p-4">
-      {fields.map(renderField)}
+    <div className="h-full overflow-y-auto rounded-md bg-slate-100 p-4 sm:p-6">
+      <div className="mx-auto max-w-3xl rounded-lg border bg-white p-8 shadow-sm">
+        {fields.map(renderField)}
+      </div>
     </div>
   );
 }
@@ -171,15 +173,30 @@ function RepeaterPreview({
   };
 
   return (
-    <div className="mb-6 rounded-lg border bg-gray-50 p-4">
-      <h3 className="mb-4 text-lg font-semibold">{field.label}</h3>
+    <div className="mb-6 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50/50 p-4">
+      <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-blue-800">
+        <Table className="h-5 w-5" />
+        {field.label}
+        {field.required && (
+          <span className="ml-1 text-sm font-normal text-red-500">*</span>
+        )}
+      </h3>
       <div className="space-y-4">
         {value.map((row, rowIndex) => (
           <div
             key={rowIndex}
-            className="relative rounded-md border bg-white p-4"
+            className="relative rounded-md border bg-white p-4 shadow-sm"
           >
-            <div className="space-y-4">
+            <div className="absolute top-1 right-1 z-10">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => removeRow(rowIndex)}
+              >
+                <Trash2 className="h-4 w-4 text-red-500" />
+              </Button>
+            </div>
+            <div className="space-y-4 pr-8">
               {field.columns?.map((col) => (
                 <ColumnPreview
                   key={col.id}
@@ -191,18 +208,10 @@ function RepeaterPreview({
                 />
               ))}
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1"
-              onClick={() => removeRow(rowIndex)}
-            >
-              <Trash2 className="h-4 w-4 text-red-500" />
-            </Button>
           </div>
         ))}
       </div>
-      <Button onClick={addRow} variant="outline" className="mt-4">
+      <Button onClick={addRow} variant="outline" className="mt-4 bg-white">
         <Plus className="mr-2 h-4 w-4" />
         Add Row
       </Button>

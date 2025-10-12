@@ -20,7 +20,7 @@ type FormPayload = {
 export async function saveFormAction(
   formData: FormPayload,
   businessUnitId: string,
-  pathname: string
+  pathname: string,
 ) {
   const supabase = await createClient();
   const {
@@ -51,7 +51,10 @@ export async function saveFormAction(
 
   // For updates, we'll do a simple "delete all and recreate" for fields and roles.
   if (formData.id) {
-    await supabase.from("template_fields").delete().eq("template_id", templateId);
+    await supabase
+      .from("template_fields")
+      .delete()
+      .eq("template_id", templateId);
     await supabase
       .from("template_initiator_access")
       .delete()
@@ -108,18 +111,18 @@ export async function saveFormAction(
     }
 
     if (roles && roles.length > 0) {
-        const accessToInsert = roles.map((role) => ({
-          template_id: templateId,
-          role_id: role.id,
-        }));
+      const accessToInsert = roles.map((role) => ({
+        template_id: templateId,
+        role_id: role.id,
+      }));
 
-        const { error: accessError } = await supabase
-            .from("template_initiator_access")
-            .insert(accessToInsert);
-        if (accessError) {
-            console.error("Error saving access roles:", accessError);
-            throw new Error("Could not save access roles.");
-        }
+      const { error: accessError } = await supabase
+        .from("template_initiator_access")
+        .insert(accessToInsert);
+      if (accessError) {
+        console.error("Error saving access roles:", accessError);
+        throw new Error("Could not save access roles.");
+      }
     }
   }
 
