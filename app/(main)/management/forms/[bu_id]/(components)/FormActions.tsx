@@ -17,11 +17,13 @@ import {
   ArchiveRestore,
   History,
   Loader2,
+  CheckCircle, // Import CheckCircle icon
 } from "lucide-react";
 import { type Form } from "@/components/management/forms/FormBuilder";
 import {
   archiveFormAction,
   unarchiveTemplateFamilyAction,
+  activateFormAction, // Import activateFormAction
 } from "@/app/(main)/management/forms/actions";
 import { toast } from "sonner";
 import { VersionHistoryDialog } from "./VersionHistoryDialog";
@@ -82,6 +84,18 @@ export function FormActions({
     setIsWorking(false);
   };
 
+  const handleActivate = async () => {
+    setIsWorking(true);
+    try {
+      await activateFormAction(form.id, pathname);
+      toast.success("Form activated successfully!");
+      onArchive(); // Re-triggers fetch, as status changes
+    } catch (error: any) {
+      toast.error(error.message || "Failed to activate form.");
+    }
+    setIsWorking(false);
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -112,6 +126,12 @@ export function FormActions({
                 <DropdownMenuItem onClick={handleEdit} disabled={isWorking}>
                   <Edit className="mr-2 h-4 w-4" />
                   <span>Create New Version</span>
+                </DropdownMenuItem>
+              )}
+              {form.status === "draft" && !isArchivedView && (
+                <DropdownMenuItem onClick={handleActivate} disabled={isWorking}>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  <span>Activate</span>
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem

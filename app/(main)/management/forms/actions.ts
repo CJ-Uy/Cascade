@@ -288,6 +288,44 @@ export async function unarchiveTemplateFamilyAction(
   revalidatePath(pathname);
 }
 
+export async function activateFormAction(formId: string, pathname: string) {
+  const supabase = await createClient();
+
+  // First, ensure this form is set as the latest version in its family
+  // and set its status to active.
+  const { data: updatedTemplate, error: updateError } = await supabase
+    .from("requisition_templates")
+    .update({ status: "active", is_latest: true })
+    .eq("id", formId)
+    .select("parent_template_id")
+    .single();
+
+  if (updateError || !updatedTemplate) {
+    console.error("Error activating form:", updateError);
+    throw new Error("Failed to activate form.");
+  }
+
+  // If this form has a parent_template_id, ensure all other versions in the family
+  // that were previously 'is_latest' are now 'false'.
+  if (updatedTemplate.parent_template_id) {
+    const { error: deactivateOthersError } = await supabase
+      .from("requisition_templates")
+      .update({ is_latest: false })
+      .eq("parent_template_id", updatedTemplate.parent_template_id)
+      .neq("id", formId);
+
+    if (deactivateOthersError) {
+      console.error(
+        "Error deactivating other latest versions:",
+        deactivateOthersError,
+      );
+      // Don't throw, as the primary activation succeeded.
+    }
+  }
+
+  revalidatePath(pathname);
+}
+
 export async function restoreFormVersionAction(
   versionId: string,
   pathname: string,

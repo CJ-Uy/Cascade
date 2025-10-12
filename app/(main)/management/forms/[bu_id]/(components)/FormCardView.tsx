@@ -15,12 +15,17 @@ import { FormActions } from "./FormActions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { PlusCircle, Table2, LayoutGrid } from "lucide-react";
 
 interface FormCardViewProps {
   businessUnitId: string;
   onEditForm: (form: Form) => void;
   onArchive: () => void;
   onRestore: () => void;
+  onOpenBuilderForNew: () => void; // New prop
+  viewMode: "table" | "card"; // New prop
+  setViewMode: (mode: "table" | "card") => void; // New prop
 }
 
 export function FormCardView({
@@ -28,6 +33,9 @@ export function FormCardView({
   onEditForm,
   onArchive,
   onRestore,
+  onOpenBuilderForNew, // Destructure new prop
+  viewMode,
+  setViewMode,
 }: FormCardViewProps) {
   const supabase = createClient();
   const [forms, setForms] = useState<any[]>([]);
@@ -90,12 +98,39 @@ export function FormCardView({
           </p>
         </div>
         <div className="flex items-center space-x-2">
+          <Button
+            onClick={onOpenBuilderForNew}
+            className="bg-emerald-600 hover:bg-emerald-500"
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Create New Form
+          </Button>
+        </div>
+      </div>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
           <Switch
             id="show-archived-card"
             checked={showArchived}
             onCheckedChange={setShowArchived}
           />
           <Label htmlFor="show-archived-card">Show Archived</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant={viewMode === "table" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("table")}
+          >
+            <Table2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "card" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("card")}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
         </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
