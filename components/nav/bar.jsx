@@ -173,7 +173,7 @@ export function Navbar() {
                     asChild
                     isActive={path.startsWith(item.url)}
                   >
-                    <Link href={`${item.url}?bu_id=${selectedBuId}`}>
+                    <Link href={`${item.url}/${selectedBuId}`}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </Link>
@@ -198,7 +198,7 @@ export function Navbar() {
                       asChild
                       isActive={path.startsWith(item.url)}
                     >
-                      <Link href={`${item.url}?bu_id=${selectedBuId}`}>
+                      <Link href={`${item.url}/${selectedBuId}`}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>
@@ -222,7 +222,7 @@ export function Navbar() {
                       asChild
                       isActive={path.startsWith(item.url)}
                     >
-                      <Link href={`${item.url}?bu_id=${selectedBuId}`}>
+                      <Link href={`${item.url}/${selectedBuId}`}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>
