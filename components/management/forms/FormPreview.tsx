@@ -11,10 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Table } from "lucide-react";
 
 interface FormPreviewProps {
+  name: string;
   fields: FormField[];
 }
 
-export function FormPreview({ fields }: FormPreviewProps) {
+export function FormPreview({ name, fields }: FormPreviewProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
 
   const handleValueChange = (fieldId: string, value: any) => {
@@ -140,6 +141,9 @@ export function FormPreview({ fields }: FormPreviewProps) {
   return (
     <div className="h-full overflow-y-auto rounded-md bg-slate-100 p-4 sm:p-6">
       <div className="mx-auto max-w-3xl rounded-lg border bg-white p-8 shadow-sm">
+        <div className="mb-12 text-center">
+          <h1 className="text-4xl font-bold">{name}</h1>
+        </div>
         {fields.map(renderField)}
       </div>
     </div>

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Save, Trash2 } from "lucide-react";
+import { Save, Trash2, Loader2 } from "lucide-react";
 import { type Form } from "./FormList";
 import { type FormField, FormBuilder } from "./FormBuilder";
 import { DeleteFormDialog } from "./DeleteFormDialog";
@@ -22,6 +22,7 @@ interface FormBuilderDialogProps {
   onClose: () => void;
   onSave: (form: Form) => void;
   form: Form | null;
+  isSaving?: boolean;
 }
 
 const newFormTemplate: Form = {
@@ -37,9 +38,10 @@ export function FormBuilderDialog({
   onClose,
   onSave,
   form,
+  isSaving = false,
 }: FormBuilderDialogProps) {
   // Refactored state management
-  const [name, setName] = useState("");
+  const [name, setName] = useState("Untitled Form");
   const [fields, setFields] = useState<FormField[]>([]);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -77,28 +79,32 @@ export function FormBuilderDialog({
           className="flex max-h-[90vh] flex-col"
         >
           <DialogHeader>
-            <DialogTitle asChild>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-auto border-none p-0 text-2xl font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
-            </DialogTitle>
+            <DialogTitle>{form ? "Edit Form" : "Create New Form"}</DialogTitle>
           </DialogHeader>
 
           <Tabs
             defaultValue="builder"
-            className="flex flex-grow flex-col overflow-y-auto py-4"
+            className="flex flex-grow flex-col overflow-y-auto pt-4"
           >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="builder">Builder</TabsTrigger>
               <TabsTrigger value="preview">Preview</TabsTrigger>
             </TabsList>
+
             <TabsContent value="builder" className="min-h-[60vh] pt-4">
+              <div className="flex justify-center py-4">
+                <Input
+                  id="form-title"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="h-auto w-full max-w-lg border-0 border-b-2 border-dashed border-gray-300 bg-transparent p-2 text-center text-4xl font-bold transition-colors focus:border-solid focus:border-emerald-500 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  placeholder="Untitled Form"
+                />
+              </div>
               <FormBuilder fields={fields} setFields={setFields} />
             </TabsContent>
             <TabsContent value="preview" className="min-h-[60vh] pt-4">
-              <FormPreview fields={fields} />
+              <FormPreview name={name} fields={fields} />
             </TabsContent>
           </Tabs>
 
@@ -120,10 +126,20 @@ export function FormBuilderDialog({
               </Button>
               <Button
                 onClick={handleSave}
+                disabled={isSaving}
                 className="bg-emerald-600 hover:bg-emerald-500"
               >
-                <Save className="mr-2 h-4 w-4" />
-                Save Form
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Form
+                  </>
+                )}
               </Button>
             </div>
           </DialogFooter>

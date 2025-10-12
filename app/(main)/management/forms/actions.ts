@@ -1,56 +1,105 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  type Form,
+  type FormField,
+} from "@/components/management/forms/FormBuilder";
 import { revalidatePath } from "next/cache";
 
-type FormPayload = {
-  id?: string;
-  name: string;
-  description: string;
-  fields: {
-    id?: string;
-    label: string;
-    type: string;
-    required: boolean;
-    options?: string[];
-  }[];
-  accessRoles: string[];
-};
+async function saveFormField(
+  supabase: any,
+  field: FormField,
+  templateId: string,
+  order: number,
+  parentId: string | null = null,
+) {
+  const { data: dbField, error: fieldError } = await supabase
+    .from("template_fields")
+    .insert({
+      template_id: templateId,
+      label: field.label,
+      field_type: field.type,
+      is_required: field.required,
+      placeholder: field.placeholder,
+      order: order,
+      parent_list_field_id: parentId,
+    })
+    .select()
+    .single();
+
+  if (fieldError) throw new Error(`Failed to save field: ${field.label}`);
+
+  // Save options if any
+  if (
+    (field.type === "radio" || field.type === "checkbox") &&
+    field.options &&
+    field.options.length > 0
+  ) {
+    const optionsToInsert = field.options.map((opt, i) => ({
+      field_id: dbField.id,
+      label: opt,
+      value: opt, // Assuming value is same as label
+      order: i,
+    }));
+    const { error: optionsError } = await supabase
+      .from("field_options")
+      .insert(optionsToInsert);
+    if (optionsError)
+      throw new Error(`Failed to save options for field: ${field.label}`);
+  }
+
+  // Save columns if it's a table
+  if (field.type === "table" && field.columns && field.columns.length > 0) {
+    for (let i = 0; i < field.columns.length; i++) {
+      await saveFormField(
+        supabase,
+        field.columns[i],
+        templateId,
+        i,
+        dbField.id,
+      );
+    }
+  }
+}
 
 export async function saveFormAction(
-  formData: FormPayload,
+  form: Form,
   businessUnitId: string,
   pathname: string,
 ) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = createClient();
 
-  if (!user) {
-    throw new Error("Not authenticated");
-  }
-
-  // 1. Upsert the requisition_template
+  // 1. Upsert template
   const { data: template, error: templateError } = await supabase
     .from("requisition_templates")
     .upsert({
-      id: formData.id || undefined,
-      name: formData.name,
-      description: formData.description,
+      id: form.id || undefined,
+      name: form.name,
+      description: form.description,
       business_unit_id: businessUnitId,
     })
     .select()
     .single();
 
   if (templateError) {
-    console.error("Error saving template:", templateError);
-    throw new Error("Could not save form template.");
+    console.error("Error upserting template:", templateError);
+    throw new Error("Failed to save form.");
   }
   const templateId = template.id;
 
-  // For updates, we'll do a simple "delete all and recreate" for fields and roles.
-  if (formData.id) {
+  // 2. On update, delete old fields and access rules.
+  if (form.id) {
+    // We need to delete from field_options first due to foreign key constraints
+    const { data: oldFields } = await supabase
+      .from("template_fields")
+      .select("id")
+      .eq("template_id", templateId);
+    if (oldFields && oldFields.length > 0) {
+      const oldFieldIds = oldFields.map((f) => f.id);
+      await supabase.from("field_options").delete().in("field_id", oldFieldIds);
+    }
+
     await supabase
       .from("template_fields")
       .delete()
@@ -61,73 +110,35 @@ export async function saveFormAction(
       .eq("template_id", templateId);
   }
 
-  // 2. Insert template_fields and their options
-  for (const [index, field] of formData.fields.entries()) {
-    const { data: newField, error: fieldError } = await supabase
-      .from("template_fields")
-      .insert({
-        template_id: templateId,
-        label: field.label,
-        field_type: field.type,
-        is_required: field.required,
-        order: index,
-      })
-      .select()
-      .single();
-
-    if (fieldError) {
-      console.error("Error saving field:", fieldError);
-      throw new Error(`Could not save field: ${field.label}`);
-    }
-
-    if (field.options && field.options.length > 0) {
-      const optionsToInsert = field.options.map((opt, optIndex) => ({
-        field_id: newField.id,
-        label: opt,
-        value: opt,
-        order: optIndex,
-      }));
-      const { error: optionsError } = await supabase
-        .from("field_options")
-        .insert(optionsToInsert);
-      if (optionsError) {
-        console.error("Error saving options:", optionsError);
-        throw new Error(`Could not save options for field: ${field.label}`);
-      }
-    }
+  // 3. Insert new fields (recursively for tables)
+  for (let i = 0; i < form.fields.length; i++) {
+    await saveFormField(supabase, form.fields[i], templateId, i);
   }
 
-  // 3. Insert access roles
-  if (formData.accessRoles && formData.accessRoles.length > 0) {
+  // 4. Insert access roles
+  if (form.accessRoles && form.accessRoles.length > 0) {
     const { data: roles, error: rolesError } = await supabase
       .from("roles")
       .select("id, name")
-      .in("name", formData.accessRoles)
-      .eq("business_unit_id", businessUnitId);
-
+      .in("name", form.accessRoles);
     if (rolesError) {
       console.error("Error fetching roles:", rolesError);
-      throw new Error("Could not find roles to assign.");
+      throw new Error("Failed to map access roles.");
     }
-
-    if (roles && roles.length > 0) {
+    if (roles) {
       const accessToInsert = roles.map((role) => ({
         template_id: templateId,
         role_id: role.id,
       }));
-
       const { error: accessError } = await supabase
         .from("template_initiator_access")
         .insert(accessToInsert);
       if (accessError) {
-        console.error("Error saving access roles:", accessError);
-        throw new Error("Could not save access roles.");
+        console.error("Error inserting access roles:", accessError);
+        throw new Error("Failed to save access roles.");
       }
     }
   }
 
-  // 4. Revalidate the path to refresh the UI
   revalidatePath(pathname);
-
-  return { success: true, templateId };
 }
