@@ -1,16 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import { FormList, type Form } from '@/components/management/forms/FormList';
 import { FormBuilderDialog } from '@/components/management/forms/FormBuilderDialog';
+import { saveFormAction } from '../actions';
+import { toast } from 'sonner';
 
 type FormsPageClientProps = {
   initialForms: Form[];
+  businessUnitId: string;
+  pathname: string;
 };
 
-export function FormsPageClient({ initialForms }: FormsPageClientProps) {
+export function FormsPageClient({ initialForms, businessUnitId, pathname }: FormsPageClientProps) {
+  const [isPending, startTransition] = useTransition();
   const [forms, setForms] = useState(initialForms);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
@@ -26,15 +31,16 @@ export function FormsPageClient({ initialForms }: FormsPageClientProps) {
   };
 
   const onFormSave = (savedForm: Form) => {
-    // TODO: Implement server action to save/update form in the database
-    if (selectedForm) {
-      // Update existing in UI
-      setForms(forms.map((f) => (f.id === savedForm.id ? savedForm : f)));
-    } else {
-      // Create new in UI
-      setForms([...forms, { ...savedForm, id: `form_${Date.now()}` }]);
-    }
-    setIsBuilderOpen(false);
+    startTransition(async () => {
+      try {
+        await saveFormAction(savedForm, businessUnitId, pathname);
+        toast.success(`Form "${savedForm.name}" saved successfully.`);
+        setIsBuilderOpen(false);
+      } catch (error) {
+        console.error("Failed to save form:", error);
+        toast.error("Failed to save form. Check console for details.");
+      }
+    });
   };
 
   return (
@@ -57,6 +63,7 @@ export function FormsPageClient({ initialForms }: FormsPageClientProps) {
           onClose={() => setIsBuilderOpen(false)}
           form={selectedForm}
           onSave={onFormSave}
+          isSaving={isPending}
         />
       )}
     </>

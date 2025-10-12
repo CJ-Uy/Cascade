@@ -416,41 +416,119 @@ function ColumnField({
   onUpdate: Function;
   onRemove: Function;
 }) {
+  const updateOption = (optionIndex: number, value: string) => {
+    const newOptions = [...(field.options || [])];
+    newOptions[optionIndex] = value;
+    onUpdate(field.id, { options: newOptions }, parentId);
+  };
+
+  const addOption = () => {
+    const newOptions = [
+      ...(field.options || []),
+      `Option ${(field.options?.length || 0) + 1}`,
+    ];
+    onUpdate(field.id, { options: newOptions }, parentId);
+  };
+
+  const removeOption = (optionIndex: number) => {
+    const newOptions = [...(field.options || [])];
+    newOptions.splice(optionIndex, 1);
+    onUpdate(field.id, { options: newOptions }, parentId);
+  };
+
+  const renderColumnContent = () => {
+    switch (field.type) {
+      case "radio":
+      case "checkbox":
+        const Icon = field.type === "radio" ? Circle : CheckSquare;
+        return (
+          <div className="mt-3 space-y-2 border-t pt-3">
+            <Label className="text-xs font-semibold text-muted-foreground">
+              Options
+            </Label>
+            {field.options?.map((option, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <Icon className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={option}
+                  onChange={(e) => updateOption(index, e.target.value)}
+                  className="h-8 flex-grow bg-white"
+                  placeholder={`Option ${index + 1}`}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeOption(index)}
+                  className="h-8 w-8 shrink-0"
+                >
+                  <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
+                </Button>
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <Icon className="h-4 w-4 text-muted-foreground/50" />
+              <Button
+                variant="link"
+                onClick={addOption}
+                className="h-8 px-1 text-sm text-emerald-600"
+              >
+                Add option
+              </Button>
+            </div>
+          </div>
+        );
+      case "file-upload":
+        return (
+          <div className="mt-3 border-t pt-3">
+            <div className="flex items-center justify-center rounded-lg border border-gray-200 bg-gray-100 p-2">
+              <Input type="file" disabled className="w-full text-sm" />
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="flex items-center gap-2 rounded-md border bg-white p-3">
-      <Input
-        value={field.label}
-        onChange={(e) =>
-          onUpdate(field.id, { label: e.target.value }, parentId)
-        }
-        className="h-auto flex-grow border-none p-0 font-semibold focus-visible:ring-0 focus-visible:ring-offset-0"
-        placeholder="Column Name"
-      />
-      <span className="text-muted-foreground bg-muted rounded-md px-2 py-1 text-xs">
-        {fieldTypeDisplay[field.type]}
-      </span>
-      <div className="flex items-center gap-1">
-        <Label
-          htmlFor={`col-req-${field.id}`}
-          className="text-muted-foreground text-xs"
-        >
-          Req.
-        </Label>
-        <Switch
-          id={`col-req-${field.id}`}
-          checked={field.required}
-          onCheckedChange={(checked) =>
-            onUpdate(field.id, { required: checked }, parentId)
+    <div className="flex flex-col rounded-md border bg-white p-3 shadow-sm">
+      <div className="flex items-center gap-2">
+        <Input
+          value={field.label}
+          onChange={(e) =>
+            onUpdate(field.id, { label: e.target.value }, parentId)
           }
+          className="h-auto flex-grow border-none p-0 font-semibold focus-visible:ring-0 focus-visible:ring-offset-0"
+          placeholder="Column Name"
         />
+        <span className="shrink-0 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+          {fieldTypeDisplay[field.type]}
+        </span>
+        <div className="flex shrink-0 items-center gap-1">
+          <Label
+            htmlFor={`col-req-${field.id}`}
+            className="text-xs text-muted-foreground"
+          >
+            Req.
+          </Label>
+          <Switch
+            id={`col-req-${field.id}`}
+            checked={field.required}
+            onCheckedChange={(checked) =>
+              onUpdate(field.id, { required: checked }, parentId)
+            }
+          />
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onRemove(field.id, parentId)}
+          className="shrink-0"
+        >
+          <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
+        </Button>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => onRemove(field.id, parentId)}
-      >
-        <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
-      </Button>
+      {renderColumnContent()}
     </div>
   );
 }

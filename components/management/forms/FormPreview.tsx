@@ -165,6 +165,7 @@ function RepeaterPreview({
 
   const handleRowChange = (index: number, colId: string, colValue: any) => {
     const newRows = [...value];
+    if (!newRows[index]) newRows[index] = {};
     newRows[index][colId] = colValue;
     onChange(newRows);
   };
@@ -180,22 +181,20 @@ function RepeaterPreview({
           >
             <div className="space-y-4">
               {field.columns?.map((col) => (
-                <div key={col.id}>
-                  <Label className="font-medium">{col.label}</Label>
-                  <Input
-                    type={col.type === "number" ? "number" : "text"}
-                    value={row[col.id] || ""}
-                    onChange={(e) =>
-                      handleRowChange(rowIndex, col.id, e.target.value)
-                    }
-                  />
-                </div>
+                <ColumnPreview
+                  key={col.id}
+                  column={col}
+                  value={row[col.id]}
+                  onChange={(colValue) =>
+                    handleRowChange(rowIndex, col.id, colValue)
+                  }
+                />
               ))}
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-1 right-1"
+              className="absolute right-1 top-1"
               onClick={() => removeRow(rowIndex)}
             >
               <Trash2 className="h-4 w-4 text-red-500" />
@@ -209,4 +208,114 @@ function RepeaterPreview({
       </Button>
     </div>
   );
+}
+
+function ColumnPreview({
+  column,
+  value,
+  onChange,
+}: {
+  column: FormField;
+  value: any;
+  onChange: (value: any) => void;
+}) {
+  const commonProps = {
+    id: column.id,
+    required: column.required,
+  };
+
+  const fieldWrapper = (label: string, children: React.ReactNode) => (
+    <div key={column.id}>
+      <Label htmlFor={column.id} className="font-medium">
+        {label} {column.required && <span className="text-red-500">*</span>}
+      </Label>
+      {children}
+    </div>
+  );
+
+  switch (column.type) {
+    case "short-text":
+    case "long-text":
+      return fieldWrapper(
+        column.label,
+        <Input
+          {...commonProps}
+          placeholder={column.placeholder}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+        />,
+      );
+    case "number":
+      return fieldWrapper(
+        column.label,
+        <Input
+          {...commonProps}
+          type="number"
+          placeholder={column.placeholder}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+        />,
+      );
+    case "radio":
+      return fieldWrapper(
+        column.label,
+        <RadioGroup
+          value={value}
+          onValueChange={(val) => onChange(val)}
+          className="mt-2"
+        >
+          {column.options?.map((opt) => (
+            <div key={opt} className="flex items-center space-x-2">
+              <RadioGroupItem value={opt} id={`${column.id}-${opt}`} />
+              <Label htmlFor={`${column.id}-${opt}`}>{opt}</Label>
+            </div>
+          ))}
+        </RadioGroup>,
+      );
+    case "checkbox":
+      return fieldWrapper(
+        column.label,
+        <div className="mt-2">
+          {column.options?.map((opt) => (
+            <div key={opt} className="mb-2 flex items-center space-x-2">
+              <Checkbox
+                id={`${column.id}-${opt}`}
+                checked={value?.[opt] || false}
+                onCheckedChange={(checked) => {
+                  const current = value || {};
+                  const updated = { ...current, [opt]: checked };
+                  onChange(updated);
+                }}
+              />
+              <Label htmlFor={`${column.id}-${opt}`}>{opt}</Label>
+            </div>
+          ))}
+        </div>,
+      );
+    case "file-upload":
+      const fileName = value ? value.name : "No file chosen";
+      return fieldWrapper(
+        column.label,
+        <div className="mt-2 flex items-center space-x-2">
+          <Input
+            {...commonProps}
+            type="file"
+            onChange={(e) =>
+              onChange(e.target.files ? e.target.files[0] : null)
+            }
+            className="flex-grow"
+          />
+          {value && (
+            <span className="text-muted-foreground text-sm">{fileName}</span>
+          )}
+        </div>,
+      );
+    default:
+      return fieldWrapper(
+        column.label,
+        <p className="mt-2 text-sm text-red-500">
+          Unsupported field type in table.
+        </p>,
+      );
+  }
 }

@@ -11,6 +11,7 @@ type Props = {
 
 export default async function BusinessUnitFormsPage({ params }: Props) {
   const { bu_id } = await params;
+  const pathname = `/management/forms/${bu_id}`;
 
   // 1. Get auth context first for permissions
   const authContext = await getUserAuthContext();
@@ -18,9 +19,6 @@ export default async function BusinessUnitFormsPage({ params }: Props) {
   if (!authContext) {
     redirect("/auth/login");
   }
-
-  // For debugging: Log the structure of authContext to the server console.
-  console.log("Auth Context Structure:", JSON.stringify(authContext, null, 2));
 
   // 2. Check permissions based on the context object.
   // Corrected based on the logged Auth Context structure.
@@ -40,30 +38,56 @@ export default async function BusinessUnitFormsPage({ params }: Props) {
   // We can get the name from the context, no need for another query
   const businessUnitName = buContext.business_unit_name;
 
-  // --- TEMPORARY DEBUGGING STEP ---
-  // This simplified query tests for RLS on `requisition_templates` itself.
-  console.log("Running simplified query on requisition_templates...");
   const { data: formsData, error: formsError } = await supabase
     .from("requisition_templates")
-    .select("id, name, description")
+    .select(
+      `
+      id,
+      name,
+      description,
+      template_fields (
+        id,
+        label,
+        field_type,
+        is_required,
+        placeholder,
+        "order",
+        field_options (
+          id,
+          label,
+          value,
+          "order"
+        )
+      ),
+      template_initiator_access (
+        roles (
+          id,
+          name
+        )
+      )
+    `,
+    )
     .eq("business_unit_id", bu_id);
 
   if (formsError) {
-    // If this error still appears, the issue is with `requisition_templates`.
-    console.error("Error with simplified query:", formsError.message);
+    console.error("Error fetching forms:", formsError.message);
     notFound();
   }
 
-  console.log("Simplified query successful. Data:", formsData);
-
-  // Adjust mapping for the simplified data structure.
-  // Forms will appear empty on the page, this is expected during this test.
-  const forms: Form[] = formsData.map((template) => ({
+  const forms: Form[] = formsData.map((template: any) => ({
     id: template.id,
     name: template.name,
     description: template.description,
-    fields: [],
-    accessRoles: [],
+    fields: template.template_fields.map((field: any) => ({
+      id: field.id,
+      type: field.field_type,
+      label: field.label,
+      required: field.is_required,
+      options: field.field_options.map((opt: any) => opt.label),
+    })),
+    accessRoles: template.template_initiator_access.map(
+      (access: any) => access.roles.name,
+    ),
   }));
 
   return (
@@ -72,7 +96,11 @@ export default async function BusinessUnitFormsPage({ params }: Props) {
       <p className="text-muted-foreground mb-8">
         Create, edit, and manage forms for the {businessUnitName} business unit.
       </p>
-      <FormsPageClient initialForms={forms} />
+      <FormsPageClient
+        initialForms={forms}
+        businessUnitId={bu_id}
+        pathname={pathname}
+      />
     </div>
   );
 }

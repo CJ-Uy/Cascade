@@ -116,7 +116,7 @@ export default function FormsPage() {
     <div className="p-4 md:p-8">
       <DashboardHeader title="Forms Management" />
       <p className="text-muted-foreground mb-8">
-        Create, edit, and manage forms for your organization's workflows.
+        Create, edit, and manage forms for your organization&apos;s workflows.
       </p>
 
       <div className="mb-6 flex justify-end">
