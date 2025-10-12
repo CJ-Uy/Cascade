@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +17,8 @@ import { type Form } from "./FormList";
 import { type FormField, FormBuilder } from "./FormBuilder";
 import { DeleteFormDialog } from "./DeleteFormDialog";
 import { FormPreview } from "./FormPreview";
+import { archiveFormAction } from "@/app/(main)/management/forms/actions";
+import { toast } from "sonner";
 
 interface FormBuilderDialogProps {
   isOpen: boolean;
@@ -44,6 +47,8 @@ export function FormBuilderDialog({
   const [name, setName] = useState("Untitled Form");
   const [fields, setFields] = useState<FormField[]>([]);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     if (isOpen) {
@@ -64,10 +69,21 @@ export function FormBuilderDialog({
     onSave(formToSave);
   };
 
-  const handleDeleteConfirm = () => {
-    // In a real app, you'd call a delete API
-    setIsDeleteConfirmOpen(false);
-    onClose(); // Close the main dialog after deletion
+  const handleDeleteConfirm = async () => {
+    if (!form?.id) return;
+
+    setIsDeleting(true);
+    try {
+      await archiveFormAction(form.id, pathname);
+      toast.success("Form archived successfully!");
+      setIsDeleteConfirmOpen(false);
+      onClose(); // Close the main dialog after deletion
+    } catch (error) {
+      console.error("Failed to archive form:", error);
+      toast.error("Failed to archive form.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -116,7 +132,7 @@ export function FormBuilderDialog({
                   onClick={() => setIsDeleteConfirmOpen(true)}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
+                  Archive
                 </Button>
               )}
             </div>{" "}
@@ -150,6 +166,10 @@ export function FormBuilderDialog({
         isOpen={isDeleteConfirmOpen}
         onClose={() => setIsDeleteConfirmOpen(false)}
         onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
+        dialogTitle="Are you sure you want to archive this form?"
+        dialogDescription="This will hide the form from the active list. Existing requisitions using this form will not be affected."
+        confirmButtonText="Yes, archive form"
       />
     </>
   );

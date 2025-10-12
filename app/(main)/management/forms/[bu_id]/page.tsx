@@ -1,106 +1,114 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
-import { DashboardHeader } from "@/components/dashboardHeader";
-import { FormsPageClient } from "./FormsPageClient";
-import { Form } from "@/components/management/forms/FormList";
-import { getUserAuthContext } from "@/lib/supabase/auth";
+"use client";
 
-type Props = {
-  params: { bu_id: string };
-};
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import { FormList } from "./(components)/FormList";
+import { FormCardView } from "./(components)/FormCardView"; // Import FormCardView
+import { Button } from "@/components/ui/button";
+import { PlusCircle, Table2, LayoutGrid } from "lucide-react"; // Import Table2 and LayoutGrid icons
+import { FormBuilderDialog } from "@/components/management/forms/FormBuilderDialog";
+import { type Form } from "@/components/management/forms/FormBuilder";
+import { saveFormAction } from "@/app/(main)/management/forms/actions";
+import { toast } from "sonner";
 
-export default async function BusinessUnitFormsPage({ params }: Props) {
-  const { bu_id } = await params;
-  const pathname = `/management/forms/${bu_id}`;
+export default function FormsManagementPage() {
+  const params = useParams();
+  const buId = params.bu_id as string;
 
-  // 1. Get auth context first for permissions
-  const authContext = await getUserAuthContext();
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+  const [selectedForm, setSelectedForm] = useState<Form | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [key, setKey] = useState(Date.now()); // Used to force re-fetch in FormList
+  const [viewMode, setViewMode] = useState<"table" | "card">("table"); // New state for view mode
 
-  if (!authContext) {
-    redirect("/auth/login");
-  }
+  const handleOpenBuilderForNew = () => {
+    setSelectedForm(null);
+    setIsBuilderOpen(true);
+  };
 
-  // 2. Check permissions based on the context object.
-  // Corrected based on the logged Auth Context structure.
-  const buContext = authContext.bu_permissions?.find(
-    (p: any) => p.business_unit_id === bu_id,
-  );
+  const handleOpenBuilderForEdit = (form: Form) => {
+    setSelectedForm(form);
+    setIsBuilderOpen(true);
+  };
 
-  const hasPermission = buContext && buContext.permission_level === "BU_ADMIN";
-
-  if (!hasPermission) {
-    notFound(); // User does not have BU_ADMIN permission for this BU
-  }
-
-  // 3. If permission is granted, proceed to fetch data
-  const supabase = await createClient();
-
-  // We can get the name from the context, no need for another query
-  const businessUnitName = buContext.business_unit_name;
-
-  const { data: formsData, error: formsError } = await supabase
-    .from("requisition_templates")
-    .select(
-      `
-      id,
-      name,
-      description,
-      template_fields (
-        id,
-        label,
-        field_type,
-        is_required,
-        placeholder,
-        "order",
-        field_options (
-          id,
-          label,
-          value,
-          "order"
-        )
-      ),
-      template_initiator_access (
-        roles (
-          id,
-          name
-        )
-      )
-    `,
-    )
-    .eq("business_unit_id", bu_id);
-
-  if (formsError) {
-    console.error("Error fetching forms:", formsError.message);
-    notFound();
-  }
-
-  const forms: Form[] = formsData.map((template: any) => ({
-    id: template.id,
-    name: template.name,
-    description: template.description,
-    fields: template.template_fields.map((field: any) => ({
-      id: field.id,
-      type: field.field_type,
-      label: field.label,
-      required: field.is_required,
-      options: field.field_options.map((opt: any) => opt.label),
-    })),
-    accessRoles: template.template_initiator_access.map(
-      (access: any) => access.roles.name,
-    ),
-  }));
+  const handleSave = async (form: Form) => {
+    setIsSaving(true);
+    try {
+      await saveFormAction(form, buId, `/management/forms/${buId}`);
+      toast.success(
+        form.id ? "Form updated successfully!" : "Form created successfully!",
+      );
+      setIsBuilderOpen(false);
+      setKey(Date.now()); // Trigger re-fetch
+    } catch (error: any) {
+      console.error("Failed to save form:", error);
+      toast.error(error.message || "An unknown error occurred.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
-    <div className="p-4 md:p-8">
-      <DashboardHeader title={`Forms: ${businessUnitName}`} />
-      <p className="text-muted-foreground mb-8">
-        Create, edit, and manage forms for the {businessUnitName} business unit.
-      </p>
-      <FormsPageClient
-        initialForms={forms}
-        businessUnitId={bu_id}
-        pathname={pathname}
-      />
+    <div className="container mx-auto p-4 md:p-6 lg:p-8">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Form Management</h1>
+          <p className="text-muted-foreground">
+            Create, edit, and manage form templates for your business unit.
+          </p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant={viewMode === "table" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("table")}
+          >
+            <Table2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "card" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("card")}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={handleOpenBuilderForNew}
+            className="bg-emerald-600 hover:bg-emerald-500"
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Create New Form
+          </Button>
+        </div>
+      </div>
+
+      {viewMode === "table" ? (
+        <FormList
+          key={key}
+          businessUnitId={buId}
+          onEditForm={handleOpenBuilderForEdit}
+          onArchive={() => setKey(Date.now())}
+          onRestore={() => setKey(Date.now())}
+        />
+      ) : (
+        <FormCardView
+          key={key} // Use key to force re-fetch for card view as well
+          businessUnitId={buId}
+          onEditForm={handleOpenBuilderForEdit}
+          onArchive={() => setKey(Date.now())}
+          onRestore={() => setKey(Date.now())}
+        />
+      )}
+
+      {isBuilderOpen && (
+        <FormBuilderDialog
+          isOpen={isBuilderOpen}
+          onClose={() => setIsBuilderOpen(false)}
+          onSave={handleSave}
+          form={selectedForm}
+          isSaving={isSaving}
+        />
+      )}
     </div>
   );
 }
