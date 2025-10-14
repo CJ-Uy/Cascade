@@ -98,16 +98,13 @@ ALTER TYPE "public"."chat_type" OWNER TO "postgres";
 
 
 CREATE TYPE "public"."field_type" AS ENUM (
-    'TEXT',
-    'TEXT_AREA',
-    'NUMBER',
-    'BOOLEAN',
-    'DATE',
-    'CURRENCY',
-    'SELECT',
-    'MULTIPLE_CHOICE',
-    'CHECKBOX',
-    'LIST'
+    'short-text',
+    'long-text',
+    'number',
+    'radio',
+    'checkbox',
+    'table',
+    'file-upload'
 );
 
 
@@ -137,6 +134,16 @@ CREATE TYPE "public"."role_scope" AS ENUM (
 ALTER TYPE "public"."role_scope" OWNER TO "postgres";
 
 
+CREATE TYPE "public"."template_status" AS ENUM (
+    'draft',
+    'active',
+    'archived'
+);
+
+
+ALTER TYPE "public"."template_status" OWNER TO "postgres";
+
+
 CREATE TYPE "public"."user_status" AS ENUM (
     'UNASSIGNED',
     'ACTIVE',
@@ -145,6 +152,118 @@ CREATE TYPE "public"."user_status" AS ENUM (
 
 
 ALTER TYPE "public"."user_status" OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."create_new_template_version"("old_template_id" "uuid", "new_name" "text", "new_description" "text", "business_unit_id" "uuid", "new_version_number" integer, "parent_id" "uuid") RETURNS "uuid"
+    LANGUAGE "plpgsql"
+    AS $$
+DECLARE
+  new_template_id uuid;
+BEGIN
+    UPDATE public.requisition_templates
+    SET is_latest = false
+    WHERE id = old_template_id;
+ 
+    -- Insert the new template version
+    INSERT INTO public.requisition_templates(name, description, business_unit_id, version, parent_template_id, is_latest, status)
+    VALUES (new_name, new_description, business_unit_id, new_version_number, parent_id, true, 'draft')
+    RETURNING id INTO new_template_id;
+ 
+    RETURN new_template_id;
+  END;
+  $$;
+
+
+ALTER FUNCTION "public"."create_new_template_version"("old_template_id" "uuid", "new_name" "text", "new_description" "text", "business_unit_id" "uuid", "new_version_number" integer, "parent_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_administered_bu_ids"() RETURNS TABLE("id" "uuid")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+ BEGIN
+   RETURN QUERY
+   SELECT r.business_unit_id
+   FROM public.roles r
+   JOIN public.user_role_assignments ura ON r.id = ura.role_id
+   WHERE ura.user_id = auth.uid() AND r.is_bu_admin = true;
+ END;
+ $$;
+
+
+ALTER FUNCTION "public"."get_administered_bu_ids"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_user_auth_context"() RETURNS "jsonb"
+    LANGUAGE "sql" SECURITY DEFINER
+    AS $$
+  with
+    user_profile as (
+      select coalesce(
+        (select to_jsonb(p) from public.profiles p where p.id = auth.uid()),
+        '{}'::jsonb -- This is the correct syntax
+      ) as data
+    ),
+    user_roles as (
+      select r.name, r.scope, r.is_bu_admin, r.business_unit_id, r.id as role_id
+      from public.user_role_assignments ura
+      join public.roles r on ura.role_id = r.id
+      where ura.user_id = auth.uid()
+    ),
+    system_level_roles as (
+      select coalesce(jsonb_agg(name), '[]'::jsonb) as roles
+      from user_roles
+      where scope in ('SYSTEM', 'AUDITOR')
+    ),
+    bu_level_permissions as (
+      select coalesce(jsonb_agg(
+        jsonb_build_object(
+          'business_unit_id', bu.id,
+          'business_unit_name', bu.name,
+          'permission_level', 
+            case
+              when exists (select 1 from user_roles ur where ur.business_unit_id = bu.id and ur.is_bu_admin = true) then 'BU_ADMIN'
+              when exists (select 1 from user_roles ur where ur.business_unit_id = bu.id) then 'APPROVER'
+              else 'MEMBER'
+            end,
+          'role', (select jsonb_build_object('id', ur.role_id, 'name', ur.name) from user_roles ur where ur.business_unit_id = bu.id limit 1)
+        )
+      ), '[]'::jsonb) as permissions
+      from public.user_business_units ubu
+      join public.business_units bu on ubu.business_unit_id = bu.id
+      where ubu.user_id = auth.uid()
+    )
+  select jsonb_build_object(
+    'user_id', auth.uid(),
+    'profile', (select data from user_profile),
+    'system_roles', (select roles from system_level_roles),
+    'bu_permissions', (select permissions from bu_level_permissions)
+  );
+$$;
+
+
+ALTER FUNCTION "public"."get_user_auth_context"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  -- Insert the user's metadata into the profiles table.
+  -- The database will automatically fill 'created_at' and 'updated_at'
+  -- if they have a DEFAULT value of now().
+  INSERT INTO public.profiles (id, first_name, last_name, middle_name)
+  VALUES (
+    new.id,
+    new.raw_user_meta_data->>'first_name',
+    new.raw_user_meta_data->>'last_name',
+    new.raw_user_meta_data->>'middle_name'
+  );
+  RETURN new;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."handle_updated_at"() RETURNS "trigger"
@@ -158,6 +277,21 @@ $$;
 
 
 ALTER FUNCTION "public"."handle_updated_at"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_avatar_url"("profile_id" "uuid", "avatar_url" "text") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  -- The function updates the image_url for the given profile_id
+  UPDATE public.profiles
+  SET image_url = avatar_url
+  WHERE id = profile_id;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."update_avatar_url"("profile_id" "uuid", "avatar_url" "text") OWNER TO "postgres";
 
 SET default_tablespace = '';
 
@@ -206,7 +340,7 @@ ALTER TABLE "public"."attachments" OWNER TO "postgres";
 CREATE TABLE IF NOT EXISTS "public"."business_units" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone,
+    "updated_at" timestamp with time zone DEFAULT "now"(),
     "name" "text" NOT NULL,
     "head_id" "uuid" NOT NULL
 );
@@ -292,12 +426,12 @@ ALTER TABLE "public"."notifications" OWNER TO "postgres";
 CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "id" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone,
+    "updated_at" timestamp with time zone DEFAULT "now"(),
     "first_name" "text",
     "last_name" "text",
-    "full_name" "text",
+    "middle_name" "text",
     "image_url" "text",
-    "status" "public"."user_status" DEFAULT 'UNASSIGNED'::"public"."user_status" NOT NULL
+    "status" "public"."user_status" DEFAULT 'ACTIVE'::"public"."user_status" NOT NULL
 );
 
 
@@ -341,7 +475,12 @@ CREATE TABLE IF NOT EXISTS "public"."requisition_templates" (
     "name" "text" NOT NULL,
     "description" "text",
     "business_unit_id" "uuid" NOT NULL,
-    "approval_workflow_id" "uuid"
+    "approval_workflow_id" "uuid",
+    "status" "public"."template_status" DEFAULT 'draft'::"public"."template_status" NOT NULL,
+    "version" integer DEFAULT 1 NOT NULL,
+    "parent_template_id" "uuid",
+    "is_latest" boolean DEFAULT true NOT NULL,
+    "icon" "text"
 );
 
 
@@ -377,7 +516,7 @@ ALTER TABLE "public"."requisitions" OWNER TO "postgres";
 CREATE TABLE IF NOT EXISTS "public"."roles" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone,
+    "updated_at" timestamp with time zone DEFAULT "now"(),
     "name" "text" NOT NULL,
     "scope" "public"."role_scope" DEFAULT 'BU'::"public"."role_scope" NOT NULL,
     "is_bu_admin" boolean DEFAULT false NOT NULL,
@@ -606,6 +745,10 @@ CREATE INDEX "idx_notifications_recipient_read" ON "public"."notifications" USIN
 
 
 
+CREATE INDEX "idx_requisition_templates_is_latest" ON "public"."requisition_templates" USING "btree" ("is_latest");
+
+
+
 CREATE INDEX "idx_requisitions_business_unit" ON "public"."requisitions" USING "btree" ("business_unit_id");
 
 
@@ -788,6 +931,11 @@ ALTER TABLE ONLY "public"."requisition_templates"
 
 
 
+ALTER TABLE ONLY "public"."requisition_templates"
+    ADD CONSTRAINT "requisition_templates_parent_template_id_fkey" FOREIGN KEY ("parent_template_id") REFERENCES "public"."requisition_templates"("id");
+
+
+
 ALTER TABLE ONLY "public"."requisition_values"
     ADD CONSTRAINT "requisition_values_requisition_id_fkey" FOREIGN KEY ("requisition_id") REFERENCES "public"."requisitions"("id") ON DELETE CASCADE;
 
@@ -863,6 +1011,134 @@ ALTER TABLE ONLY "public"."user_role_assignments"
 
 
 
+CREATE POLICY "Allow BU Admins full access to access rules in their BU templat" ON "public"."template_initiator_access" TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."requisition_templates" "rt"
+  WHERE (("rt"."id" = "template_initiator_access"."template_id") AND ("rt"."business_unit_id" IN ( SELECT "bu"."id"
+           FROM "public"."get_administered_bu_ids"() "bu"("id"))))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."requisition_templates" "rt"
+  WHERE (("rt"."id" = "template_initiator_access"."template_id") AND ("rt"."business_unit_id" IN ( SELECT "bu"."id"
+           FROM "public"."get_administered_bu_ids"() "bu"("id")))))));
+
+
+
+CREATE POLICY "Allow BU Admins full access to fields in their BU templates" ON "public"."template_fields" TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."requisition_templates" "rt"
+  WHERE (("rt"."id" = "template_fields"."template_id") AND ("rt"."business_unit_id" IN ( SELECT "bu"."id"
+           FROM "public"."get_administered_bu_ids"() "bu"("id"))))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."requisition_templates" "rt"
+  WHERE (("rt"."id" = "template_fields"."template_id") AND ("rt"."business_unit_id" IN ( SELECT "bu"."id"
+           FROM "public"."get_administered_bu_ids"() "bu"("id")))))));
+
+
+
+CREATE POLICY "Allow BU Admins full access to options in their BU templates" ON "public"."field_options" TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM ("public"."template_fields" "tf"
+     JOIN "public"."requisition_templates" "rt" ON (("tf"."template_id" = "rt"."id")))
+  WHERE (("tf"."id" = "field_options"."field_id") AND ("rt"."business_unit_id" IN ( SELECT "bu"."id"
+           FROM "public"."get_administered_bu_ids"() "bu"("id"))))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM ("public"."template_fields" "tf"
+     JOIN "public"."requisition_templates" "rt" ON (("tf"."template_id" = "rt"."id")))
+  WHERE (("tf"."id" = "field_options"."field_id") AND ("rt"."business_unit_id" IN ( SELECT "bu"."id"
+           FROM "public"."get_administered_bu_ids"() "bu"("id")))))));
+
+
+
+CREATE POLICY "Allow BU Admins full access to their BU templates" ON "public"."requisition_templates" TO "authenticated" USING (("business_unit_id" IN ( SELECT "bu"."id"
+   FROM "public"."get_administered_bu_ids"() "bu"("id")))) WITH CHECK (("business_unit_id" IN ( SELECT "bu"."id"
+   FROM "public"."get_administered_bu_ids"() "bu"("id"))));
+
+
+
+CREATE POLICY "Allow BU Admins to manage their BU's templates" ON "public"."requisition_templates" TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM ("public"."user_role_assignments" "ura"
+     JOIN "public"."roles" "r" ON (("ura"."role_id" = "r"."id")))
+  WHERE (("ura"."user_id" = "auth"."uid"()) AND ("r"."is_bu_admin" = true) AND ("r"."business_unit_id" = "requisition_templates"."business_unit_id"))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM ("public"."user_role_assignments" "ura"
+     JOIN "public"."roles" "r" ON (("ura"."role_id" = "r"."id")))
+  WHERE (("ura"."user_id" = "auth"."uid"()) AND ("r"."is_bu_admin" = true) AND ("r"."business_unit_id" = "requisition_templates"."business_unit_id")))));
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."approval_step_definitions" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."approval_workflows" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."attachments" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."business_units" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."chat_messages" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."chat_participants" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."chats" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."comments" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."field_options" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."requisition_approvals" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."requisition_tags" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."requisition_templates" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."requisition_values" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."requisitions" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."roles" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."tags" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."template_fields" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."template_initiator_access" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."user_business_units" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."user_role_assignments" FOR SELECT USING (true);
+
+
+
 CREATE POLICY "Public profiles are viewable by everyone." ON "public"."profiles" FOR SELECT USING (true);
 
 
@@ -879,8 +1155,39 @@ CREATE POLICY "Users can update their own notifications (to mark as read)." ON "
 
 
 
+CREATE POLICY "Users can update their own profile" ON "public"."profiles" FOR UPDATE USING (("auth"."uid"() = "id")) WITH CHECK (("auth"."uid"() = "id"));
+
+
+
 CREATE POLICY "Users can update their own profile." ON "public"."profiles" FOR UPDATE USING (("auth"."uid"() = "id"));
 
+
+
+ALTER TABLE "public"."approval_step_definitions" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."approval_workflows" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."attachments" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."business_units" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."chat_messages" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."chat_participants" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."chats" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."comments" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."field_options" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."notifications" ENABLE ROW LEVEL SECURITY;
@@ -889,12 +1196,46 @@ ALTER TABLE "public"."notifications" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."requisition_approvals" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."requisition_tags" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."requisition_templates" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."requisition_values" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."requisitions" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."roles" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."tags" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."template_fields" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."template_initiator_access" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."user_business_units" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."user_role_assignments" ENABLE ROW LEVEL SECURITY;
+
+
 
 
 ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
 
 
-REVOKE USAGE ON SCHEMA "public" FROM PUBLIC;
+GRANT USAGE ON SCHEMA "public" TO "anon";
+GRANT USAGE ON SCHEMA "public" TO "authenticated";
 
 
 
@@ -1048,6 +1389,8 @@ REVOKE USAGE ON SCHEMA "public" FROM PUBLIC;
 
 
 
+GRANT ALL ON FUNCTION "public"."update_avatar_url"("profile_id" "uuid", "avatar_url" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."update_avatar_url"("profile_id" "uuid", "avatar_url" "text") TO "authenticated";
 
 
 
@@ -1060,6 +1403,97 @@ REVOKE USAGE ON SCHEMA "public" FROM PUBLIC;
 
 
 
+
+
+
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."approval_step_definitions" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."approval_workflows" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."attachments" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."business_units" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."chat_messages" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."chat_participants" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."chats" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."comments" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."field_options" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."notifications" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."profiles" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."requisition_approvals" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."requisition_tags" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."requisition_templates" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."requisition_values" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."requisitions" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."roles" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."tags" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."template_fields" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."template_initiator_access" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."user_business_units" TO "authenticated";
+
+
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."user_role_assignments" TO "authenticated";
 
 
 
@@ -1094,3 +1528,42 @@ REVOKE USAGE ON SCHEMA "public" FROM PUBLIC;
 
 
 RESET ALL;
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+
+  create policy "Allow individual delete access"
+  on "storage"."objects"
+  as permissive
+  for delete
+  to public
+using (((bucket_id = 'avatars'::text) AND (auth.uid() = ((storage.foldername(name))[1])::uuid)));
+
+
+
+  create policy "Allow individual insert access"
+  on "storage"."objects"
+  as permissive
+  for insert
+  to public
+with check (((bucket_id = 'avatars'::text) AND (auth.uid() = ((storage.foldername(name))[1])::uuid)));
+
+
+
+  create policy "Allow individual update access"
+  on "storage"."objects"
+  as permissive
+  for update
+  to public
+using (((bucket_id = 'avatars'::text) AND (auth.uid() = ((storage.foldername(name))[1])::uuid)));
+
+
+
+  create policy "Allow public read access"
+  on "storage"."objects"
+  as permissive
+  for select
+  to public
+using ((bucket_id = 'avatars'::text));
+
+
+
