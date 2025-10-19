@@ -15,13 +15,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Edit, Eye, FileText, MoreHorizontal, Users } from "lucide-react";
+import {
+  Edit,
+  Eye,
+  FileText,
+  MoreHorizontal,
+  Users,
+  icons,
+} from "lucide-react";
 
 // Define the structure of a Form, which can be reused
 export interface Form {
   id: string;
   name: string;
   description: string;
+  icon?: string;
   fields: any[]; // Replace 'any' with a proper Field type later
   accessRoles: string[];
 }
@@ -40,7 +48,19 @@ export function FormList({ forms, onEdit, onPreview }: FormListProps) {
           <CardHeader>
             <CardTitle className="flex items-start justify-between gap-2">
               <span className="flex items-center">
-                <FileText className="mr-3 h-6 w-6 text-emerald-500" />
+                {(() => {
+                  if (form.icon && icons[form.icon as keyof typeof icons]) {
+                    const IconComponent =
+                      icons[form.icon as keyof typeof icons];
+                    return (
+                      <IconComponent className="mr-3 h-6 w-6 text-emerald-500" />
+                    );
+                  }
+                  if (form.icon) {
+                    return <span className="mr-3 text-2xl">{form.icon}</span>;
+                  }
+                  return <FileText className="mr-3 h-6 w-6 text-emerald-500" />;
+                })()}
                 {form.name}
               </span>
               <DropdownMenu>

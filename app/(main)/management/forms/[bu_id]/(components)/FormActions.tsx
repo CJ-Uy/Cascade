@@ -19,7 +19,10 @@ import {
   Loader2,
   CheckCircle, // Import CheckCircle icon
 } from "lucide-react";
-import { type Form } from "@/app/(main)/management/(components)/forms/FormBuilder";
+import {
+  type Form,
+  type FormField,
+} from "@/app/(main)/management/(components)/forms/FormBuilder";
 import {
   archiveFormAction,
   unarchiveTemplateFamilyAction,
@@ -32,7 +35,7 @@ interface FormActionsProps {
   form: any;
   onEdit: (form: Form) => void;
   onArchive: () => void;
-  onRestore: () => void; // Add onRestore prop
+  onRestore: () => void;
   isArchivedView: boolean;
 }
 
@@ -47,15 +50,36 @@ export function FormActions({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const pathname = usePathname();
 
-  const handleEdit = () => {
-    // The form object from the list might not have the full field details in the future.
-    // A full fetch might be needed, but for now the list query fetches everything.
+  const handleEdit = (isNewVersion: boolean) => {
+    const transformFields = (fields: any[]): FormField[] => {
+      if (!fields) return [];
+      return fields.map((field) => {
+        const transformedField: FormField = {
+          id: field.id,
+          type: field.field_type,
+          label: field.label,
+          required: field.is_required,
+          placeholder: field.placeholder || "",
+          options: field.field_options?.map((opt: any) => opt.label) || [],
+          columns: field.columns ? transformFields(field.columns) : [],
+        };
+        return transformedField;
+      });
+    };
+
+    const topLevelFields = form.template_fields.filter(
+      (field: any) => field.parent_list_field_id === null,
+    );
+
     const formToEdit: Form = {
-      id: form.id,
+      id: isNewVersion ? "" : form.id,
       name: form.name,
       description: form.description,
-      fields: form.template_fields, // Note the mapping from the query
-      accessRoles: [], // This needs to be fetched or handled properly
+      fields: transformFields(topLevelFields),
+      accessRoles: form.access_roles || [],
+      icon: form.icon || "",
+      status: form.status,
+      versionOfId: isNewVersion ? form.id : undefined,
     };
     onEdit(formToEdit);
   };
@@ -113,7 +137,10 @@ export function FormActions({
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent
+          align="end"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           {isArchivedView ? (
             <DropdownMenuItem
               onClick={(e) => {
@@ -131,7 +158,7 @@ export function FormActions({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleEdit();
+                    handleEdit(false);
                   }}
                   disabled={isWorking}
                 >
@@ -142,7 +169,7 @@ export function FormActions({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleEdit();
+                    handleEdit(true);
                   }}
                   disabled={isWorking}
                 >

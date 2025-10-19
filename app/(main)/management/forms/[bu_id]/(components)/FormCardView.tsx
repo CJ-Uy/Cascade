@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Table2, LayoutGrid } from "lucide-react";
+import { PlusCircle, Table2, LayoutGrid, icons } from "lucide-react";
 
 interface FormCardViewProps {
   businessUnitId: string;
@@ -157,8 +157,23 @@ export function FormCardView({
               className="flex cursor-pointer flex-col"
             >
               <CardHeader className="flex-grow">
-                <div className="flex items-center justify-between">
-                  <CardTitle>{form.name}</CardTitle>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    {(() => {
+                      if (form.icon && icons[form.icon as keyof typeof icons]) {
+                        const IconComponent =
+                          icons[form.icon as keyof typeof icons];
+                        return (
+                          <IconComponent className="h-6 w-6 text-emerald-500" />
+                        );
+                      }
+                      if (form.icon) {
+                        return <span className="text-2xl">{form.icon}</span>;
+                      }
+                      return null;
+                    })()}
+                    <CardTitle>{form.name}</CardTitle>
+                  </div>
                   <FormActions
                     form={form}
                     onEdit={onEditForm}

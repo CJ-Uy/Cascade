@@ -13,33 +13,87 @@ export async function saveFormAction(
   pathname: string,
 ) {
   const supabase = await createClient();
-  const isUpdate = !!form.id;
 
   let templateId = form.id;
 
-  // 1. Create or Update the Requisition Template
-  if (isUpdate) {
+  // Handle creating a new version of an existing form
+  if (form.versionOfId) {
+    const { data: oldVersion, error: fetchError } = await supabase
+      .from("requisition_templates")
+      .select("version, name, parent_template_id, business_unit_id")
+      .eq("id", form.versionOfId)
+      .single();
+
+    if (fetchError || !oldVersion) {
+      console.error("Error fetching template to version:", fetchError);
+      throw new Error(
+        "Could not find the template to create a new version from.",
+      );
+    }
+
+    // Update the old version's name and deactivate it
+    const { error: updateOldError } = await supabase
+      .from("requisition_templates")
+      .update({
+        is_latest: false,
+        name: `${oldVersion.name} (v${oldVersion.version})`,
+      })
+      .eq("id", form.versionOfId);
+
+    if (updateOldError) {
+      console.error("Error deactivating old version:", updateOldError);
+      throw new Error("Could not update the previous version's name.");
+    }
+
+    // Create the new version with the clean name
+    const { data: newTemplate, error: newVersionError } = await supabase
+      .from("requisition_templates")
+      .insert({
+        name: form.name, // The clean name
+        description: form.description,
+        business_unit_id: oldVersion.business_unit_id,
+        status: "draft",
+        icon: form.icon,
+        version: oldVersion.version + 1,
+        parent_template_id: oldVersion.parent_template_id || form.versionOfId,
+        is_latest: true,
+      })
+      .select("id")
+      .single();
+
+    if (newVersionError) {
+      console.error("Error creating new version:", newVersionError);
+      if (newVersionError.code === "23505") {
+        throw new Error(
+          `A form with the name "${form.name}" already exists. Please choose a different name.`,
+        );
+      }
+      throw new Error("Failed to create the new version.");
+    }
+    templateId = newTemplate.id;
+  } else if (form.id) {
+    // Handle updating an existing form (draft)
     const { error } = await supabase
       .from("requisition_templates")
       .update({
         name: form.name,
         description: form.description,
-        status: form.status,
         icon: form.icon,
       })
-      .eq("id", templateId);
+      .eq("id", form.id);
     if (error) {
       console.error("Error updating template:", error);
       throw new Error("Failed to update form template.");
     }
   } else {
+    // Handle creating a brand new form
     const { data: newTemplate, error } = await supabase
       .from("requisition_templates")
       .insert({
         name: form.name,
         description: form.description,
         business_unit_id: businessUnitId,
-        status: form.status,
+        status: "draft",
         icon: form.icon,
         version: 1,
         is_latest: true,
@@ -53,22 +107,16 @@ export async function saveFormAction(
     templateId = newTemplate.id;
   }
 
-  // 2. Get existing fields from the database
-  const { data: existingFields, error: fetchError } = await supabase
+  // --- Field processing logic ---
+  const { data: existingFields } = await supabase
     .from("template_fields")
-    .select("id, parent_list_field_id")
+    .select("id")
     .eq("template_id", templateId);
 
-  if (fetchError) {
-    console.error("Error fetching existing fields:", fetchError);
-    throw new Error("Could not fetch existing fields.");
-  }
-
-  const existingFieldIds = new Set(existingFields.map((f) => f.id));
-  const incomingFieldIds = new Set();
-
-  // Flatten incoming fields (including columns)
+  const existingFieldIds = new Set(existingFields?.map((f) => f.id) || []);
+  const incomingFieldIds = new Set<string>();
   const allIncomingFields: (FormField & { parent_id: string | null })[] = [];
+
   form.fields.forEach((field) => {
     allIncomingFields.push({ ...field, parent_id: null });
     if (field.columns) {
@@ -79,44 +127,32 @@ export async function saveFormAction(
   });
 
   allIncomingFields.forEach((field) => {
-    if (field.id) {
-      // only add if it has an id
+    if (field.id && !field.id.startsWith("field_")) {
       incomingFieldIds.add(field.id);
     }
   });
 
-  // 3. Determine which fields to delete
   const fieldsToDelete = Array.from(existingFieldIds).filter(
     (id) => !incomingFieldIds.has(id),
   );
 
   if (fieldsToDelete.length > 0) {
-    const { error: deleteError } = await supabase
-      .from("template_fields")
+    await supabase
+      .from("field_options")
       .delete()
-      .in("id", fieldsToDelete);
-    if (deleteError) {
-      console.error("Error deleting old fields:", deleteError);
-      // Not throwing an error here, as it might be a partial failure
-    }
+      .in("field_id", fieldsToDelete);
+    await supabase.from("template_fields").delete().in("id", fieldsToDelete);
   }
 
-  // 4. Upsert all fields
   for (const [order, field] of form.fields.entries()) {
     await upsertField(supabase, field, templateId, order, null);
   }
 
-  // 5. Handle access roles (simple delete and re-insert)
-  const { error: deleteRolesError } = await supabase
+  // --- Access roles logic ---
+  await supabase
     .from("template_initiator_access")
     .delete()
     .eq("template_id", templateId);
-
-  if (deleteRolesError) {
-    console.error("Error clearing old access roles:", deleteRolesError);
-    throw new Error("Could not update form access roles.");
-  }
-
   if (form.accessRoles && form.accessRoles.length > 0) {
     const { data: roles } = await supabase
       .from("roles")
@@ -129,13 +165,7 @@ export async function saveFormAction(
         role_id: role.id,
       }));
       if (accessToInsert.length > 0) {
-        const { error: insertRolesError } = await supabase
-          .from("template_initiator_access")
-          .insert(accessToInsert);
-        if (insertRolesError) {
-          console.error("Error inserting new access roles:", insertRolesError);
-          throw new Error("Failed to set form access roles.");
-        }
+        await supabase.from("template_initiator_access").insert(accessToInsert);
       }
     }
   }
@@ -151,7 +181,7 @@ async function upsertField(
   parentId: string | null,
 ) {
   const fieldData = {
-    id: field.id.startsWith("field_") ? undefined : field.id, // Let db generate id for new fields
+    id: field.id.startsWith("field_") ? undefined : field.id,
     template_id: templateId,
     label: field.label,
     field_type: field.type,
@@ -174,26 +204,13 @@ async function upsertField(
 
   const fieldId = dbField.id;
 
-  // Handle options for radio/checkbox
   if ((field.type === "radio" || field.type === "checkbox") && field.options) {
-    // Simple delete and re-insert for options
-    const { error: deleteOptionsError } = await supabase
-      .from("field_options")
-      .delete()
-      .eq("field_id", fieldId);
-
-    if (deleteOptionsError) {
-      console.error(
-        `Error deleting old options for field "${field.label}":`,
-        deleteOptionsError,
-      );
-      throw new Error(`Failed to update options for field: "${field.label}"`);
-    }
+    await supabase.from("field_options").delete().eq("field_id", fieldId);
 
     const optionsToInsert = field.options.map((opt, i) => ({
       field_id: fieldId,
       label: opt,
-      value: opt, // Assuming value is the same as the label
+      value: opt,
       order: i,
     }));
 
@@ -211,8 +228,28 @@ async function upsertField(
     }
   }
 
-  // Handle columns for tables
   if (field.type === "table" && field.columns) {
+    const existingColumns = await supabase
+      .from("template_fields")
+      .select("id")
+      .eq("parent_list_field_id", fieldId);
+    const existingColIds = new Set(
+      existingColumns.data?.map((c) => c.id) || [],
+    );
+    const incomingColIds = new Set(
+      field.columns.map((c) => c.id).filter((id) => !id.startsWith("field_")),
+    );
+    const colsToDelete = Array.from(existingColIds).filter(
+      (id) => !incomingColIds.has(id),
+    );
+    if (colsToDelete.length > 0) {
+      await supabase
+        .from("field_options")
+        .delete()
+        .in("field_id", colsToDelete);
+      await supabase.from("template_fields").delete().in("id", colsToDelete);
+    }
+
     for (const [index, column] of field.columns.entries()) {
       await upsertField(supabase, column, templateId, index, fieldId);
     }
@@ -222,7 +259,6 @@ async function upsertField(
 export async function archiveFormAction(formId: string, pathname: string) {
   const supabase = await createClient();
 
-  // Find the root parent of the template family to archive all versions.
   const { data: template, error: fetchError } = await supabase
     .from("requisition_templates")
     .select("parent_template_id")
@@ -236,7 +272,6 @@ export async function archiveFormAction(formId: string, pathname: string) {
 
   const familyId = template.parent_template_id || formId;
 
-  // Archive all versions of this template by setting their status to 'archived'.
   const { error: archiveError } = await supabase
     .from("requisition_templates")
     .update({ status: "archived" })
@@ -286,8 +321,6 @@ export async function unarchiveTemplateFamilyAction(
 export async function activateFormAction(formId: string, pathname: string) {
   const supabase = await createClient();
 
-  // First, ensure this form is set as the latest version in its family
-  // and set its status to active.
   const { data: updatedTemplate, error: updateError } = await supabase
     .from("requisition_templates")
     .update({ status: "active", is_latest: true })
@@ -300,8 +333,6 @@ export async function activateFormAction(formId: string, pathname: string) {
     throw new Error("Failed to activate form.");
   }
 
-  // If this form has a parent_template_id, ensure all other versions in the family
-  // that were previously 'is_latest' are now 'false'.
   if (updatedTemplate.parent_template_id) {
     const { error: deactivateOthersError } = await supabase
       .from("requisition_templates")
@@ -314,7 +345,6 @@ export async function activateFormAction(formId: string, pathname: string) {
         "Error deactivating other latest versions:",
         deactivateOthersError,
       );
-      // Don't throw, as the primary activation succeeded.
     }
   }
 
@@ -327,7 +357,6 @@ export async function restoreFormVersionAction(
 ) {
   const supabase = await createClient();
 
-  // 1. Fetch the target version to restore
   const { data: targetVersion, error: fetchTargetError } = await supabase
     .from("requisition_templates")
     .select("id, parent_template_id, business_unit_id")
@@ -341,7 +370,6 @@ export async function restoreFormVersionAction(
 
   const familyId = targetVersion.parent_template_id || targetVersion.id;
 
-  // 2. Deactivate the current latest version in the family
   const { error: deactivateError } = await supabase
     .from("requisition_templates")
     .update({ is_latest: false })
@@ -356,10 +384,9 @@ export async function restoreFormVersionAction(
     throw new Error("Failed to deactivate current latest version.");
   }
 
-  // 3. Activate the target version and set its status to 'draft'
   const { error: activateError } = await supabase
     .from("requisition_templates")
-    .update({ is_latest: true, status: "draft" })
+    .update({ is_latest: true, status: "active" })
     .eq("id", versionId);
 
   if (activateError) {

@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { FormActions } from "./FormActions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Table2, LayoutGrid } from "lucide-react";
+import { PlusCircle, Table2, LayoutGrid, icons } from "lucide-react";
 
 interface FormListProps {
   businessUnitId: string;
@@ -75,7 +75,6 @@ export function FormList({
 
       if (error) {
         console.error("Error fetching forms:", error);
-        // Handle error appropriately
       } else {
         setForms(data);
       }
@@ -186,9 +185,31 @@ export function FormList({
                     className="cursor-pointer"
                   >
                     <TableCell>
-                      <div className="font-medium">{form.name}</div>
-                      <div className="text-muted-foreground truncate text-sm">
-                        {form.description || "No description"}
+                      <div className="flex items-center gap-3">
+                        {(() => {
+                          if (
+                            form.icon &&
+                            icons[form.icon as keyof typeof icons]
+                          ) {
+                            const IconComponent =
+                              icons[form.icon as keyof typeof icons];
+                            return (
+                              <IconComponent className="h-6 w-6 text-emerald-500" />
+                            );
+                          }
+                          if (form.icon) {
+                            return (
+                              <span className="text-2xl">{form.icon}</span>
+                            );
+                          }
+                          return null;
+                        })()}
+                        <div>
+                          <div className="font-medium">{form.name}</div>
+                          <div className="text-muted-foreground truncate text-sm">
+                            {form.description || "No description"}
+                          </div>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>

@@ -12,10 +12,15 @@ import { Plus, Trash2, Table } from "lucide-react";
 
 interface FormPreviewProps {
   name: string;
+  description?: string;
   fields: FormField[];
 }
 
-export function FormPreview({ name, fields = [] }: FormPreviewProps) {
+export function FormPreview({
+  name,
+  description,
+  fields = [],
+}: FormPreviewProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
 
   const handleValueChange = (fieldId: string, value: any) => {
@@ -143,6 +148,9 @@ export function FormPreview({ name, fields = [] }: FormPreviewProps) {
       <div className="mx-auto max-w-3xl rounded-lg border bg-white p-8 shadow-sm">
         <div className="mb-12 text-center">
           <h1 className="text-4xl font-bold">{name}</h1>
+          {description && (
+            <p className="text-muted-foreground mt-2 text-lg">{description}</p>
+          )}
         </div>
         {fields.map(renderField)}
       </div>

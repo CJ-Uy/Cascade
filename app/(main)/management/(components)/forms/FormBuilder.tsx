@@ -57,6 +57,9 @@ export interface Form {
   description: string;
   fields: FormField[];
   accessRoles: string[];
+  icon?: string;
+  status?: string;
+  versionOfId?: string;
 }
 interface FormBuilderProps {
   fields: FormField[];
@@ -435,12 +438,17 @@ function SortableFieldCard({
           </div>
         </div>
 
-        <Input
-          value={field.label}
-          onChange={(e) => onUpdate(field.id, { label: e.target.value })}
-          className="h-auto w-full flex-grow border-none p-0 text-lg font-semibold focus-visible:ring-0 focus-visible:ring-offset-0"
-          placeholder="Type your question here"
-        />
+        <div className="flex w-full items-center">
+          <Input
+            value={field.label}
+            onChange={(e) => onUpdate(field.id, { label: e.target.value })}
+            className="h-auto w-full flex-grow border-none p-0 text-lg font-semibold focus-visible:ring-0 focus-visible:ring-offset-0"
+            placeholder="Type your question here"
+          />
+          {field.required && (
+            <span className="ml-2 text-2xl text-red-500">*</span>
+          )}
+        </div>
 
         <div className="mt-4">{renderFieldTypeContent()}</div>
       </div>
@@ -536,14 +544,19 @@ function ColumnField({
   return (
     <div className="flex flex-col rounded-md border bg-white p-3 shadow-sm">
       <div className="flex items-center gap-2">
-        <Input
-          value={field.label}
-          onChange={(e) =>
-            onUpdate(field.id, { label: e.target.value }, parentId)
-          }
-          className="h-auto flex-grow border-none p-0 font-semibold focus-visible:ring-0 focus-visible:ring-offset-0"
-          placeholder="Column Name"
-        />
+        <div className="flex flex-grow items-center">
+          <Input
+            value={field.label}
+            onChange={(e) =>
+              onUpdate(field.id, { label: e.target.value }, parentId)
+            }
+            className="h-auto flex-grow border-none p-0 font-semibold focus-visible:ring-0 focus-visible:ring-offset-0"
+            placeholder="Column Name"
+          />
+          {field.required && (
+            <span className="ml-1 text-lg text-red-500">*</span>
+          )}
+        </div>
         <span className="bg-muted text-muted-foreground shrink-0 rounded-md px-2 py-1 text-xs">
           {fieldTypeDisplay[field.type]}
         </span>
