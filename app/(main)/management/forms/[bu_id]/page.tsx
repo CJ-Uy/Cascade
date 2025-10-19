@@ -12,12 +12,17 @@ import { saveFormAction } from "@/app/(main)/management/forms/actions";
 import { toast } from "sonner";
 import { DashboardHeader } from "@/components/dashboardHeader"; // Import DashboardHeader
 
+import { FormPreviewDialog } from "./(components)/FormPreviewDialog";
+
 export default function FormsManagementPage() {
   const params = useParams();
   const buId = params.bu_id as string;
 
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [selectedFormForPreview, setSelectedFormForPreview] =
+    useState<Form | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [key, setKey] = useState(Date.now());
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
@@ -30,6 +35,16 @@ export default function FormsManagementPage() {
   const handleOpenBuilderForEdit = (form: Form) => {
     setSelectedForm(form);
     setIsBuilderOpen(true);
+  };
+
+  const handleOpenPreview = (form: Form) => {
+    setSelectedFormForPreview(form);
+    setIsPreviewOpen(true);
+  };
+
+  const handleClosePreview = () => {
+    setSelectedFormForPreview(null);
+    setIsPreviewOpen(false);
   };
 
   const handleSave = async (form: Form) => {
@@ -61,6 +76,7 @@ export default function FormsManagementPage() {
           key={key}
           businessUnitId={buId}
           onEditForm={handleOpenBuilderForEdit}
+          onOpenPreview={handleOpenPreview}
           onArchive={() => setKey(Date.now())}
           onRestore={() => setKey(Date.now())}
           onOpenBuilderForNew={handleOpenBuilderForNew} // Pass down
@@ -72,6 +88,7 @@ export default function FormsManagementPage() {
           key={key}
           businessUnitId={buId}
           onEditForm={handleOpenBuilderForEdit}
+          onOpenPreview={handleOpenPreview}
           onArchive={() => setKey(Date.now())}
           onRestore={() => setKey(Date.now())}
           onOpenBuilderForNew={handleOpenBuilderForNew} // Pass down
@@ -89,6 +106,12 @@ export default function FormsManagementPage() {
           isSaving={isSaving}
         />
       )}
+
+      <FormPreviewDialog
+        isOpen={isPreviewOpen}
+        onClose={handleClosePreview}
+        form={selectedFormForPreview}
+      />
     </div>
   );
 }

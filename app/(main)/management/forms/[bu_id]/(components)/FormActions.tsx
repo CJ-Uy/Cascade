@@ -100,7 +100,11 @@ export function FormActions({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
+          <Button
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={(e) => e.stopPropagation()}
+          >
             <span className="sr-only">Open menu</span>
             {isWorking ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -111,31 +115,58 @@ export function FormActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {isArchivedView ? (
-            <DropdownMenuItem onClick={handleUnarchive} disabled={isWorking}>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUnarchive();
+              }}
+              disabled={isWorking}
+            >
               <ArchiveRestore className="mr-2 h-4 w-4" />
               <span>Unarchive</span>
             </DropdownMenuItem>
           ) : (
             <>
               {form.status === "draft" ? (
-                <DropdownMenuItem onClick={handleEdit} disabled={isWorking}>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit();
+                  }}
+                  disabled={isWorking}
+                >
                   <Edit className="mr-2 h-4 w-4" />
                   <span>Edit Draft</span>
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem onClick={handleEdit} disabled={isWorking}>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit();
+                  }}
+                  disabled={isWorking}
+                >
                   <Edit className="mr-2 h-4 w-4" />
                   <span>Create New Version</span>
                 </DropdownMenuItem>
               )}
               {form.status === "draft" && !isArchivedView && (
-                <DropdownMenuItem onClick={handleActivate} disabled={isWorking}>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleActivate();
+                  }}
+                  disabled={isWorking}
+                >
                   <CheckCircle className="mr-2 h-4 w-4" />
                   <span>Activate</span>
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
-                onClick={handleArchive}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleArchive();
+                }}
                 disabled={isWorking}
                 className="text-red-600 focus:text-red-500"
               >
@@ -146,7 +177,10 @@ export function FormActions({
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onClick={() => setIsHistoryOpen(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsHistoryOpen(true);
+            }}
             disabled={isWorking}
           >
             <History className="mr-2 h-4 w-4" />

@@ -21,6 +21,7 @@ import { PlusCircle, Table2, LayoutGrid } from "lucide-react";
 interface FormCardViewProps {
   businessUnitId: string;
   onEditForm: (form: Form) => void;
+  onOpenPreview: (form: Form) => void;
   onArchive: () => void;
   onRestore: () => void;
   onOpenBuilderForNew: () => void; // New prop
@@ -31,6 +32,7 @@ interface FormCardViewProps {
 export function FormCardView({
   businessUnitId,
   onEditForm,
+  onOpenPreview,
   onArchive,
   onRestore,
   onOpenBuilderForNew, // Destructure new prop
@@ -149,7 +151,11 @@ export function FormCardView({
           ))
         ) : forms.length > 0 ? (
           forms.map((form) => (
-            <Card key={form.id} className="flex flex-col">
+            <Card
+              key={form.id}
+              onClick={() => onOpenPreview(form)}
+              className="flex cursor-pointer flex-col"
+            >
               <CardHeader className="flex-grow">
                 <div className="flex items-center justify-between">
                   <CardTitle>{form.name}</CardTitle>

@@ -15,7 +15,7 @@ interface FormPreviewProps {
   fields: FormField[];
 }
 
-export function FormPreview({ name, fields }: FormPreviewProps) {
+export function FormPreview({ name, fields = [] }: FormPreviewProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
 
   const handleValueChange = (fieldId: string, value: any) => {

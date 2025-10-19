@@ -17,6 +17,8 @@ import { type Form } from "./FormList";
 import { type FormField, FormBuilder } from "./FormBuilder";
 import { DeleteFormDialog } from "./DeleteFormDialog";
 import { FormPreview } from "./FormPreview";
+import { SaveConfirmDialog } from "./SaveConfirmDialog";
+import { Textarea } from "@/components/ui/textarea";
 import { archiveFormAction } from "@/app/(main)/management/forms/actions";
 import { toast } from "sonner";
 
@@ -34,6 +36,8 @@ const newFormTemplate: Form = {
   description: "",
   fields: [],
   accessRoles: [],
+  status: "draft",
+  icon: "",
 };
 
 export function FormBuilderDialog({
@@ -43,30 +47,38 @@ export function FormBuilderDialog({
   form,
   isSaving = false,
 }: FormBuilderDialogProps) {
-  // Refactored state management
   const [name, setName] = useState("Untitled Form");
+  const [description, setDescription] = useState("");
+  const [icon, setIcon] = useState("");
   const [fields, setFields] = useState<FormField[]>([]);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     if (isOpen) {
       const initialForm = form
-        ? JSON.parse(JSON.stringify(form))
-        : newFormTemplate;
+        ? { ...newFormTemplate, ...JSON.parse(JSON.stringify(form)) }
+        : { ...newFormTemplate, id: "" }; // Ensure new forms have a blank id
       setName(initialForm.name);
+      setDescription(initialForm.description);
+      setIcon(initialForm.icon);
       setFields(initialForm.fields);
     }
   }, [isOpen, form]);
 
-  const handleSave = () => {
+  const handleSave = (status: "draft" | "active") => {
     const formToSave = {
       ...(form || newFormTemplate),
       name,
+      description,
+      icon,
       fields,
+      status,
     };
     onSave(formToSave);
+    setShowSaveConfirm(false);
   };
 
   const handleDeleteConfirm = async () => {
@@ -77,7 +89,7 @@ export function FormBuilderDialog({
       await archiveFormAction(form.id, pathname);
       toast.success("Form archived successfully!");
       setIsDeleteConfirmOpen(false);
-      onClose(); // Close the main dialog after deletion
+      onClose();
     } catch (error) {
       console.error("Failed to archive form:", error);
       toast.error("Failed to archive form.");
@@ -108,14 +120,31 @@ export function FormBuilderDialog({
             </TabsList>
 
             <TabsContent value="builder" className="min-h-[60vh] pt-4">
-              <div className="flex justify-center py-4">
-                <Input
-                  id="form-title"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="h-auto w-full max-w-lg border-0 border-b-2 border-dashed border-gray-300 bg-transparent p-2 text-center text-4xl font-bold transition-colors focus:border-solid focus:border-emerald-500 focus-visible:ring-0 focus-visible:ring-offset-0"
-                  placeholder="Untitled Form"
-                />
+              <div className="space-y-6 py-4">
+                <div className="flex justify-center">
+                  <Input
+                    id="form-title"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-auto w-full max-w-lg border-0 border-b-2 border-dashed border-gray-300 bg-transparent p-2 text-center text-4xl font-bold transition-colors focus:border-solid focus:border-emerald-500 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    placeholder="Untitled Form"
+                  />
+                </div>
+                <div className="mx-auto max-w-3xl space-y-4">
+                  <Textarea
+                    id="form-description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Enter a description for your form..."
+                    className="min-h-[100px] w-full"
+                  />
+                  <Input
+                    id="form-icon"
+                    value={icon}
+                    onChange={(e) => setIcon(e.target.value)}
+                    placeholder="Enter an icon name (e.g., 'FileText')"
+                  />
+                </div>
               </div>
               <FormBuilder fields={fields} setFields={setFields} />
             </TabsContent>
@@ -141,7 +170,7 @@ export function FormBuilderDialog({
                 Cancel
               </Button>
               <Button
-                onClick={handleSave}
+                onClick={() => setShowSaveConfirm(true)}
                 disabled={isSaving}
                 className="bg-emerald-600 hover:bg-emerald-500"
               >
@@ -161,6 +190,13 @@ export function FormBuilderDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SaveConfirmDialog
+        isOpen={showSaveConfirm}
+        onClose={() => setShowSaveConfirm(false)}
+        onSave={handleSave}
+        isSaving={isSaving}
+      />
 
       <DeleteFormDialog
         isOpen={isDeleteConfirmOpen}

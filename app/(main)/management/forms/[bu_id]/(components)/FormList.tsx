@@ -29,19 +29,21 @@ import { PlusCircle, Table2, LayoutGrid } from "lucide-react";
 interface FormListProps {
   businessUnitId: string;
   onEditForm: (form: Form) => void;
+  onOpenPreview: (form: Form) => void;
   onArchive: () => void;
   onRestore: () => void;
-  onOpenBuilderForNew: () => void; // New prop
-  viewMode: "table" | "card"; // New prop
-  setViewMode: (mode: "table" | "card") => void; // New prop
+  onOpenBuilderForNew: () => void;
+  viewMode: "table" | "card";
+  setViewMode: (mode: "table" | "card") => void;
 }
 
 export function FormList({
   businessUnitId,
   onEditForm,
+  onOpenPreview,
   onArchive,
   onRestore,
-  onOpenBuilderForNew, // Destructure new prop
+  onOpenBuilderForNew,
   viewMode,
   setViewMode,
 }: FormListProps) {
@@ -178,7 +180,11 @@ export function FormList({
                 ))
               ) : forms.length > 0 ? (
                 forms.map((form) => (
-                  <TableRow key={form.id}>
+                  <TableRow
+                    key={form.id}
+                    onClick={() => onOpenPreview(form)}
+                    className="cursor-pointer"
+                  >
                     <TableCell>
                       <div className="font-medium">{form.name}</div>
                       <div className="text-muted-foreground truncate text-sm">
@@ -204,7 +210,7 @@ export function FormList({
                         form={form}
                         onEdit={onEditForm}
                         onArchive={onArchive}
-                        onRestore={onRestore} // Pass onRestore to FormActions
+                        onRestore={onRestore}
                         isArchivedView={showArchived}
                       />
                     </TableCell>

@@ -10,6 +10,7 @@ import {
 import { FormBuilderDialog } from "@/app/(main)/management/(components)/forms/FormBuilderDialog";
 import { saveFormAction } from "../actions";
 import { toast } from "sonner";
+import { FormPreviewDialog } from "./(components)/FormPreviewDialog";
 
 type FormsPageClientProps = {
   initialForms: Form[];
@@ -26,6 +27,9 @@ export function FormsPageClient({
   const [forms, setForms] = useState(initialForms);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [selectedFormForPreview, setSelectedFormForPreview] =
+    useState<Form | null>(null);
 
   const handleCreateNew = () => {
     setSelectedForm(null);
@@ -35,6 +39,16 @@ export function FormsPageClient({
   const handleEdit = (form: Form) => {
     setSelectedForm(form);
     setIsBuilderOpen(true);
+  };
+
+  const handlePreview = (form: Form) => {
+    setSelectedFormForPreview(form);
+    setIsPreviewOpen(true);
+  };
+
+  const handleClosePreview = () => {
+    setSelectedFormForPreview(null);
+    setIsPreviewOpen(false);
   };
 
   const onFormSave = (savedForm: Form) => {
@@ -62,7 +76,7 @@ export function FormsPageClient({
         </Button>
       </div>
 
-      <FormList forms={forms} onEdit={handleEdit} />
+      <FormList forms={forms} onEdit={handleEdit} onPreview={handlePreview} />
 
       {isBuilderOpen && (
         <FormBuilderDialog
@@ -73,6 +87,12 @@ export function FormsPageClient({
           isSaving={isPending}
         />
       )}
+
+      <FormPreviewDialog
+        isOpen={isPreviewOpen}
+        onClose={handleClosePreview}
+        form={selectedFormForPreview}
+      />
     </>
   );
 }

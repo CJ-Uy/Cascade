@@ -9,7 +9,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Eye, FileText, Users } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Edit, Eye, FileText, MoreHorizontal, Users } from "lucide-react";
 
 // Define the structure of a Form, which can be reused
 export interface Form {
@@ -23,9 +29,10 @@ export interface Form {
 interface FormListProps {
   forms: Form[];
   onEdit: (form: Form) => void;
+  onPreview: (form: Form) => void;
 }
 
-export function FormList({ forms, onEdit }: FormListProps) {
+export function FormList({ forms, onEdit, onPreview }: FormListProps) {
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {forms.map((form) => (
@@ -36,9 +43,23 @@ export function FormList({ forms, onEdit }: FormListProps) {
                 <FileText className="mr-3 h-6 w-6 text-emerald-500" />
                 {form.name}
               </span>
-              <Button variant="outline" size="sm" onClick={() => onEdit(form)}>
-                Edit
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onPreview(form)}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    <span>Preview</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onEdit(form)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    <span>Edit</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </CardTitle>
             <CardDescription>{form.description}</CardDescription>
           </CardHeader>
