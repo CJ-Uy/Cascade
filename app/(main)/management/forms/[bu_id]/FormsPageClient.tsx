@@ -3,8 +3,11 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { FormList, type Form } from "@/components/management/forms/FormList";
-import { FormBuilderDialog } from "@/components/management/forms/FormBuilderDialog";
+import {
+  FormList,
+  type Form,
+} from "@/app/(main)/management/(components)/forms/FormList";
+import { FormBuilderDialog } from "@/app/(main)/management/(components)/forms/FormBuilderDialog";
 import { saveFormAction } from "../actions";
 import { toast } from "sonner";
 

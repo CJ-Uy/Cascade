@@ -4,8 +4,11 @@ import { useState } from "react";
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { FormList, type Form } from "@/components/management/forms/FormList";
-import { FormBuilderDialog } from "@/components/management/forms/FormBuilderDialog";
+import {
+  FormList,
+  type Form,
+} from "@/app/(main)/management/(components)/forms/FormList";
+import { FormBuilderDialog } from "@/app/(main)/management/(components)/forms/FormBuilderDialog";
 
 // Dummy data - replace with actual data fetching
 const dummyFormsData: Form[] = [

@@ -7,12 +7,12 @@ import { PlusCircle } from "lucide-react";
 import {
   EmployeeTable,
   Employee,
-} from "@/components/management/employees/EmployeeTable";
-import { EmployeeDialog } from "@/components/management/employees/EmployeeDialog";
+} from "@/app/(main)/management/(components)/employees/EmployeeTable";
+import { EmployeeDialog } from "@/app/(main)/management/(components)/employees/EmployeeDialog";
 import {
   NoRolePeopleTable,
   NoRolePerson,
-} from "@/components/management/employees/NoRolePeopleTable";
+} from "@/app/(main)/management/(components)/employees/NoRolePeopleTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Dummy data

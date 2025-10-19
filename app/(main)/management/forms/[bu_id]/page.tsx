@@ -6,8 +6,8 @@ import { FormList } from "./(components)/FormList";
 import { FormCardView } from "./(components)/FormCardView";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Table2, LayoutGrid } from "lucide-react";
-import { FormBuilderDialog } from "@/components/management/forms/FormBuilderDialog";
-import { type Form } from "@/components/management/forms/FormBuilder";
+import { FormBuilderDialog } from "@/app/(main)/management/(components)/forms/FormBuilderDialog";
+import { type Form } from "@/app/(main)/management/(components)/forms/FormBuilder";
 import { saveFormAction } from "@/app/(main)/management/forms/actions";
 import { toast } from "sonner";
 import { DashboardHeader } from "@/components/dashboardHeader"; // Import DashboardHeader

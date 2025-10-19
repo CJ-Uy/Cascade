@@ -4,8 +4,8 @@ import { useState } from "react";
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { WorkflowList } from "@/components/management/approval-system/WorkflowList";
-import { WorkflowDialog } from "@/components/management/approval-system/WorkflowDialog";
+import { WorkflowList } from "@/app/(main)/management/(components)/approval-system/WorkflowList";
+import { WorkflowDialog } from "@/app/(main)/management/(components)/approval-system/WorkflowDialog";
 
 // Dummy data - replace with actual data fetching
 const dummyWorkflows = [

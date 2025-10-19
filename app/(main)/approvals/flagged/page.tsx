@@ -5,8 +5,8 @@ import { DashboardHeader } from "@/components/dashboardHeader";
 import {
   RequisitionTable,
   Requisition,
-} from "@/components/requisitions/RequisitionTable";
-import { RequisitionDetailsDialog } from "@/components/requisitions/RequisitionDetailsDialog";
+} from "@/app/(main)/requisitions/(components)/RequisitionTable";
+import { RequisitionDetailsDialog } from "@/app/(main)/requisitions/(components)/RequisitionDetailsDialog";
 import { Button } from "@/components/ui/button";
 import { FlagOff, Check } from "lucide-react";
 import {

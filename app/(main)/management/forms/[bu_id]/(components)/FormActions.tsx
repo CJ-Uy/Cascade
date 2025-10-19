@@ -19,7 +19,7 @@ import {
   Loader2,
   CheckCircle, // Import CheckCircle icon
 } from "lucide-react";
-import { type Form } from "@/components/management/forms/FormBuilder";
+import { type Form } from "@/app/(main)/management/(components)/forms/FormBuilder";
 import {
   archiveFormAction,
   unarchiveTemplateFamilyAction,

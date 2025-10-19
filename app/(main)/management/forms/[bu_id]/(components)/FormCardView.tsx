@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { type Form } from "@/components/management/forms/FormBuilder";
+import { type Form } from "@/app/(main)/management/(components)/forms/FormBuilder";
 import {
   Card,
   CardContent,

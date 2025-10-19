@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   type Form,
   type FormField,
-} from "@/components/management/forms/FormBuilder";
+} from "@/app/(main)/management/(components)/forms/FormBuilder";
 import { revalidatePath } from "next/cache";
 
 // Helper function to recursively save a field and its children (like options or table columns)

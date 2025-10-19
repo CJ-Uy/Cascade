@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { type Form } from "@/components/management/forms/FormList";
+import { type Form } from "@/app/(main)/management/(components)/forms/FormList";
 
 interface FormSelectorProps {
   availableForms: Form[];

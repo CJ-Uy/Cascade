@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { type FormField } from "@/components/management/forms/FormBuilder"; // Reusing FormField type
+import { type FormField } from "@/app/(main)/management/(components)/forms/FormBuilder"; // Reusing FormField type
 import {
   Card,
   CardContent,

@@ -1,4 +1,4 @@
-import { SignOutButton } from "@/components/auth/sign-out-button";
+import { SignOutButton } from "@/app/auth/(components)/sign-out-button";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
