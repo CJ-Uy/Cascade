@@ -71,11 +71,11 @@ export default function FormsManagementPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
-      <DashboardHeader
-        title="Form Management"
-        description="Create, edit, and manage form templates for your business unit."
-      />
-      <div className="flex items-center justify-between py-4">
+      <DashboardHeader title="Form Management" />
+      <p className="text-muted-foreground mb-8">
+        Create, edit, and manage form templates for your business unit.
+      </p>
+      <div className="flex items-center justify-between pb-4">
         <Input
           placeholder="Search forms..."
           value={globalFilter}
