@@ -135,7 +135,8 @@ export async function saveWorkflowAction(
   let workflowId = workflowData.id;
 
   // Handle creating a new version of an existing workflow
-  if (workflowData.versionOfId) { // Use versionOfId to identify the workflow to be versioned
+  if (workflowData.versionOfId) {
+    // Use versionOfId to identify the workflow to be versioned
     const { data: oldVersion, error: fetchError } = await supabase
       .from("approval_workflows")
       .select("version, name, parent_workflow_id, description") // Select description as well
@@ -170,7 +171,8 @@ export async function saveWorkflowAction(
         name: workflowData.name,
         description: workflowData.description, // Include description
         version: oldVersion.version + 1,
-        parent_workflow_id: oldVersion.parent_workflow_id || workflowData.versionOfId, // Use versionOfId as parent if no existing parent
+        parent_workflow_id:
+          oldVersion.parent_workflow_id || workflowData.versionOfId, // Use versionOfId as parent if no existing parent
         is_latest: true,
         status: "draft",
       })
@@ -186,7 +188,10 @@ export async function saveWorkflowAction(
     // Handle updating an existing workflow (draft)
     const { error } = await supabase
       .from("approval_workflows")
-      .update({ name: workflowData.name, description: workflowData.description }) // Include description
+      .update({
+        name: workflowData.name,
+        description: workflowData.description,
+      }) // Include description
       .eq("id", workflowData.id);
     if (error) {
       console.error("Error updating workflow:", error);

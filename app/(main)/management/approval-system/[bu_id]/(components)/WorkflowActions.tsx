@@ -30,7 +30,10 @@ import { toast } from "sonner";
 
 interface WorkflowActionsProps {
   workflow: Workflow;
-  onOpenWorkflowDialog: (workflow: Workflow | null, isNewVersion: boolean) => void; // Modified
+  onOpenWorkflowDialog: (
+    workflow: Workflow | null,
+    isNewVersion: boolean,
+  ) => void; // Modified
   onArchive: () => void;
   onRestore: () => void;
   isArchivedView: boolean;

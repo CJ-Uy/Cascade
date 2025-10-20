@@ -24,7 +24,7 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { WorkflowActions } from "./WorkflowActions";  
+import { WorkflowActions } from "./WorkflowActions";
 
 export interface Workflow {
   id: string;
@@ -39,7 +39,10 @@ export interface Workflow {
 }
 
 export interface WorkflowListProps {
-  onOpenWorkflowDialog: (workflow: Workflow | null, isNewVersion: boolean) => void; // Modified
+  onOpenWorkflowDialog: (
+    workflow: Workflow | null,
+    isNewVersion: boolean,
+  ) => void; // Modified
   businessUnitId: string;
   refreshKey: number;
   globalFilter: string;
