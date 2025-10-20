@@ -6,11 +6,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FormPreview } from "@/app/(main)/management/(components)/forms/FormPreview";
-import {
-  type Form,
-  type FormField,
-} from "@/app/(main)/management/(components)/forms/FormBuilder";
+import { FormPreview } from "./FormPreview";
+import { type Form, type FormField } from "./FormBuilder";
 
 interface FormPreviewDialogProps {
   isOpen: boolean;

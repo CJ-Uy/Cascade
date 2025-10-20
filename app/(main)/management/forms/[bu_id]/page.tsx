@@ -4,15 +4,18 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { FormList } from "./(components)/FormList";
 import { FormCardView } from "./(components)/FormCardView";
-import { Button } from "@/components/ui/button";
-import { PlusCircle, Table2, LayoutGrid } from "lucide-react";
-import { FormBuilderDialog } from "@/app/(main)/management/(components)/forms/FormBuilderDialog";
-import { type Form } from "@/app/(main)/management/(components)/forms/FormBuilder";
+import { DashboardHeader } from "@/components/dashboardHeader";
+
+import { type Form } from "./(components)/FormBuilder";
 import { saveFormAction } from "@/app/(main)/management/forms/actions";
 import { toast } from "sonner";
-import { DashboardHeader } from "@/components/dashboardHeader"; // Import DashboardHeader
-
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { PlusCircle, Table2, LayoutGrid } from "lucide-react";
 import { FormPreviewDialog } from "./(components)/FormPreviewDialog";
+import { FormBuilderDialog } from "./(components)/FormBuilderDialog";
 
 export default function FormsManagementPage() {
   const params = useParams();
@@ -26,6 +29,8 @@ export default function FormsManagementPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [key, setKey] = useState(Date.now());
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   const handleOpenBuilderForNew = () => {
     setSelectedForm(null);
@@ -70,6 +75,47 @@ export default function FormsManagementPage() {
         title="Form Management"
         description="Create, edit, and manage form templates for your business unit."
       />
+      <div className="flex items-center justify-between py-4">
+        <Input
+          placeholder="Search forms..."
+          value={globalFilter}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          className="max-w-sm"
+        />
+        <Button
+          onClick={handleOpenBuilderForNew}
+          className="bg-emerald-600 hover:bg-emerald-500"
+        >
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Create New Form
+        </Button>
+      </div>
+      <div className="flex items-center justify-between pb-4">
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="show-archived"
+            checked={showArchived}
+            onCheckedChange={setShowArchived}
+          />
+          <Label htmlFor="show-archived">Show Archived</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant={viewMode === "table" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("table")}
+          >
+            <Table2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "card" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("card")}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
       {viewMode === "table" ? (
         <FormList
@@ -79,9 +125,8 @@ export default function FormsManagementPage() {
           onOpenPreview={handleOpenPreview}
           onArchive={() => setKey(Date.now())}
           onRestore={() => setKey(Date.now())}
-          onOpenBuilderForNew={handleOpenBuilderForNew} // Pass down
-          viewMode={viewMode} // Pass down
-          setViewMode={setViewMode} // Pass down
+          globalFilter={globalFilter}
+          showArchived={showArchived}
         />
       ) : (
         <FormCardView
@@ -91,9 +136,8 @@ export default function FormsManagementPage() {
           onOpenPreview={handleOpenPreview}
           onArchive={() => setKey(Date.now())}
           onRestore={() => setKey(Date.now())}
-          onOpenBuilderForNew={handleOpenBuilderForNew} // Pass down
-          viewMode={viewMode} // Pass down
-          setViewMode={setViewMode} // Pass down
+          globalFilter={globalFilter}
+          showArchived={showArchived}
         />
       )}
 

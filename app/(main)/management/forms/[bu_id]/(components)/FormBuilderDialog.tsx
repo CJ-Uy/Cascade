@@ -13,7 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Save, Trash2, Loader2 } from "lucide-react";
-import { type Form } from "./FormList";
+import { type Form } from "./FormBuilder";
 import { type FormField, FormBuilder } from "./FormBuilder";
 import { DeleteFormDialog } from "./DeleteFormDialog";
 import { FormPreview } from "./FormPreview";

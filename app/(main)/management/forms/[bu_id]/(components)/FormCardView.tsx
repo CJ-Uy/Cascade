@@ -18,15 +18,16 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Table2, LayoutGrid, icons } from "lucide-react";
 
+import { useMemo } from "react";
+
 interface FormCardViewProps {
   businessUnitId: string;
   onEditForm: (form: Form) => void;
   onOpenPreview: (form: Form) => void;
   onArchive: () => void;
   onRestore: () => void;
-  onOpenBuilderForNew: () => void; // New prop
-  viewMode: "table" | "card"; // New prop
-  setViewMode: (mode: "table" | "card") => void; // New prop
+  globalFilter: string;
+  showArchived: boolean;
 }
 
 export function FormCardView({
@@ -35,13 +36,11 @@ export function FormCardView({
   onOpenPreview,
   onArchive,
   onRestore,
-  onOpenBuilderForNew, // Destructure new prop
-  viewMode,
-  setViewMode,
+  globalFilter,
+  showArchived,
 }: FormCardViewProps) {
   const supabase = createClient();
   const [forms, setForms] = useState<any[]>([]);
-  const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -77,6 +76,16 @@ export function FormCardView({
     fetchForms();
   }, [businessUnitId, showArchived, supabase]);
 
+  const filteredForms = useMemo(() => {
+    if (!globalFilter) return forms;
+    return forms.filter(
+      (form) =>
+        form.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        (form.description &&
+          form.description.toLowerCase().includes(globalFilter.toLowerCase())),
+    );
+  }, [forms, globalFilter]);
+
   const getBadgeVariant = (status: string) => {
     switch (status) {
       case "active":
@@ -91,125 +100,80 @@ export function FormCardView({
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Form Templates</h2>
-          <p className="text-muted-foreground">
-            View and manage all form templates for this business unit.
-          </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            onClick={onOpenBuilderForNew}
-            className="bg-emerald-600 hover:bg-emerald-500"
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {loading ? (
+        Array.from({ length: 6 }).map((_, i) => (
+          <Card key={i}>
+            <CardHeader>
+              <Skeleton className="mb-2 h-6 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <Skeleton className="h-5 w-1/4" />
+              <Skeleton className="h-8 w-8" />
+            </CardContent>
+          </Card>
+        ))
+      ) : filteredForms.length > 0 ? (
+        filteredForms.map((form) => (
+          <Card
+            key={form.id}
+            onClick={() => onOpenPreview(form)}
+            className="flex cursor-pointer flex-col"
           >
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Create New Form
-          </Button>
-        </div>
-      </div>
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="show-archived-card"
-            checked={showArchived}
-            onCheckedChange={setShowArchived}
-          />
-          <Label htmlFor="show-archived-card">Show Archived</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant={viewMode === "table" ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("table")}
-          >
-            <Table2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "card" ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("card")}
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {loading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="mb-2 h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </CardHeader>
-              <CardContent className="flex items-center justify-between">
-                <Skeleton className="h-5 w-1/4" />
-                <Skeleton className="h-8 w-8" />
-              </CardContent>
-            </Card>
-          ))
-        ) : forms.length > 0 ? (
-          forms.map((form) => (
-            <Card
-              key={form.id}
-              onClick={() => onOpenPreview(form)}
-              className="flex cursor-pointer flex-col"
-            >
-              <CardHeader className="flex-grow">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    {(() => {
-                      if (form.icon && icons[form.icon as keyof typeof icons]) {
-                        const IconComponent =
-                          icons[form.icon as keyof typeof icons];
-                        return (
-                          <IconComponent className="h-6 w-6 text-emerald-500" />
-                        );
-                      }
-                      if (form.icon) {
-                        return <span className="text-2xl">{form.icon}</span>;
-                      }
-                      return null;
-                    })()}
-                    <CardTitle>{form.name}</CardTitle>
-                  </div>
-                  <FormActions
-                    form={form}
-                    onEdit={onEditForm}
-                    onArchive={onArchive}
-                    onRestore={onRestore}
-                    isArchivedView={showArchived}
-                  />
+            <CardHeader className="flex-grow">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  {(() => {
+                    if (form.icon && icons[form.icon as keyof typeof icons]) {
+                      const IconComponent =
+                        icons[form.icon as keyof typeof icons];
+                      return (
+                        <IconComponent className="h-6 w-6 text-emerald-500" />
+                      );
+                    }
+                    if (form.icon) {
+                      return <span className="text-2xl">{form.icon}</span>;
+                    }
+                    return null;
+                  })()}
+                  <CardTitle>{form.name}</CardTitle>
                 </div>
-                <CardDescription className="line-clamp-2">
-                  {form.description || "No description"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-center justify-between pt-0">
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant={getBadgeVariant(form.status)}
-                    className="capitalize"
-                  >
-                    {form.status}
-                  </Badge>
-                  <Badge variant="outline">v{form.version}</Badge>
-                </div>
-                <span className="text-muted-foreground text-sm">
-                  {new Date(
-                    form.updated_at || form.created_at,
-                  ).toLocaleDateString()}
-                </span>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <p className="text-muted-foreground col-span-full text-center">
-            No forms found.
-          </p>
-        )}
-      </div>
+                <FormActions
+                  form={form}
+                  onEdit={onEditForm}
+                  onArchive={onArchive}
+                  onRestore={onRestore}
+                  isArchivedView={showArchived}
+                />
+              </div>
+              <CardDescription className="line-clamp-2">
+                {form.description || "No description"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between pt-0">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={getBadgeVariant(form.status)}
+                  className="capitalize"
+                >
+                  {form.status}
+                </Badge>
+                <Badge variant="outline">v{form.version}</Badge>
+              </div>
+              <span className="text-muted-foreground text-sm">
+                {new Date(
+                  form.updated_at || form.created_at,
+                ).toLocaleDateString()}
+              </span>
+            </CardContent>
+          </Card>
+        ))
+      ) : (
+        <p className="text-muted-foreground col-span-full text-center">
+          No forms found.
+        </p>
+      )}
     </div>
   );
 }

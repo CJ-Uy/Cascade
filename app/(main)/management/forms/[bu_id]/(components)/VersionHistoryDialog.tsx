@@ -117,7 +117,7 @@ export function VersionHistoryDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Version History for "{formName}"</DialogTitle>
+          <DialogTitle>Version History for &quot;{formName}&quot;</DialogTitle>
           <DialogDescription>
             Review the version history of this form. The latest version is at
             the top.

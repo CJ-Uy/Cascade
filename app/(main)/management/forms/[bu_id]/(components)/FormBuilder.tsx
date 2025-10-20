@@ -1,14 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -21,10 +14,6 @@ import {
   GripVertical,
   Plus,
   Trash2,
-  Type,
-  Hash,
-  MessageSquare,
-  ListOrdered,
   Circle,
   CheckSquare,
   Table,
@@ -57,6 +46,8 @@ export interface Form {
   description: string;
   fields: FormField[];
   accessRoles: string[];
+  status: string;
+  icon: string;
 }
 interface FormBuilderProps {
   fields: FormField[];
@@ -196,7 +187,6 @@ export function FormBuilder({ fields, setFields }: FormBuilderProps) {
 function FieldPalette({
   onAddField,
   title = "Add a Field",
-  description = "",
 }: {
   onAddField: (type: FieldType) => void;
   fieldTypes?: FieldType[];

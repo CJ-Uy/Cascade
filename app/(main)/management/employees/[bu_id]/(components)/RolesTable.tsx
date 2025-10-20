@@ -12,8 +12,6 @@ import {
 } from "@/components/ui/table";
 import { Edit, ArrowUpDown, ShieldCheck, PlusCircle } from "lucide-react";
 import { getRoles } from "../../actions";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import {
   ColumnDef,
   flexRender,
