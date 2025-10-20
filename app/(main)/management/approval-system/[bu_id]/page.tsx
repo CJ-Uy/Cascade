@@ -31,6 +31,7 @@ export default function ApprovalSystem() {
   const buId = params.bu_id as string;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
+  const [isCreatingNewVersion, setIsCreatingNewVersion] = useState(false); // Added
   const [key, setKey] = useState(Date.now());
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [globalFilter, setGlobalFilter] = useState("");
@@ -38,11 +39,19 @@ export default function ApprovalSystem() {
 
   const handleCreateNew = () => {
     setEditingWorkflow(null);
+    setIsCreatingNewVersion(false); // Ensure this is false for new creation
     setIsDialogOpen(true);
   };
 
   const handleEdit = (workflow: Workflow) => {
     setEditingWorkflow(workflow);
+    setIsCreatingNewVersion(false); // Ensure this is false for editing
+    setIsDialogOpen(true);
+  };
+
+  const handleCreateNewVersion = (workflow: Workflow) => {
+    setEditingWorkflow(workflow);
+    setIsCreatingNewVersion(true);
     setIsDialogOpen(true);
   };
 
@@ -149,6 +158,7 @@ export default function ApprovalSystem() {
           onSave={handleSaveWorkflow}
           workflow={editingWorkflow}
           businessUnitId={buId}
+          isNewVersion={isCreatingNewVersion} // Added
         />
       )}
     </div>

@@ -24,11 +24,12 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { WorkflowActions } from "./WorkflowActions";
+import { WorkflowActions } from "./WorkflowActions";  
 
 export interface Workflow {
   id: string;
   name: string;
+  description?: string; // Added
   initiators: string[];
   steps: string[];
   version: number;
@@ -38,7 +39,7 @@ export interface Workflow {
 }
 
 export interface WorkflowListProps {
-  onEdit: (workflow: Workflow) => void;
+  onOpenWorkflowDialog: (workflow: Workflow | null, isNewVersion: boolean) => void; // Modified
   businessUnitId: string;
   refreshKey: number;
   globalFilter: string;
@@ -48,7 +49,7 @@ export interface WorkflowListProps {
 }
 
 export function WorkflowList({
-  onEdit,
+  onOpenWorkflowDialog, // Changed from onEdit
   businessUnitId,
   refreshKey,
   globalFilter,
@@ -90,8 +91,7 @@ export function WorkflowList({
           <div>
             <div className="font-medium">{row.original.name}</div>
             <div className="text-muted-foreground truncate text-sm">
-              Version {row.original.version}{" "}
-              {row.original.is_latest && "(Latest)"}
+              {row.original.description || "No description"}
             </div>
           </div>
         </div>
@@ -115,6 +115,18 @@ export function WorkflowList({
           {row.getValue("status")}
         </Badge>
       ),
+    },
+    {
+      accessorKey: "version",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Version <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => `v${row.getValue("version")}`,
     },
     {
       id: "steps",
@@ -143,7 +155,7 @@ export function WorkflowList({
         <div className="text-right">
           <WorkflowActions
             workflow={row.original}
-            onEdit={onEdit}
+            onOpenWorkflowDialog={onOpenWorkflowDialog} // Modified
             onArchive={onArchive}
             onRestore={onRestore}
             isArchivedView={showArchived}

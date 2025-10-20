@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -66,6 +67,8 @@ interface Workflow {
   parent_workflow_id?: string;
   is_latest: boolean;
   status: string;
+  versionOfId?: string; // Added for versioning
+  description?: string; // Added for description
 }
 
 interface WorkflowDialogProps {
@@ -74,6 +77,7 @@ interface WorkflowDialogProps {
   onSave: (workflowData: Omit<Workflow, "id">) => void;
   workflow: Workflow | null;
   businessUnitId: string;
+  isNewVersion?: boolean; // Added
 }
 
 function SortableStep({
@@ -159,8 +163,10 @@ export function WorkflowDialog({
   onSave,
   workflow,
   businessUnitId,
+  isNewVersion, // Destructure isNewVersion
 }: WorkflowDialogProps) {
   const [name, setName] = useState("");
+  const [description, setDescription] = useState(""); // Added description state
   const [formId, setFormId] = useState<string | undefined>(undefined);
   const [initiators, setInitiators] = useState<string[]>([]);
   const [steps, setSteps] = useState<string[]>([]);
@@ -186,6 +192,7 @@ export function WorkflowDialog({
 
       const state = {
         name: workflow?.name || "",
+        description: workflow?.description || "", // Initialize description
         formId: workflow?.formId,
         initiators: workflow?.initiators || [],
         steps: workflow?.steps || [],
@@ -193,19 +200,37 @@ export function WorkflowDialog({
         parent_workflow_id: workflow?.parent_workflow_id,
         is_latest: workflow?.is_latest || true,
         status: workflow?.status || "draft",
+        versionOfId: isNewVersion && workflow?.id ? workflow.id : undefined, // Initialize versionOfId
       };
       setInitialState(state);
       setName(state.name);
+      setDescription(state.description); // Set description state
       setFormId(state.formId);
       setInitiators(state.initiators);
       setSteps(state.steps);
     } else {
       setInitialState(null);
     }
-  }, [workflow, isOpen, businessUnitId]);
+  }, [workflow, isOpen, businessUnitId, isNewVersion]); // Add isNewVersion to dependencies
 
   const handleSave = () => {
-    onSave({ name, formId, initiators, steps });
+    const workflowToSave: Omit<Workflow, "id"> = {
+      name,
+      description, // Include description
+      formId,
+      initiators,
+      steps,
+      version: workflow?.version || 1, // Keep existing version or default to 1
+      parent_workflow_id: workflow?.parent_workflow_id, // Keep existing parent_workflow_id
+      is_latest: workflow?.is_latest || true, // Keep existing is_latest
+      status: workflow?.status || "draft", // Keep existing status
+    };
+
+    if (isNewVersion && workflow?.id) {
+      workflowToSave.versionOfId = workflow.id; // Set versionOfId when creating a new version
+    }
+
+    onSave(workflowToSave);
   };
 
   const addStep = () => {
@@ -238,7 +263,7 @@ export function WorkflowDialog({
   };
 
   const handleAttemptClose = () => {
-    const currentState = { name, formId, initiators, steps };
+    const currentState = { name, description, formId, initiators, steps }; // Include description in currentState
     if (JSON.stringify(initialState) !== JSON.stringify(currentState)) {
       setShowCloseConfirm(true);
     } else {
@@ -284,24 +309,37 @@ export function WorkflowDialog({
           </DialogHeader>
           <ScrollArea className="h-[70vh] pr-6">
             <div className="grid gap-6 py-4">
-              {/* Step 1: Name */}
+              {/* Step 1: Name and Description */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">1. Workflow Details</CardTitle>
                   <CardDescription>
-                    Give your workflow a clear and descriptive name.
+                    Give your workflow a clear and descriptive name and
+                    description.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Label htmlFor="name" className="sr-only">
-                    Workflow Name
-                  </Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g., 'IT Hardware Request'"
-                  />
+                  <div className="grid gap-4">
+                    <div>
+                      <Label htmlFor="name">Workflow Name</Label>
+                      <Input
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g., 'IT Hardware Request'"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="e.g., 'Workflow for approving IT hardware requests from employees.'"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 

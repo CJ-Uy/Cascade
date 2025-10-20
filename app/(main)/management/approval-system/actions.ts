@@ -12,6 +12,8 @@ interface WorkflowData {
   parent_workflow_id?: string;
   is_latest: boolean;
   status: string;
+  description?: string; // Added
+  versionOfId?: string; // Added
 }
 
 export async function getWorkflows(
@@ -26,6 +28,7 @@ export async function getWorkflows(
       `
             id,
             name,
+            description,
             version,
             parent_workflow_id,
             is_latest,
@@ -41,7 +44,7 @@ export async function getWorkflows(
   if (showArchived) {
     query = query.eq("status", "archived");
   } else {
-    query = query.neq("status", "archived");
+    query = query.neq("status", "archived").eq("is_latest", true);
   }
 
   // Filter by workflows that have at least one step associated with a role in the current business unit
@@ -132,11 +135,11 @@ export async function saveWorkflowAction(
   let workflowId = workflowData.id;
 
   // Handle creating a new version of an existing workflow
-  if (workflowData.parent_workflow_id && !workflowData.id) {
+  if (workflowData.versionOfId) { // Use versionOfId to identify the workflow to be versioned
     const { data: oldVersion, error: fetchError } = await supabase
       .from("approval_workflows")
-      .select("version, name, parent_workflow_id")
-      .eq("id", workflowData.parent_workflow_id)
+      .select("version, name, parent_workflow_id, description") // Select description as well
+      .eq("id", workflowData.versionOfId) // Fetch by versionOfId
       .single();
 
     if (fetchError || !oldVersion) {
@@ -149,8 +152,11 @@ export async function saveWorkflowAction(
     // Deactivate old version
     const { error: updateOldError } = await supabase
       .from("approval_workflows")
-      .update({ is_latest: false })
-      .eq("id", workflowData.parent_workflow_id);
+      .update({
+        is_latest: false,
+        name: `${oldVersion.name} (v${oldVersion.version})`, // Update name
+      })
+      .eq("id", workflowData.versionOfId); // Update by versionOfId
 
     if (updateOldError) {
       console.error("Error deactivating old version:", updateOldError);
@@ -162,9 +168,9 @@ export async function saveWorkflowAction(
       .from("approval_workflows")
       .insert({
         name: workflowData.name,
+        description: workflowData.description, // Include description
         version: oldVersion.version + 1,
-        parent_workflow_id:
-          oldVersion.parent_workflow_id || workflowData.parent_workflow_id,
+        parent_workflow_id: oldVersion.parent_workflow_id || workflowData.versionOfId, // Use versionOfId as parent if no existing parent
         is_latest: true,
         status: "draft",
       })
@@ -180,7 +186,7 @@ export async function saveWorkflowAction(
     // Handle updating an existing workflow (draft)
     const { error } = await supabase
       .from("approval_workflows")
-      .update({ name: workflowData.name })
+      .update({ name: workflowData.name, description: workflowData.description }) // Include description
       .eq("id", workflowData.id);
     if (error) {
       console.error("Error updating workflow:", error);
@@ -192,6 +198,7 @@ export async function saveWorkflowAction(
       .from("approval_workflows")
       .insert({
         name: workflowData.name,
+        description: workflowData.description, // Include description
         version: 1,
         is_latest: true,
         status: "draft",

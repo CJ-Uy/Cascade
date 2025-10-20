@@ -19,7 +19,7 @@ import { getWorkflows } from "../../actions";
 
 interface WorkflowCardViewProps {
   businessUnitId: string;
-  onEditWorkflow: (workflow: Workflow) => void;
+  onOpenWorkflowDialog: (workflow: Workflow | null, isNewVersion: boolean) => void; // Modified
   onOpenPreview: (workflow: Workflow) => void; // Not implemented yet for workflows
   onArchive: () => void;
   onRestore: () => void;
@@ -30,7 +30,7 @@ interface WorkflowCardViewProps {
 
 export function WorkflowCardView({
   businessUnitId,
-  onEditWorkflow,
+  onOpenWorkflowDialog, // Changed from onEditWorkflow
   onOpenPreview,
   onArchive,
   onRestore,
@@ -126,14 +126,14 @@ export function WorkflowCardView({
                 </div>
                 <WorkflowActions
                   workflow={workflow}
-                  onEdit={onEditWorkflow}
+                  onOpenWorkflowDialog={onOpenWorkflowDialog} // Modified
                   onArchive={onArchive}
                   onRestore={onRestore}
                   isArchivedView={showArchived}
                 />
               </div>
               <CardDescription className="line-clamp-2">
-                Version {workflow.version} {workflow.is_latest && "(Latest)"}
+                {workflow.description || "No description"}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex items-center justify-between pt-0">

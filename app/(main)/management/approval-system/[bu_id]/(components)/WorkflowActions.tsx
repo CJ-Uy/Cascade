@@ -30,7 +30,7 @@ import { toast } from "sonner";
 
 interface WorkflowActionsProps {
   workflow: Workflow;
-  onEdit: (workflow: Workflow) => void;
+  onOpenWorkflowDialog: (workflow: Workflow | null, isNewVersion: boolean) => void; // Modified
   onArchive: () => void;
   onRestore: () => void;
   isArchivedView: boolean;
@@ -38,7 +38,7 @@ interface WorkflowActionsProps {
 
 export function WorkflowActions({
   workflow,
-  onEdit,
+  onOpenWorkflowDialog, // Modified
   onArchive,
   onRestore,
   isArchivedView,
@@ -47,19 +47,7 @@ export function WorkflowActions({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const pathname = usePathname();
 
-  const handleEdit = (isNewVersion: boolean) => {
-    const workflowToEdit: Workflow = {
-      ...workflow,
-      id: isNewVersion ? "" : workflow.id,
-      version: isNewVersion ? workflow.version + 1 : workflow.version,
-      parent_workflow_id: isNewVersion
-        ? workflow.id
-        : workflow.parent_workflow_id,
-      is_latest: true,
-      status: "draft",
-    };
-    onEdit(workflowToEdit);
-  };
+  // Removed handleEdit function as its logic is now handled by onOpenWorkflowDialog
 
   const handleArchive = async () => {
     setIsWorking(true);
@@ -138,7 +126,7 @@ export function WorkflowActions({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleEdit(false);
+                    onOpenWorkflowDialog(workflow, false); // Call with isNewVersion = false
                   }}
                   disabled={isWorking}
                 >
@@ -149,7 +137,7 @@ export function WorkflowActions({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleEdit(true);
+                    onOpenWorkflowDialog(workflow, true); // Call with isNewVersion = true
                   }}
                   disabled={isWorking}
                 >
