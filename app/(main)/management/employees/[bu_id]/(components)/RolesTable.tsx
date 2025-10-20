@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Edit, ArrowUpDown } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -12,45 +10,38 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { getEmployees } from "../../actions";
-import { createClient } from "@/lib/supabase/client";
+import { Edit, ArrowUpDown } from "lucide-react";
+import { getRoles } from "../../actions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  getFilteredRowModel,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 
-export interface Employee {
+export interface Role {
   id: string;
   name: string;
-  email: string;
-  roles: string[];
+  is_bu_admin: boolean;
 }
 
-interface EmployeeTableProps {
-  onEdit: (employee: Employee) => void;
+interface RolesTableProps {
   businessUnitId: string;
+  onEdit: (role: Role) => void;
   key: number;
 }
 
-export function EmployeeTable({
-  onEdit,
-  businessUnitId,
-  key,
-}: EmployeeTableProps) {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+export function RolesTable({ businessUnitId, onEdit, key }: RolesTableProps) {
+  const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
 
-  const columns: ColumnDef<Employee>[] = [
+  const columns: ColumnDef<Role>[] = [
     {
       accessorKey: "name",
       header: ({ column }) => {
@@ -59,53 +50,27 @@ export function EmployeeTable({
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Name
+            Role Name
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         );
       },
     },
     {
-      accessorKey: "email",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Email
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
-    },
-    {
-      accessorKey: "roles",
-      header: "Roles",
+      accessorKey: "is_bu_admin",
+      header: "Business Unit Admin",
       cell: ({ row }) => {
-        const roles = row.getValue("roles") as string[];
-        return (
-          <div className="flex flex-wrap gap-1">
-            {roles.map((role) => (
-              <Badge key={role} variant="secondary">
-                {role}
-              </Badge>
-            ))}
-          </div>
-        );
+        const isBuAdmin = row.getValue("is_bu_admin");
+        return isBuAdmin ? <Badge>Yes</Badge> : "No";
       },
     },
     {
       id: "actions",
       cell: ({ row }) => {
-        const employee = row.original;
+        const role = row.original;
         return (
           <div className="text-right">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onEdit(employee)}
-            >
+            <Button variant="outline" size="sm" onClick={() => onEdit(role)}>
               <Edit className="mr-2 h-4 w-4" /> Edit
             </Button>
           </div>
@@ -115,57 +80,29 @@ export function EmployeeTable({
   ];
 
   const table = useReactTable({
-    data: employees,
+    data: roles,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
-    onGlobalFilterChange: setGlobalFilter,
-    getFilteredRowModel: getFilteredRowModel(),
     state: {
       sorting,
-      globalFilter,
     },
   });
 
   useEffect(() => {
-    const fetchEmployees = async () => {
+    const fetchRoles = async () => {
       setLoading(true);
-      const fetchedEmployees = await getEmployees(businessUnitId);
-      setEmployees(fetchedEmployees);
+      const fetchedRoles = await getRoles(businessUnitId);
+      setRoles(fetchedRoles);
       setLoading(false);
     };
-    fetchEmployees();
-
-    const supabase = createClient();
-    const channel = supabase
-      .channel("employees-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "user_role_assignments" },
-        fetchEmployees,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "user_business_units" },
-        fetchEmployees,
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    fetchRoles();
   }, [businessUnitId, key]);
 
   return (
-    <div className="space-y-4">
-      <Input
-        placeholder="Search employees..."
-        value={globalFilter ?? ""}
-        onChange={(event) => setGlobalFilter(event.target.value)}
-        className="max-w-sm"
-      />
+    <div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -218,7 +155,7 @@ export function EmployeeTable({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No employees found.
+                  No roles found.
                 </TableCell>
               </TableRow>
             )}

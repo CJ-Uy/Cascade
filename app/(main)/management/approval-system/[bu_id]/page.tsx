@@ -1,35 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useParams } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { WorkflowList } from "@/app/(main)/management/(components)/approval-system/WorkflowList";
-import { WorkflowDialog } from "@/app/(main)/management/(components)/approval-system/WorkflowDialog";
-
-// Dummy data - replace with actual data fetching
-const dummyWorkflows = [
-  {
-    id: "wf_001",
-    name: "IT Asset Request",
-    formId: "form_001",
-    initiators: ["Employee", "Manager"],
-    steps: ["Manager", "IT Department", "Finance"],
-  },
-  {
-    id: "wf_002",
-    name: "Leave Request",
-    initiators: ["Employee"],
-    steps: ["Manager", "HR Department"],
-  },
-  {
-    id: "wf_003",
-    name: "Purchase Requisition > $1000",
-    formId: "form_002",
-    initiators: ["Manager", "Department Head"],
-    steps: ["Department Head", "Finance", "CEO"],
-  },
-];
+import { WorkflowList } from "./(components)/WorkFlowList";
+import { WorkflowDialog } from "./(components)/WorkflowDialog";
 
 interface Workflow {
   id: string;
@@ -40,7 +17,8 @@ interface Workflow {
 }
 
 export default function ApprovalSystem() {
-  const [workflows, setWorkflows] = useState<Workflow[]>(dummyWorkflows);
+  const params = useParams();
+  const buId = params.bu_id as string;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
 
@@ -55,19 +33,8 @@ export default function ApprovalSystem() {
   };
 
   const handleSaveWorkflow = (workflowData: Omit<Workflow, "id">) => {
-    if (editingWorkflow) {
-      // Update existing workflow
-      setWorkflows(
-        workflows.map((wf) =>
-          wf.id === editingWorkflow.id
-            ? { ...editingWorkflow, ...workflowData }
-            : wf,
-        ),
-      );
-    } else {
-      // Create new workflow
-      setWorkflows([...workflows, { id: `wf_${Date.now()}`, ...workflowData }]);
-    }
+    // TODO: Implement save logic using server actions
+    console.log("Saving workflow...", workflowData);
     setIsDialogOpen(false);
   };
 
@@ -89,7 +56,7 @@ export default function ApprovalSystem() {
         </Button>
       </div>
 
-      <WorkflowList workflows={workflows} onEdit={handleEdit} />
+      <WorkflowList businessUnitId={buId} onEdit={handleEdit} />
 
       {isDialogOpen && (
         <WorkflowDialog
@@ -97,6 +64,7 @@ export default function ApprovalSystem() {
           setIsOpen={setIsDialogOpen}
           onSave={handleSaveWorkflow}
           workflow={editingWorkflow}
+          businessUnitId={buId}
         />
       )}
     </div>

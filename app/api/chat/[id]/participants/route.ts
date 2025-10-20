@@ -4,12 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 // GET /api/chat/[id]/participants - Get chat participants
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -37,13 +39,17 @@ export async function GET(
 
     if (chatError) {
       console.error("Error fetching chat:", chatError);
-      return NextResponse.json({ error: "Failed to fetch chat info" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to fetch chat info" },
+        { status: 500 },
+      );
     }
 
     // Get participants with profile info
     const { data: participants, error } = await supabase
       .from("chat_participants")
-      .select(`
+      .select(
+        `
         user_id,
         last_read_at,
         created_at,
@@ -52,44 +58,54 @@ export async function GET(
           last_name,
           image_url
         )
-      `)
+      `,
+      )
       .eq("chat_id", chatId);
 
     if (error) {
       console.error("Error fetching participants:", error);
       console.error("Chat ID:", chatId);
       console.error("User ID:", user.id);
-      return NextResponse.json({ error: "Failed to fetch participants" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to fetch participants" },
+        { status: 500 },
+      );
     }
 
     console.log("Raw participants data:", participants);
 
     // Transform participants
-    const transformedParticipants = participants?.map(participant => ({
-      userId: participant.user_id,
-      lastReadAt: participant.last_read_at,
-      joinedAt: participant.created_at,
-      name: `${participant.profiles?.first_name || ''} ${participant.profiles?.last_name || ''}`.trim(),
-      avatar: participant.profiles?.image_url,
-      isCreator: participant.user_id === chat.creator_id
-    })) || [];
+    const transformedParticipants =
+      participants?.map((participant) => ({
+        userId: participant.user_id,
+        lastReadAt: participant.last_read_at,
+        joinedAt: participant.created_at,
+        name: `${participant.profiles?.first_name || ""} ${participant.profiles?.last_name || ""}`.trim(),
+        avatar: participant.profiles?.image_url,
+        isCreator: participant.user_id === chat.creator_id,
+      })) || [];
 
     return NextResponse.json({ participants: transformedParticipants });
   } catch (error) {
     console.error("Error in GET /api/chat/[id]/participants:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 // POST /api/chat/[id]/participants - Add participants to chat
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -99,7 +115,10 @@ export async function POST(
     const { userIds } = body;
 
     if (!userIds || !Array.isArray(userIds)) {
-      return NextResponse.json({ error: "Missing or invalid userIds" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing or invalid userIds" },
+        { status: 400 },
+      );
     }
 
     // Verify user is the chat creator
@@ -111,13 +130,16 @@ export async function POST(
       .single();
 
     if (chatError || !chat) {
-      return NextResponse.json({ error: "Access denied - only chat creator can add participants" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Access denied - only chat creator can add participants" },
+        { status: 403 },
+      );
     }
 
     // Add participants
-    const participants = userIds.map(userId => ({
+    const participants = userIds.map((userId) => ({
       chat_id: chatId,
-      user_id: userId
+      user_id: userId,
     }));
 
     const { error: participantsError } = await supabase
@@ -126,25 +148,33 @@ export async function POST(
 
     if (participantsError) {
       console.error("Error adding participants:", participantsError);
-      return NextResponse.json({ error: "Failed to add participants" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to add participants" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error in POST /api/chat/[id]/participants:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 // DELETE /api/chat/[id]/participants - Remove participant from chat
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -154,7 +184,10 @@ export async function DELETE(
     const targetUserId = searchParams.get("userId");
 
     if (!targetUserId) {
-      return NextResponse.json({ error: "Missing userId parameter" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing userId parameter" },
+        { status: 400 },
+      );
     }
 
     // Check if user is chat creator or removing themselves
@@ -184,12 +217,18 @@ export async function DELETE(
 
     if (removeError) {
       console.error("Error removing participant:", removeError);
-      return NextResponse.json({ error: "Failed to remove participant" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to remove participant" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error in DELETE /api/chat/[id]/participants:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

@@ -1,15 +1,20 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useParticipants } from '@/hooks/chat/use-participants';
-import { Participant } from '@/lib/types/chat';
-import { UserPlus, UserMinus } from 'lucide-react';
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useParticipants } from "@/hooks/chat/use-participants";
+import { Participant } from "@/lib/types/chat";
+import { UserPlus, UserMinus } from "lucide-react";
 
 interface ParticipantsModalProps {
   open: boolean;
@@ -19,33 +24,33 @@ interface ParticipantsModalProps {
   isGroupChat: boolean;
 }
 
-export function ParticipantsModal({ 
-  open, 
-  onOpenChange, 
-  chatId, 
-  chatName, 
-  isGroupChat 
+export function ParticipantsModal({
+  open,
+  onOpenChange,
+  chatId,
+  chatName,
+  isGroupChat,
 }: ParticipantsModalProps) {
   const { participants, loading, error } = useParticipants(chatId);
 
   const getInitials = (name: string) => {
     return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
+      .split(" ")
+      .map((word) => word.charAt(0))
+      .join("")
       .toUpperCase()
       .slice(0, 2);
   };
 
   const formatJoinDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
+      return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
       });
     } catch {
-      return 'Unknown date';
+      return "Unknown date";
     }
   };
 
@@ -79,9 +84,9 @@ export function ParticipantsModal({
           <DialogHeader>
             <DialogTitle>Participants</DialogTitle>
           </DialogHeader>
-          <div className="text-center py-4">
-            <p className="text-red-500 mb-2">Error loading participants</p>
-            <p className="text-sm text-muted-foreground">{error}</p>
+          <div className="py-4 text-center">
+            <p className="mb-2 text-red-500">Error loading participants</p>
+            <p className="text-muted-foreground text-sm">{error}</p>
           </div>
         </DialogContent>
       </Dialog>
@@ -99,13 +104,15 @@ export function ParticipantsModal({
             )}
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           {/* Chat Info */}
-          <div className="p-3 bg-muted/30 rounded-lg">
-            <h3 className="font-medium text-sm mb-1">{chatName}</h3>
-            <p className="text-xs text-muted-foreground">
-              {isGroupChat ? `Group Chat • ${participants.length} members` : 'Private Chat'}
+          <div className="bg-muted/30 rounded-lg p-3">
+            <h3 className="mb-1 text-sm font-medium">{chatName}</h3>
+            <p className="text-muted-foreground text-xs">
+              {isGroupChat
+                ? `Group Chat • ${participants.length} members`
+                : "Private Chat"}
             </p>
           </div>
 
@@ -113,18 +120,26 @@ export function ParticipantsModal({
           <ScrollArea className="max-h-[400px]">
             <div className="space-y-3">
               {participants.map((participant) => (
-                <div key={participant.userId} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg">
+                <div
+                  key={participant.userId}
+                  className="hover:bg-muted/50 flex items-center justify-between rounded-lg p-3"
+                >
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={participant.avatar} alt={participant.name} />
+                      <AvatarImage
+                        src={participant.avatar}
+                        alt={participant.name}
+                      />
                       <AvatarFallback className="text-sm">
                         {getInitials(participant.name)}
                       </AvatarFallback>
                     </Avatar>
-                    
+
                     <div>
-                      <h4 className="font-medium text-sm">{participant.name}</h4>
-                      <p className="text-xs text-muted-foreground">
+                      <h4 className="text-sm font-medium">
+                        {participant.name}
+                      </h4>
+                      <p className="text-muted-foreground text-xs">
                         Joined {formatJoinDate(participant.joinedAt)}
                       </p>
                     </div>
@@ -143,13 +158,13 @@ export function ParticipantsModal({
 
           {/* Action Buttons */}
           {isGroupChat && (
-            <div className="flex space-x-2 pt-4 border-t">
+            <div className="flex space-x-2 border-t pt-4">
               <Button variant="outline" size="sm" className="flex-1">
-                <UserPlus className="h-4 w-4 mr-2" />
+                <UserPlus className="mr-2 h-4 w-4" />
                 Add Members
               </Button>
               <Button variant="outline" size="sm" className="flex-1">
-                <UserMinus className="h-4 w-4 mr-2" />
+                <UserMinus className="mr-2 h-4 w-4" />
                 Remove Members
               </Button>
             </div>

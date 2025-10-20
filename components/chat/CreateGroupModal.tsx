@@ -1,18 +1,24 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useChats } from '@/hooks/chat/use-chats';
-import { useUsers } from '@/hooks/chat/use-users';
-import { useSession } from '@/app/contexts/SessionProvider';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Search, Users } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { useChats } from "@/hooks/chat/use-chats";
+import { useUsers } from "@/hooks/chat/use-users";
+import { useSession } from "@/app/contexts/SessionProvider";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Search, Users } from "lucide-react";
+import { toast } from "sonner";
 
 interface CreateGroupModalProps {
   open: boolean;
@@ -21,13 +27,18 @@ interface CreateGroupModalProps {
   selectedUser?: { id: string; name: string };
 }
 
-export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false, selectedUser }: CreateGroupModalProps) {
+export function CreateGroupModal({
+  open,
+  onOpenChange,
+  createPrivateChat = false,
+  selectedUser,
+}: CreateGroupModalProps) {
   const { createChat } = useChats();
   const { searchUsers, users, loading: usersLoading } = useUsers();
   const { selectedBuId } = useSession();
-  
-  const [chatName, setChatName] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+
+  const [chatName, setChatName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -47,10 +58,10 @@ export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false
       setSelectedUsers([userId]);
     } else {
       // For group chats, allow multiple selections
-      setSelectedUsers(prev => 
-        prev.includes(userId) 
-          ? prev.filter(id => id !== userId)
-          : [...prev, userId]
+      setSelectedUsers((prev) =>
+        prev.includes(userId)
+          ? prev.filter((id) => id !== userId)
+          : [...prev, userId],
       );
     }
   };
@@ -59,16 +70,16 @@ export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false
     if (createPrivateChat) {
       // For private chats, we need exactly one selected user
       if (selectedUsers.length !== 1) {
-        toast.error('Please select exactly one person to start a private chat');
+        toast.error("Please select exactly one person to start a private chat");
         return;
       }
-      
-      const selectedUser = users.find(u => u.id === selectedUsers[0]);
+
+      const selectedUser = users.find((u) => u.id === selectedUsers[0]);
       if (!selectedUser) {
-        toast.error('Selected user not found');
+        toast.error("Selected user not found");
         return;
       }
-      
+
       setIsCreating(true);
       try {
         await createChat({
@@ -76,24 +87,28 @@ export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false
           participantIds: [selectedUser.id],
           isPrivate: true,
         });
-        
-        toast.success('Private chat created successfully!');
+
+        toast.success("Private chat created successfully!");
         onOpenChange(false);
         resetForm();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to create private chat');
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to create private chat",
+        );
       } finally {
         setIsCreating(false);
       }
     } else {
       // For group chats
       if (!chatName.trim()) {
-        toast.error('Please enter a chat name');
+        toast.error("Please enter a chat name");
         return;
       }
 
       if (selectedUsers.length === 0) {
-        toast.error('Please select at least one person to add to the chat');
+        toast.error("Please select at least one person to add to the chat");
         return;
       }
 
@@ -104,12 +119,16 @@ export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false
           participantIds: selectedUsers,
           isPrivate: false,
         });
-        
-        toast.success('Group chat created successfully!');
+
+        toast.success("Group chat created successfully!");
         onOpenChange(false);
         resetForm();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to create group chat');
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to create group chat",
+        );
       } finally {
         setIsCreating(false);
       }
@@ -117,8 +136,8 @@ export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false
   };
 
   const resetForm = () => {
-    setChatName('');
-    setSearchQuery('');
+    setChatName("");
+    setSearchQuery("");
     setSelectedUsers([]);
   };
 
@@ -131,9 +150,9 @@ export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false
 
   const getInitials = (name: string) => {
     return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
+      .split(" ")
+      .map((word) => word.charAt(0))
+      .join("")
       .toUpperCase()
       .slice(0, 2);
   };
@@ -143,7 +162,7 @@ export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
-            {createPrivateChat ? 'Start Private Chat' : 'Create Group Chat'}
+            {createPrivateChat ? "Start Private Chat" : "Create Group Chat"}
           </DialogTitle>
         </DialogHeader>
 
@@ -164,15 +183,17 @@ export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false
 
           {/* Add People */}
           <div className="space-y-2">
-            <Label>
-              {createPrivateChat ? 'Select Person' : 'Add People'}
-            </Label>
-            
+            <Label>{createPrivateChat ? "Select Person" : "Add People"}</Label>
+
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform" />
               <Input
-                placeholder={createPrivateChat ? "Search for a person..." : "Search people..."}
+                placeholder={
+                  createPrivateChat
+                    ? "Search for a person..."
+                    : "Search people..."
+                }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 disabled={isCreating}
@@ -183,18 +204,18 @@ export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false
             {/* Selected Users */}
             {selectedUsers.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">
+                <Label className="text-muted-foreground text-sm">
                   Selected ({selectedUsers.length})
                 </Label>
                 <div className="flex flex-wrap gap-2">
-                  {selectedUsers.map(userId => {
-                    const user = users.find(u => u.id === userId);
+                  {selectedUsers.map((userId) => {
+                    const user = users.find((u) => u.id === userId);
                     if (!user) return null;
-                    
+
                     return (
                       <div
                         key={userId}
-                        className="flex items-center space-x-2 bg-muted px-2 py-1 rounded-md"
+                        className="bg-muted flex items-center space-x-2 rounded-md px-2 py-1"
                       >
                         <Avatar className="h-6 w-6">
                           <AvatarImage src={user.avatar} alt={user.name} />
@@ -223,7 +244,7 @@ export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false
             {/* User List */}
             {searchQuery.trim() && (
               <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">
+                <Label className="text-muted-foreground text-sm">
                   Search Results
                 </Label>
                 <ScrollArea className="h-32">
@@ -232,23 +253,25 @@ export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false
                       <Loader2 className="h-4 w-4 animate-spin" />
                     </div>
                   ) : users.length === 0 ? (
-                    <div className="text-center py-4 text-sm text-muted-foreground">
+                    <div className="text-muted-foreground py-4 text-center text-sm">
                       No users found
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      {users.map(user => (
+                      {users.map((user) => (
                         <div
                           key={user.id}
-                          className="flex items-center space-x-3 p-2 hover:bg-muted rounded-md cursor-pointer"
+                          className="hover:bg-muted flex cursor-pointer items-center space-x-3 rounded-md p-2"
                           onClick={() => handleUserToggle(user.id)}
                         >
                           {createPrivateChat ? (
-                            <div className={`w-4 h-4 rounded-full border-2 ${
-                              selectedUsers.includes(user.id) 
-                                ? 'border-primary bg-primary' 
-                                : 'border-muted-foreground'
-                            }`} />
+                            <div
+                              className={`h-4 w-4 rounded-full border-2 ${
+                                selectedUsers.includes(user.id)
+                                  ? "border-primary bg-primary"
+                                  : "border-muted-foreground"
+                              }`}
+                            />
                           ) : (
                             <Checkbox
                               checked={selectedUsers.includes(user.id)}
@@ -284,19 +307,21 @@ export function CreateGroupModal({ open, onOpenChange, createPrivateChat = false
           <Button
             onClick={handleCreate}
             disabled={
-              isCreating || 
-              (createPrivateChat ? selectedUsers.length !== 1 : (!chatName.trim() || selectedUsers.length === 0))
+              isCreating ||
+              (createPrivateChat
+                ? selectedUsers.length !== 1
+                : !chatName.trim() || selectedUsers.length === 0)
             }
           >
             {isCreating ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Creating...
               </>
             ) : (
               <>
-                <Users className="h-4 w-4 mr-2" />
-                {createPrivateChat ? 'Start Private Chat' : 'Create Group Chat'}
+                <Users className="mr-2 h-4 w-4" />
+                {createPrivateChat ? "Start Private Chat" : "Create Group Chat"}
               </>
             )}
           </Button>

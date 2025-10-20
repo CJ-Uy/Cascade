@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 import { ChatList } from "@/components/chat/ChatList";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { CreateGroupModal } from "@/components/chat/CreateGroupModal";
@@ -10,7 +10,10 @@ export default function ChatPage() {
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createPrivateChat, setCreatePrivateChat] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<{ id: string; name: string } | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const handleChatSelect = (chat: Chat) => {
     setSelectedChat(chat);
@@ -29,8 +32,8 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen">     
-      <div className="flex-1 flex overflow-hidden">
+    <div className="flex h-screen flex-col">
+      <div className="flex flex-1 overflow-hidden">
         {/* Chat List Sidebar */}
         <div className="w-80 flex-shrink-0">
           <ChatList
@@ -42,7 +45,7 @@ export default function ChatPage() {
         </div>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex flex-1 flex-col">
           <ChatWindow chat={selectedChat} />
         </div>
       </div>

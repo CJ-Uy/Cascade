@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { useMessages } from '@/hooks/chat/use-messages';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useRef, useEffect } from "react";
+import { useMessages } from "@/hooks/chat/use-messages";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Send, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface MessageInputProps {
   chatId: string;
@@ -14,14 +14,14 @@ interface MessageInputProps {
 
 export function MessageInput({ chatId, disabled = false }: MessageInputProps) {
   const { sendMessage } = useMessages(chatId);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [message]);
@@ -30,7 +30,7 @@ export function MessageInput({ chatId, disabled = false }: MessageInputProps) {
     if (!message.trim() || isSending || disabled) return;
 
     const messageToSend = message.trim();
-    setMessage('');
+    setMessage("");
     setIsSending(true);
 
     try {
@@ -38,14 +38,16 @@ export function MessageInput({ chatId, disabled = false }: MessageInputProps) {
     } catch (error) {
       // Restore message if sending failed
       setMessage(messageToSend);
-      toast.error(error instanceof Error ? error.message : 'Failed to send message');
+      toast.error(
+        error instanceof Error ? error.message : "Failed to send message",
+      );
     } finally {
       setIsSending(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -57,7 +59,7 @@ export function MessageInput({ chatId, disabled = false }: MessageInputProps) {
   };
 
   return (
-    <div className="border-t bg-background p-4">
+    <div className="bg-background border-t p-4">
       <form onSubmit={handleSubmit} className="flex items-end space-x-2">
         <div className="flex-1">
           <Textarea
@@ -67,11 +69,11 @@ export function MessageInput({ chatId, disabled = false }: MessageInputProps) {
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             disabled={disabled || isSending}
-            className="min-h-[40px] max-h-[120px] resize-none"
+            className="max-h-[120px] min-h-[40px] resize-none"
             rows={1}
           />
         </div>
-        
+
         <Button
           type="submit"
           size="sm"
@@ -85,9 +87,9 @@ export function MessageInput({ chatId, disabled = false }: MessageInputProps) {
           )}
         </Button>
       </form>
-      
+
       {/* Helper text */}
-      <p className="text-xs text-muted-foreground mt-2">
+      <p className="text-muted-foreground mt-2 text-xs">
         Press Enter to send, Shift+Enter for new line
       </p>
     </div>

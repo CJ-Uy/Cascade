@@ -1,6 +1,6 @@
 // Chat-related TypeScript types
 
-export type ChatType = 'PRIVATE' | 'GROUP';
+export type ChatType = "PRIVATE" | "GROUP";
 
 export interface User {
   id: string;
@@ -116,11 +116,11 @@ export interface UseUsersReturn {
 }
 
 // Hook imports - updated to new file structure
-export { useChats } from '@/hooks/chat/use-chats';
-export { useMessages } from '@/hooks/chat/use-messages';
-export { useParticipants } from '@/hooks/chat/use-participants';
-export { useUsers } from '@/hooks/chat/use-users';
-export { useRealtimeMessages } from '@/hooks/chat/use-realtime-messages';
+export { useChats } from "@/hooks/chat/use-chats";
+export { useMessages } from "@/hooks/chat/use-messages";
+export { useParticipants } from "@/hooks/chat/use-participants";
+export { useUsers } from "@/hooks/chat/use-users";
+export { useRealtimeMessages } from "@/hooks/chat/use-realtime-messages";
 
 // Real-time message type for subscriptions
 export interface RealtimeMessage {

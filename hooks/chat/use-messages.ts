@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  Message, 
-  MessagesResponse, 
+import { useState, useEffect, useCallback } from "react";
+import {
+  Message,
+  MessagesResponse,
   UseMessagesReturn,
-  ApiError 
-} from '@/lib/types/chat';
+  ApiError,
+} from "@/lib/types/chat";
 
 export function useMessages(chatId: string): UseMessagesReturn {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -15,9 +15,9 @@ export function useMessages(chatId: string): UseMessagesReturn {
 
   // Function to add a new message (for real-time updates)
   const addMessage = useCallback((message: Message) => {
-    setMessages(prevMessages => {
+    setMessages((prevMessages) => {
       // Check if message already exists to avoid duplicates
-      const exists = prevMessages.some(msg => msg.id === message.id);
+      const exists = prevMessages.some((msg) => msg.id === message.id);
       if (exists) return prevMessages;
       return [...prevMessages, message];
     });
@@ -25,22 +25,22 @@ export function useMessages(chatId: string): UseMessagesReturn {
 
   const fetchMessages = useCallback(async () => {
     if (!chatId) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await fetch(`/api/chat/${chatId}/messages`);
-      
+
       if (!response.ok) {
         const errorData: ApiError = await response.json();
         throw new Error(errorData.error);
       }
-      
+
       const data: MessagesResponse = await response.json();
       setMessages(data.messages);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch messages');
+      setError(err instanceof Error ? err.message : "Failed to fetch messages");
     } finally {
       setLoading(false);
     }
@@ -48,12 +48,12 @@ export function useMessages(chatId: string): UseMessagesReturn {
 
   const sendMessage = async (content: string): Promise<void> => {
     if (!chatId || !content.trim()) return;
-    
+
     try {
       const response = await fetch(`/api/chat/${chatId}/messages`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: content.trim() }),
       });
@@ -64,11 +64,12 @@ export function useMessages(chatId: string): UseMessagesReturn {
       }
 
       const data = await response.json();
-      
+
       // Add the new message to the list (optimistic update)
-      setMessages(prevMessages => [...prevMessages, data.message]);
+      setMessages((prevMessages) => [...prevMessages, data.message]);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to send message";
       setError(errorMessage);
       throw new Error(errorMessage);
     }

@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from 'react';
-import { Chat } from '@/lib/types/chat';
-import { MessageList } from './MessageList';
-import { MessageInput } from './MessageInput';
-import { ParticipantsModal } from './ParticipantsModal';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { MoreVertical, Users } from 'lucide-react';
-import { useSession } from '@/app/contexts/SessionProvider';
+import { useState } from "react";
+import { Chat } from "@/lib/types/chat";
+import { MessageList } from "./MessageList";
+import { MessageInput } from "./MessageInput";
+import { ParticipantsModal } from "./ParticipantsModal";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { MoreVertical, Users } from "lucide-react";
+import { useSession } from "@/app/contexts/SessionProvider";
 
 interface ChatWindowProps {
   chat: Chat | null;
@@ -21,19 +21,19 @@ export function ChatWindow({ chat }: ChatWindowProps) {
 
   const getInitials = (name: string) => {
     return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
+      .split(" ")
+      .map((word) => word.charAt(0))
+      .join("")
       .toUpperCase()
       .slice(0, 2);
   };
 
   if (!chat) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-muted/30">
+      <div className="bg-muted/30 flex flex-1 items-center justify-center">
         <div className="text-center">
-          <div className="text-6xl mb-4">💬</div>
-          <h3 className="text-xl font-semibold mb-2">Welcome to Chat</h3>
+          <div className="mb-4 text-6xl">💬</div>
+          <h3 className="mb-2 text-xl font-semibold">Welcome to Chat</h3>
           <p className="text-muted-foreground">
             Select a chat from the sidebar to start messaging
           </p>
@@ -43,24 +43,23 @@ export function ChatWindow({ chat }: ChatWindowProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="bg-background flex h-full flex-col">
       {/* Chat Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-background">
+      <div className="bg-background flex items-center justify-between border-b p-4">
         <div className="flex items-center space-x-3">
           <div className="relative">
             <Avatar className="h-10 w-10">
               <AvatarImage src={chat.image} alt={chat.name} />
-              <AvatarFallback>
-                {getInitials(chat.name)}
-              </AvatarFallback>
+              <AvatarFallback>{getInitials(chat.name)}</AvatarFallback>
             </Avatar>
           </div>
-          
+
           <div>
             <h2 className="font-semibold">{chat.name}</h2>
-            {chat.type === 'GROUP' && (
-              <p className="text-sm text-muted-foreground">
-                {chat.participantCount} {chat.participantCount === 1 ? 'member' : 'members'}
+            {chat.type === "GROUP" && (
+              <p className="text-muted-foreground text-sm">
+                {chat.participantCount}{" "}
+                {chat.participantCount === 1 ? "member" : "members"}
               </p>
             )}
           </div>
@@ -75,22 +74,15 @@ export function ChatWindow({ chat }: ChatWindowProps) {
           >
             <Users className="h-4 w-4" />
           </Button>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-          >
+
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
             <MoreVertical className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
       {/* Messages */}
-      <MessageList 
-        chatId={chat.id} 
-        currentUserId={authContext?.user_id}
-      />
+      <MessageList chatId={chat.id} currentUserId={authContext?.user_id} />
 
       {/* Message Input */}
       <MessageInput chatId={chat.id} />
@@ -101,7 +93,7 @@ export function ChatWindow({ chat }: ChatWindowProps) {
         onOpenChange={setShowParticipantsModal}
         chatId={chat.id}
         chatName={chat.name}
-        isGroupChat={chat.type === 'GROUP'}
+        isGroupChat={chat.type === "GROUP"}
       />
     </div>
   );

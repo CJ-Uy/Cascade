@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,7 +11,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, ArrowUpDown } from "lucide-react";
+import { getPeopleNotInBu } from "../../actions";
+import { createClient } from "@/lib/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
 
 export interface NoRolePerson {
   id: string;
@@ -20,74 +33,168 @@ export interface NoRolePerson {
 }
 
 interface NoRolePeopleTableProps {
-  people: NoRolePerson[];
   onAddToBu: (person: NoRolePerson) => void;
+  businessUnitId: string;
+  key: number;
 }
 
-const ITEMS_PER_PAGE = 5;
-
 export function NoRolePeopleTable({
-  people,
   onAddToBu,
+  businessUnitId,
+  key,
 }: NoRolePeopleTableProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [people, setPeople] = useState<NoRolePerson[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
 
-  const filteredPeople = useMemo(() => {
-    return people.filter(
-      (person) =>
-        person.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        person.email.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
-  }, [people, searchTerm]);
+  const columns: ColumnDef<NoRolePerson>[] = [
+    {
+      accessorKey: "name",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Name
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+    },
+    {
+      accessorKey: "email",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Email
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const person = row.original;
+        return (
+          <div className="text-right">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onAddToBu(person)}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" /> Add to BU
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
 
-  const totalPages = Math.ceil(filteredPeople.length / ITEMS_PER_PAGE);
-  const paginatedPeople = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return filteredPeople.slice(startIndex, endIndex);
-  }, [filteredPeople, currentPage]);
+  const table = useReactTable({
+    data: people,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
+    getFilteredRowModel: getFilteredRowModel(),
+    state: {
+      sorting,
+      globalFilter,
+    },
+  });
+
+  useEffect(() => {
+    const fetchPeople = async () => {
+      setLoading(true);
+      const fetchedPeople = await getPeopleNotInBu(businessUnitId);
+      setPeople(fetchedPeople);
+      setLoading(false);
+    };
+    fetchPeople();
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel("no-role-people-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_business_units" },
+        fetchPeople,
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [businessUnitId, key]);
 
   return (
     <div className="space-y-4">
       <Input
-        placeholder="Search people by name or email..."
-        value={searchTerm}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
-          setCurrentPage(1); // Reset to first page on search
-        }}
+        placeholder="Search people..."
+        value={globalFilter ?? ""}
+        onChange={(event) => setGlobalFilter(event.target.value)}
         className="max-w-sm"
       />
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            ))}
           </TableHeader>
           <TableBody>
-            {paginatedPeople.length > 0 ? (
-              paginatedPeople.map((person) => (
-                <TableRow key={person.id}>
-                  <TableCell className="font-medium">{person.name}</TableCell>
-                  <TableCell>{person.email}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onAddToBu(person)}
-                    >
-                      <PlusCircle className="mr-2 h-4 w-4" /> Add to BU
-                    </Button>
-                  </TableCell>
+            {loading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   No people found.
                 </TableCell>
               </TableRow>
@@ -99,20 +206,34 @@ export function NoRolePeopleTable({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-          disabled={currentPage === 1}
+          onClick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
         >
-          Previous
+          &lt;
         </Button>
+        {Array.from({ length: table.getPageCount() }, (_, i) => i + 1).map(
+          (page) => (
+            <Button
+              key={page}
+              variant={
+                table.getState().pagination.pageIndex + 1 === page
+                  ? "solid"
+                  : "outline"
+              }
+              size="sm"
+              onClick={() => table.setPageIndex(page - 1)}
+            >
+              {page}
+            </Button>
+          ),
+        )}
         <Button
           variant="outline"
           size="sm"
-          onClick={() =>
-            setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-          }
-          disabled={currentPage === totalPages}
+          onClick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
         >
-          Next
+          &gt;
         </Button>
       </div>
     </div>

@@ -4,12 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 // GET /api/chat/[id]/messages - Get messages for a specific chat
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -31,7 +33,8 @@ export async function GET(
     // Get messages with sender info
     const { data: messages, error } = await supabase
       .from("chat_messages")
-      .select(`
+      .select(
+        `
         id,
         content,
         created_at,
@@ -41,56 +44,71 @@ export async function GET(
           last_name,
           image_url
         )
-      `)
+      `,
+      )
       .eq("chat_id", chatId)
       .order("created_at", { ascending: true });
 
     if (error) {
       console.error("Error fetching messages:", error);
-      return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to fetch messages" },
+        { status: 500 },
+      );
     }
 
     // Transform messages
-    const transformedMessages = messages?.map(message => {
-      const profile = Array.isArray(message.profiles) ? message.profiles[0] : message.profiles;
-      
-      // Debug logging
-      console.log('Message profile data:', {
-        messageId: message.id,
-        senderId: message.sender_id,
-        profile: profile,
-        profileType: typeof profile,
-        isArray: Array.isArray(message.profiles)
-      });
-      
-      return {
-        id: message.id,
-        content: message.content,
-        createdAt: message.created_at,
-        sender: {
-          id: message.sender_id,
-          name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User' : 'Unknown User',
-          avatar: profile?.image_url
-        }
-      };
-    }) || [];
+    const transformedMessages =
+      messages?.map((message) => {
+        const profile = Array.isArray(message.profiles)
+          ? message.profiles[0]
+          : message.profiles;
+
+        // Debug logging
+        console.log("Message profile data:", {
+          messageId: message.id,
+          senderId: message.sender_id,
+          profile: profile,
+          profileType: typeof profile,
+          isArray: Array.isArray(message.profiles),
+        });
+
+        return {
+          id: message.id,
+          content: message.content,
+          createdAt: message.created_at,
+          sender: {
+            id: message.sender_id,
+            name: profile
+              ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() ||
+                "Unknown User"
+              : "Unknown User",
+            avatar: profile?.image_url,
+          },
+        };
+      }) || [];
 
     return NextResponse.json({ messages: transformedMessages });
   } catch (error) {
     console.error("Error in GET /api/chat/[id]/messages:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 // POST /api/chat/[id]/messages - Send a message to a chat
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -99,8 +117,11 @@ export async function POST(
     const body = await request.json();
     const { content } = body;
 
-    if (!content || content.trim() === '') {
-      return NextResponse.json({ error: "Message content is required" }, { status: 400 });
+    if (!content || content.trim() === "") {
+      return NextResponse.json(
+        { error: "Message content is required" },
+        { status: 400 },
+      );
     }
 
     // Verify user is participant in this chat
@@ -121,9 +142,10 @@ export async function POST(
       .insert({
         content: content.trim(),
         sender_id: user.id,
-        chat_id: chatId
+        chat_id: chatId,
       })
-      .select(`
+      .select(
+        `
         id,
         content,
         created_at,
@@ -133,12 +155,16 @@ export async function POST(
           last_name,
           image_url
         )
-      `)
+      `,
+      )
       .single();
 
     if (error) {
       console.error("Error sending message:", error);
-      return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to send message" },
+        { status: 500 },
+      );
     }
 
     // Update chat's updated_at timestamp
@@ -148,21 +174,29 @@ export async function POST(
       .eq("id", chatId);
 
     // Transform message
-    const profile = Array.isArray(message.profiles) ? message.profiles[0] : message.profiles;
+    const profile = Array.isArray(message.profiles)
+      ? message.profiles[0]
+      : message.profiles;
     const transformedMessage = {
       id: message.id,
       content: message.content,
       createdAt: message.created_at,
       sender: {
         id: message.sender_id,
-        name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User' : 'Unknown User',
-        avatar: profile?.image_url
-      }
+        name: profile
+          ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() ||
+            "Unknown User"
+          : "Unknown User",
+        avatar: profile?.image_url,
+      },
     };
 
     return NextResponse.json({ message: transformedMessage });
   } catch (error) {
     console.error("Error in POST /api/chat/[id]/messages:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
