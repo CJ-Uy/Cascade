@@ -117,8 +117,16 @@ export function WorkflowList({
       ),
     },
     {
-      accessorKey: "steps",
-      header: "Steps",
+      id: "steps",
+      accessorFn: (row) => row.steps.join(" "),
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Steps <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1">
           {row.original.steps.map((step, index) => (
