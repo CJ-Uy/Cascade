@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { FormSelector } from "@/app/(main)/requisitions/(components)/create/FormSelector";
 import { FormFiller } from "@/app/(main)/requisitions/(components)/create/FormFiller";
-import { type Form } from "@/app/(main)/management/(components)/forms/FormList"; // Reusing Form type
+import { type Form } from "@/app/(main)/management/(components)/forms/"; // Reusing Form type
 
 // Dummy data for available forms (should come from a global state or API)
 const dummyForms: Form[] = [

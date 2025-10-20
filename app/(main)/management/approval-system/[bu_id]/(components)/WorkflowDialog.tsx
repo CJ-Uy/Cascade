@@ -62,6 +62,10 @@ interface Workflow {
   formId?: string;
   initiators: string[];
   steps: string[];
+  version: number;
+  parent_workflow_id?: string;
+  is_latest: boolean;
+  status: string;
 }
 
 interface WorkflowDialogProps {
@@ -185,6 +189,10 @@ export function WorkflowDialog({
         formId: workflow?.formId,
         initiators: workflow?.initiators || [],
         steps: workflow?.steps || [],
+        version: workflow?.version || 1,
+        parent_workflow_id: workflow?.parent_workflow_id,
+        is_latest: workflow?.is_latest || true,
+        status: workflow?.status || "draft",
       };
       setInitialState(state);
       setName(state.name);
@@ -311,7 +319,7 @@ export function WorkflowDialog({
                       <SelectValue placeholder="Select a form..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {dummyForms.map((form) => (
+                      {availableForms.map((form) => (
                         <SelectItem key={form.id} value={form.id}>
                           {form.name}
                         </SelectItem>

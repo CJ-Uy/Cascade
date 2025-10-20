@@ -2,33 +2,167 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Users, FileText, Workflow } from "lucide-react";
+import { Workflow as WorkflowIcon, ArrowUpDown } from "lucide-react";
 import { getWorkflows } from "../../actions";
 import { createClient } from "@/lib/supabase/client";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
+import { WorkflowActions } from "./WorkflowActions";
 
-interface Workflow {
+export interface Workflow {
   id: string;
   name: string;
   initiators: string[];
   steps: string[];
+  version: number;
+  parent_workflow_id?: string;
+  is_latest: boolean;
+  status: string;
 }
 
-interface WorkflowListProps {
+export interface WorkflowListProps {
   onEdit: (workflow: Workflow) => void;
   businessUnitId: string;
+  refreshKey: number;
+  globalFilter: string;
+  showArchived: boolean;
+  onArchive: () => void;
+  onRestore: () => void;
 }
 
-export function WorkflowList({ onEdit, businessUnitId }: WorkflowListProps) {
+export function WorkflowList({
+  onEdit,
+  businessUnitId,
+  refreshKey,
+  globalFilter,
+  showArchived,
+  onArchive,
+  onRestore,
+}: WorkflowListProps) {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  const getBadgeVariant = (status: string) => {
+    switch (status) {
+      case "active":
+        return "success";
+      case "draft":
+        return "secondary";
+      case "archived":
+        return "destructive";
+      default:
+        return "default";
+    }
+  };
+
+  const columns: ColumnDef<Workflow>[] = [
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Name <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-3">
+          <WorkflowIcon className="h-6 w-6 text-emerald-500" />
+          <div>
+            <div className="font-medium">{row.original.name}</div>
+            <div className="text-muted-foreground truncate text-sm">
+              Version {row.original.version}{" "}
+              {row.original.is_latest && "(Latest)"}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Status <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => (
+        <Badge
+          variant={getBadgeVariant(row.getValue("status"))}
+          className="capitalize"
+        >
+          {row.getValue("status")}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "steps",
+      header: "Steps",
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {row.original.steps.map((step, index) => (
+            <Badge key={index} variant="outline">
+              {step}
+            </Badge>
+          ))}
+        </div>
+      ),
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <div className="text-right">
+          <WorkflowActions
+            workflow={row.original}
+            onEdit={onEdit}
+            onArchive={onArchive}
+            onRestore={onRestore}
+            isArchivedView={showArchived}
+          />
+        </div>
+      ),
+    },
+  ];
+
+  const table = useReactTable({
+    data: workflows,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    state: {
+      sorting,
+      globalFilter,
+    },
+  });
 
   useEffect(() => {
     const fetchWorkflows = async () => {
       setLoading(true);
-      const fetchedWorkflows = await getWorkflows(businessUnitId);
+      const fetchedWorkflows = await getWorkflows(businessUnitId, showArchived);
       setWorkflows(fetchedWorkflows);
       setLoading(false);
     };
@@ -57,79 +191,90 @@ export function WorkflowList({ onEdit, businessUnitId }: WorkflowListProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [businessUnitId]);
+  }, [businessUnitId, showArchived, refreshKey]);
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {loading
-        ? Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Skeleton className="h-4 w-1/4" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-              </CardContent>
-            </Card>
-          ))
-        : workflows.map((workflow) => (
-            <Card key={workflow.id} className="flex flex-col">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center">
-                    <Workflow className="mr-3 h-6 w-6 text-emerald-500" />
-                    {workflow.name}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEdit(workflow)}
-                  >
-                    Edit
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <div className="mb-4">
-                  <h4 className="mb-2 flex items-center text-sm font-semibold">
-                    <Users className="text-muted-foreground mr-2 h-4 w-4" />
-                    Initiators
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {workflow.initiators.map((role) => (
-                      <Badge key={role} variant="secondary">
-                        {role}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <h4 className="mb-3 flex items-center text-sm font-semibold">
-                    <FileText className="text-muted-foreground mr-2 h-4 w-4" />
-                    Approval Steps
-                  </h4>
-                  <ol className="space-y-2">
-                    {workflow.steps.map((step, index) => (
-                      <li key={index} className="flex items-center text-sm">
-                        <Badge
-                          variant="outline"
-                          className="mr-2 border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300"
-                        >
-                          {index + 1}
-                        </Badge>
-                        <span>{step}</span>
-                        {index < workflow.steps.length - 1 && (
-                          <ChevronRight className="text-muted-foreground mx-1 h-4 w-4" />
-                        )}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              </CardContent>
-            </Card>
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
+                </TableHead>
+              ))}
+            </TableRow>
           ))}
+        </TableHeader>
+        <TableBody>
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                Loading...
+              </TableCell>
+            </TableRow>
+          ) : table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                data-state={row.getIsSelected() && "selected"}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                No workflows found.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+      <div className="flex items-center justify-end space-x-2 py-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
+        >
+          &lt;
+        </Button>
+        {Array.from({ length: table.getPageCount() }, (_, i) => i + 1).map(
+          (page) => (
+            <Button
+              key={page}
+              variant={
+                table.getState().pagination.pageIndex + 1 === page
+                  ? "solid"
+                  : "outline"
+              }
+              size="sm"
+              onClick={() => table.setPageIndex(page - 1)}
+            >
+              {page}
+            </Button>
+          ),
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
+        >
+          &gt;
+        </Button>
+      </div>
     </div>
   );
 }

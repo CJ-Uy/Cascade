@@ -4,9 +4,15 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Table2, LayoutGrid } from "lucide-react";
 import { WorkflowList } from "./(components)/WorkFlowList";
+import { WorkflowCardView } from "./(components)/WorkflowCardView";
 import { WorkflowDialog } from "./(components)/WorkflowDialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import { saveWorkflowAction } from "../actions";
 
 interface Workflow {
   id: string;
@@ -14,6 +20,10 @@ interface Workflow {
   formId?: string;
   initiators: string[];
   steps: string[];
+  version: number;
+  parent_workflow_id?: string;
+  is_latest: boolean;
+  status: string;
 }
 
 export default function ApprovalSystem() {
@@ -21,6 +31,10 @@ export default function ApprovalSystem() {
   const buId = params.bu_id as string;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
+  const [key, setKey] = useState(Date.now());
+  const [viewMode, setViewMode] = useState<"table" | "card">("table");
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   const handleCreateNew = () => {
     setEditingWorkflow(null);
@@ -32,21 +46,44 @@ export default function ApprovalSystem() {
     setIsDialogOpen(true);
   };
 
-  const handleSaveWorkflow = (workflowData: Omit<Workflow, "id">) => {
-    // TODO: Implement save logic using server actions
-    console.log("Saving workflow...", workflowData);
-    setIsDialogOpen(false);
+  const handleSaveWorkflow = async (workflowData: Omit<Workflow, "id">) => {
+    try {
+      await saveWorkflowAction(
+        workflowData,
+        buId,
+        `/management/approval-system/${buId}`,
+      );
+      toast.success("Workflow saved successfully!");
+      setIsDialogOpen(false);
+      setKey(Date.now());
+    } catch (error: any) {
+      console.error("Failed to save workflow:", error);
+      toast.error(error.message || "An unknown error occurred.");
+    }
+  };
+
+  const handleArchive = () => {
+    setKey(Date.now());
+  };
+
+  const handleRestore = () => {
+    setKey(Date.now());
   };
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <DashboardHeader title="Approval Workflows" />
       <p className="text-muted-foreground mb-8">
         Create, view, and manage the approval chains for different types of
         requests.
       </p>
-
-      <div className="mb-6 flex justify-end">
+      <div className="flex items-center justify-between pb-4">
+        <Input
+          placeholder="Search workflows..."
+          value={globalFilter}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          className="max-w-sm"
+        />
         <Button
           onClick={handleCreateNew}
           className="bg-emerald-600 hover:bg-emerald-500"
@@ -55,8 +92,55 @@ export default function ApprovalSystem() {
           Create New Workflow
         </Button>
       </div>
+      <div className="flex items-center justify-between pb-4">
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="show-archived"
+            checked={showArchived}
+            onCheckedChange={setShowArchived}
+          />
+          <Label htmlFor="show-archived">Show Archived</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant={viewMode === "table" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("table")}
+          >
+            <Table2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "card" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("card")}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
-      <WorkflowList businessUnitId={buId} onEdit={handleEdit} />
+      {viewMode === "table" ? (
+        <WorkflowList
+          refreshKey={key}
+          businessUnitId={buId}
+          onEdit={handleEdit}
+          globalFilter={globalFilter}
+          showArchived={showArchived}
+          onArchive={handleArchive}
+          onRestore={handleRestore}
+        />
+      ) : (
+        <WorkflowCardView
+          refreshKey={key}
+          businessUnitId={buId}
+          onEditWorkflow={handleEdit}
+          onOpenPreview={() => {}} // Not implemented yet
+          globalFilter={globalFilter}
+          showArchived={showArchived}
+          onArchive={handleArchive}
+          onRestore={handleRestore}
+        />
+      )}
 
       {isDialogOpen && (
         <WorkflowDialog
