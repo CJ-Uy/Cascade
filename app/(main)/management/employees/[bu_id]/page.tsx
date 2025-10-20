@@ -5,23 +5,22 @@ import { useParams, usePathname } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { EmployeeTable, Employee } from "./(components)/EmployeeTable";
 import { EmployeeDialog } from "./(components)/EmployeeDialog";
+import { RolesTable } from "./(components)/RolesTable";
+import { RoleDialog } from "./(components)/RoleDialog";
 import {
   NoRolePeopleTable,
   NoRolePerson,
 } from "./(components)/NoRolePeopleTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RoleDialog } from "./(components)/RoleDialog";
-import { RolesTable, Role } from "./(components)/RolesTable";
+import { toast } from "sonner";
+
 import {
-  addUserToBusinessUnit,
-  updateEmployeeRoles,
   saveRole,
   deleteRole,
+  updateEmployeeRoles,
+  addUserToBusinessUnit,
   removeUserFromBusinessUnit,
 } from "../actions";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
 
 export default function EmployeesPage() {
   const params = useParams();
@@ -134,25 +133,16 @@ export default function EmployeesPage() {
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="roles">Roles</TabsTrigger>
-            <TabsTrigger value="current-employees">Current</TabsTrigger>
+            <TabsTrigger value="current-employees">Employees</TabsTrigger>
             <TabsTrigger value="no-role-people">Add</TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="roles" className="mt-4">
-          <div className="mb-4 flex justify-end">
-            <Button
-              onClick={handleCreateRole}
-              className="bg-emerald-600 hover:bg-emerald-500"
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Create Role
-            </Button>
-          </div>
           <RolesTable
             businessUnitId={buId}
             onEdit={handleEditRole}
-            onDelete={handleDeleteRole}
+            onCreate={handleCreateRole}
             key={key}
           />
         </TabsContent>

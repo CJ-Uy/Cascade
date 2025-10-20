@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, ArrowUpDown } from "lucide-react";
+import { Edit, ArrowUpDown, ShieldCheck, PlusCircle } from "lucide-react";
 import { getRoles } from "../../actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -20,9 +20,11 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  getFilteredRowModel,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
+import { Input } from "@/components/ui/input";
 
 export interface Role {
   id: string;
@@ -33,13 +35,20 @@ export interface Role {
 interface RolesTableProps {
   businessUnitId: string;
   onEdit: (role: Role) => void;
+  onCreate: () => void;
   key: number;
 }
 
-export function RolesTable({ businessUnitId, onEdit, key }: RolesTableProps) {
+export function RolesTable({
+  businessUnitId,
+  onEdit,
+  onCreate,
+  key,
+}: RolesTableProps) {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
 
   const columns: ColumnDef<Role>[] = [
     {
@@ -58,10 +67,11 @@ export function RolesTable({ businessUnitId, onEdit, key }: RolesTableProps) {
     },
     {
       accessorKey: "is_bu_admin",
-      header: "Business Unit Admin",
+      header: "Admin",
       cell: ({ row }) => {
-        const isBuAdmin = row.getValue("is_bu_admin");
-        return isBuAdmin ? <Badge>Yes</Badge> : "No";
+        return row.getValue("is_bu_admin") ? (
+          <ShieldCheck className="h-5 w-5 text-emerald-500" />
+        ) : null;
       },
     },
     {
@@ -86,8 +96,11 @@ export function RolesTable({ businessUnitId, onEdit, key }: RolesTableProps) {
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
+    getFilteredRowModel: getFilteredRowModel(),
     state: {
       sorting,
+      globalFilter,
     },
   });
 
@@ -103,6 +116,21 @@ export function RolesTable({ businessUnitId, onEdit, key }: RolesTableProps) {
 
   return (
     <div>
+      <div className="flex items-center justify-between pb-4">
+        <Input
+          placeholder="Search roles..."
+          value={globalFilter ?? ""}
+          onChange={(event) => setGlobalFilter(event.target.value)}
+          className="max-w-sm"
+        />
+        <Button
+          onClick={onCreate}
+          className="bg-emerald-600 hover:bg-emerald-500"
+        >
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Create Role
+        </Button>
+      </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
