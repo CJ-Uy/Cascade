@@ -12,15 +12,23 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Save, Trash2, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Save, Trash2, Loader2, Smile } from "lucide-react";
 import { type Form } from "./FormBuilder";
 import { type FormField, FormBuilder } from "./FormBuilder";
 import { DeleteFormDialog } from "./DeleteFormDialog";
 import { FormPreview } from "./FormPreview";
-import { SaveConfirmDialog } from "./SaveConfirmDialog";
-import { Textarea } from "@/components/ui/textarea";
 import { archiveFormAction } from "@/app/(main)/management/forms/actions";
 import { toast } from "sonner";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import EmojiPicker, {
+  type EmojiClickData,
+  EmojiStyle,
+} from "emoji-picker-react";
 
 interface FormBuilderDialogProps {
   isOpen: boolean;
@@ -34,10 +42,10 @@ const newFormTemplate: Form = {
   id: "",
   name: "Untitled Form",
   description: "",
+  status: "",
+  icon: "",
   fields: [],
   accessRoles: [],
-  status: "draft",
-  icon: "",
 };
 
 export function FormBuilderDialog({
@@ -53,32 +61,75 @@ export function FormBuilderDialog({
   const [fields, setFields] = useState<FormField[]>([]);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
     if (isOpen) {
       const initialForm = form
-        ? { ...newFormTemplate, ...JSON.parse(JSON.stringify(form)) }
-        : { ...newFormTemplate, id: "" }; // Ensure new forms have a blank id
+        ? JSON.parse(JSON.stringify(form))
+        : newFormTemplate;
       setName(initialForm.name);
-      setDescription(initialForm.description);
-      setIcon(initialForm.icon);
+      setDescription(initialForm.description || "");
+      setIcon(initialForm.icon || "");
       setFields(initialForm.fields);
     }
   }, [isOpen, form]);
 
-  const handleSave = (status: "draft" | "active") => {
+  useEffect(() => {
+    const validate = () => {
+      if (!name || name.trim() === "") {
+        setValidationError("Form name cannot be empty.");
+        return;
+      }
+
+      const labels = new Set<string>();
+      let hasDuplicates = false;
+
+      const checkLabels = (fieldsToCheck: FormField[]) => {
+        for (const field of fieldsToCheck) {
+          if (labels.has(field.label)) {
+            hasDuplicates = true;
+            return; // Exit early
+          }
+          labels.add(field.label);
+          if (field.columns) {
+            checkLabels(field.columns);
+            if (hasDuplicates) return; // Exit early
+          }
+        }
+      };
+
+      checkLabels(fields);
+
+      if (hasDuplicates) {
+        setValidationError(
+          "All question labels must be unique within the form.",
+        );
+      } else {
+        setValidationError(null);
+      }
+    };
+
+    validate();
+  }, [name, fields]);
+
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    setIcon(emojiData.emoji);
+    setIsIconPickerOpen(false);
+  };
+
+  const handleSave = () => {
+    if (validationError) return;
     const formToSave = {
       ...(form || newFormTemplate),
       name,
       description,
       icon,
       fields,
-      status,
     };
     onSave(formToSave);
-    setShowSaveConfirm(false);
   };
 
   const handleDeleteConfirm = async () => {
@@ -120,36 +171,53 @@ export function FormBuilderDialog({
             </TabsList>
 
             <TabsContent value="builder" className="min-h-[60vh] pt-4">
-              <div className="space-y-6 py-4">
-                <div className="flex justify-center">
+              <div className="flex flex-col items-center gap-4 py-4">
+                <div className="flex w-full max-w-lg items-center justify-center gap-3">
+                  <Popover
+                    open={isIconPickerOpen}
+                    onOpenChange={setIsIconPickerOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0 text-2xl"
+                      >
+                        {icon ? <span>{icon}</span> : <Smile size={24} />}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <EmojiPicker
+                        onEmojiClick={onEmojiClick}
+                        emojiStyle={EmojiStyle.NATIVE}
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <Input
                     id="form-title"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="h-auto w-full max-w-lg border-0 border-b-2 border-dashed border-gray-300 bg-transparent p-2 text-center text-4xl font-bold transition-colors focus:border-solid focus:border-emerald-500 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="h-auto w-full border-0 border-b-2 border-dashed border-gray-300 bg-transparent p-2 text-center text-4xl font-bold transition-colors focus:border-solid focus:border-emerald-500 focus-visible:ring-0 focus-visible:ring-offset-0"
                     placeholder="Untitled Form"
                   />
                 </div>
-                <div className="mx-auto max-w-3xl space-y-4">
-                  <Textarea
-                    id="form-description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Enter a description for your form..."
-                    className="min-h-[100px] w-full"
-                  />
-                  <Input
-                    id="form-icon"
-                    value={icon}
-                    onChange={(e) => setIcon(e.target.value)}
-                    placeholder="Enter an icon name (e.g., 'FileText')"
-                  />
-                </div>
+                <Textarea
+                  id="form-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Enter a description for your form..."
+                  className="w-full max-w-lg"
+                  rows={2}
+                />
               </div>
               <FormBuilder fields={fields} setFields={setFields} />
             </TabsContent>
             <TabsContent value="preview" className="min-h-[60vh] pt-4">
-              <FormPreview name={name} fields={fields} />
+              <FormPreview
+                name={name}
+                fields={fields}
+                description={description}
+              />
             </TabsContent>
           </Tabs>
 
@@ -164,14 +232,17 @@ export function FormBuilderDialog({
                   Archive
                 </Button>
               )}
-            </div>{" "}
-            <div className="flex gap-2">
+            </div>
+            <div className="flex items-center gap-2">
+              {validationError && (
+                <p className="mr-4 text-sm text-red-500">{validationError}</p>
+              )}
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
               <Button
-                onClick={() => setShowSaveConfirm(true)}
-                disabled={isSaving}
+                onClick={handleSave}
+                disabled={isSaving || !!validationError}
                 className="bg-emerald-600 hover:bg-emerald-500"
               >
                 {isSaving ? (
@@ -190,13 +261,6 @@ export function FormBuilderDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <SaveConfirmDialog
-        isOpen={showSaveConfirm}
-        onClose={() => setShowSaveConfirm(false)}
-        onSave={handleSave}
-        isSaving={isSaving}
-      />
 
       <DeleteFormDialog
         isOpen={isDeleteConfirmOpen}

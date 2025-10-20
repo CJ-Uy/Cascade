@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { type Form } from "@/app/(main)/management/(components)/forms/FormBuilder";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { type Form } from "./FormBuilder";
 import {
   Table,
   TableBody,
@@ -15,15 +13,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { FormActions } from "./FormActions";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import {
-  PlusCircle,
-  Table2,
-  LayoutGrid,
-  icons,
-  ArrowUpDown,
-} from "lucide-react";
+import { icons, ArrowUpDown } from "lucide-react";
 import {
   ColumnDef,
   flexRender,
@@ -149,9 +140,7 @@ export function FormList({
         </Button>
       ),
       cell: ({ row }) =>
-        new Date(
-          row.getValue("updated_at") || row.original.created_at,
-        ).toLocaleDateString(),
+        new Date(row.getValue("updated_at")).toLocaleDateString(),
     },
     {
       id: "actions",
