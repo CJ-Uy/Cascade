@@ -20,6 +20,8 @@ export interface Participant {
   name: string;
   avatar?: string;
   lastReadAt?: string;
+  joinedAt: string;
+  isCreator?: boolean;
 }
 
 export interface Chat {
@@ -35,8 +37,9 @@ export interface Chat {
 }
 
 export interface CreateChatRequest {
-  name: string;
+  name?: string; // Optional for private chats, required for group chats
   participantIds: string[];
+  isPrivate?: boolean;
 }
 
 export interface SendMessageRequest {
@@ -83,6 +86,8 @@ export interface UseChatsReturn {
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
+  createChat: (chatData: CreateChatRequest) => Promise<Chat>;
+  cleanup: () => void;
 }
 
 export interface UseMessagesReturn {
@@ -91,6 +96,7 @@ export interface UseMessagesReturn {
   error: string | null;
   sendMessage: (content: string) => Promise<void>;
   refetch: () => Promise<void>;
+  addMessage: (message: Message) => void;
 }
 
 export interface UseParticipantsReturn {

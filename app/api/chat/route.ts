@@ -40,25 +40,59 @@ export async function GET() {
     }
 
     // Transform data to include participant count and last message
-    const transformedChats = chats?.map(chat => ({
-      id: chat.id,
-      type: chat.chat_type,
-      name: chat.group_name,
-      image: chat.group_image_url,
-      createdAt: chat.created_at,
-      updatedAt: chat.updated_at,
-      creatorId: chat.creator_id,
-      participantCount: chat.chat_participants?.length || 0,
-      lastMessage: chat.chat_messages?.[0] ? {
-        id: chat.chat_messages[0].id,
-        content: chat.chat_messages[0].content,
-        createdAt: chat.chat_messages[0].created_at,
-        sender: {
-          id: chat.chat_messages[0].sender_id,
-          name: `${chat.chat_messages[0].profiles?.first_name || ''} ${chat.chat_messages[0].profiles?.last_name || ''}`.trim()
+    const transformedChats = await Promise.all(chats?.map(async (chat) => {
+      // Get actual participant count for this chat
+      const { count } = await supabase
+        .from("chat_participants")
+        .select("*", { count: "exact", head: true })
+        .eq("chat_id", chat.id);
+
+      // For private chats, get the other participant's name
+      let chatName = chat.group_name;
+      let chatImage = chat.group_image_url;
+      
+      if (chat.chat_type === 'PRIVATE') {
+        // Get the other participant (not the current user)
+        const { data: otherParticipant } = await supabase
+          .from("chat_participants")
+          .select(`
+            user_id,
+            profiles!chat_participants_user_id_fkey(
+              first_name,
+              last_name,
+              image_url
+            )
+          `)
+          .eq("chat_id", chat.id)
+          .neq("user_id", user.id)
+          .single();
+        
+        if (otherParticipant?.profiles) {
+          chatName = `${otherParticipant.profiles.first_name || ''} ${otherParticipant.profiles.last_name || ''}`.trim();
+          chatImage = otherParticipant.profiles.image_url;
         }
-      } : null
-    })) || [];
+      }
+
+      return {
+        id: chat.id,
+        type: chat.chat_type,
+        name: chatName,
+        image: chatImage,
+        createdAt: chat.created_at,
+        updatedAt: chat.updated_at,
+        creatorId: chat.creator_id,
+        participantCount: count || 0,
+        lastMessage: chat.chat_messages?.[0] ? {
+          id: chat.chat_messages[0].id,
+          content: chat.chat_messages[0].content,
+          createdAt: chat.chat_messages[0].created_at,
+          sender: {
+            id: chat.chat_messages[0].sender_id,
+            name: `${chat.chat_messages[0].profiles?.[0]?.first_name || ''} ${chat.chat_messages[0].profiles?.[0]?.last_name || ''}`.trim()
+          }
+        } : null
+      };
+    }) || []);
 
     return NextResponse.json({ chats: transformedChats });
   } catch (error) {
@@ -78,10 +112,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, participantIds } = body;
+    const { name, participantIds, isPrivate = false } = body;
 
-    if (!name || !participantIds || !Array.isArray(participantIds)) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    // For group chats, name is required. For private chats, it's optional
+    if (!isPrivate && !name) {
+      return NextResponse.json({ error: "Group chat name is required" }, { status: 400 });
+    }
+    
+    if (!participantIds || !Array.isArray(participantIds)) {
+      return NextResponse.json({ error: "Missing participant IDs" }, { status: 400 });
+    }
+
+    // For private chats, ensure only 1 other participant
+    if (isPrivate && participantIds.length !== 1) {
+      return NextResponse.json({ error: "Private chats must have exactly 1 participant" }, { status: 400 });
     }
 
     // Add creator to participants
@@ -91,8 +135,8 @@ export async function POST(request: NextRequest) {
     const { data: chat, error: chatError } = await supabase
       .from("chats")
       .insert({
-        chat_type: "GROUP",
-        group_name: name,
+        chat_type: isPrivate ? "PRIVATE" : "GROUP",
+        group_name: isPrivate ? null : name, // Private chats don't need a group name
         creator_id: user.id
       })
       .select()
@@ -118,7 +162,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to add participants" }, { status: 500 });
     }
 
-    return NextResponse.json({ chat });
+    // Transform the created chat to include proper name for private chats
+    let chatName = chat.group_name;
+    let chatImage = chat.group_image_url;
+    
+    if (isPrivate) {
+      // Get the other participant's name for private chats
+      const { data: otherParticipant } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, image_url")
+        .eq("id", participantIds[0])
+        .single();
+      
+      if (otherParticipant) {
+        chatName = `${otherParticipant.first_name || ''} ${otherParticipant.last_name || ''}`.trim();
+        chatImage = otherParticipant.image_url;
+      }
+    }
+
+    const transformedChat = {
+      id: chat.id,
+      type: chat.chat_type,
+      name: chatName,
+      image: chatImage,
+      createdAt: chat.created_at,
+      updatedAt: chat.updated_at,
+      creatorId: chat.creator_id,
+      participantCount: allParticipants.length,
+      lastMessage: null
+    };
+
+    return NextResponse.json({ chat: transformedChat });
   } catch (error) {
     console.error("Error in POST /api/chat:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

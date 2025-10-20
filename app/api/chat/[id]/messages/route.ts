@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 // GET /api/chat/[id]/messages - Get messages for a specific chat
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const chatId = params.id;
+    const { id: chatId } = await params;
 
     // Verify user is participant in this chat
     const { data: participant, error: participantError } = await supabase
@@ -51,16 +51,29 @@ export async function GET(
     }
 
     // Transform messages
-    const transformedMessages = messages?.map(message => ({
-      id: message.id,
-      content: message.content,
-      createdAt: message.created_at,
-      sender: {
-        id: message.sender_id,
-        name: `${message.profiles?.first_name || ''} ${message.profiles?.last_name || ''}`.trim(),
-        avatar: message.profiles?.image_url
-      }
-    })) || [];
+    const transformedMessages = messages?.map(message => {
+      const profile = Array.isArray(message.profiles) ? message.profiles[0] : message.profiles;
+      
+      // Debug logging
+      console.log('Message profile data:', {
+        messageId: message.id,
+        senderId: message.sender_id,
+        profile: profile,
+        profileType: typeof profile,
+        isArray: Array.isArray(message.profiles)
+      });
+      
+      return {
+        id: message.id,
+        content: message.content,
+        createdAt: message.created_at,
+        sender: {
+          id: message.sender_id,
+          name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User' : 'Unknown User',
+          avatar: profile?.image_url
+        }
+      };
+    }) || [];
 
     return NextResponse.json({ messages: transformedMessages });
   } catch (error) {
@@ -72,7 +85,7 @@ export async function GET(
 // POST /api/chat/[id]/messages - Send a message to a chat
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -82,7 +95,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const chatId = params.id;
+    const { id: chatId } = await params;
     const body = await request.json();
     const { content } = body;
 
@@ -135,14 +148,15 @@ export async function POST(
       .eq("id", chatId);
 
     // Transform message
+    const profile = Array.isArray(message.profiles) ? message.profiles[0] : message.profiles;
     const transformedMessage = {
       id: message.id,
       content: message.content,
       createdAt: message.created_at,
       sender: {
         id: message.sender_id,
-        name: `${message.profiles?.first_name || ''} ${message.profiles?.last_name || ''}`.trim(),
-        avatar: message.profiles?.image_url
+        name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User' : 'Unknown User',
+        avatar: profile?.image_url
       }
     };
 

@@ -13,6 +13,16 @@ export function useMessages(chatId: string): UseMessagesReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Function to add a new message (for real-time updates)
+  const addMessage = useCallback((message: Message) => {
+    setMessages(prevMessages => {
+      // Check if message already exists to avoid duplicates
+      const exists = prevMessages.some(msg => msg.id === message.id);
+      if (exists) return prevMessages;
+      return [...prevMessages, message];
+    });
+  }, []);
+
   const fetchMessages = useCallback(async () => {
     if (!chatId) return;
     
@@ -55,7 +65,7 @@ export function useMessages(chatId: string): UseMessagesReturn {
 
       const data = await response.json();
       
-      // Add the new message to the list
+      // Add the new message to the list (optimistic update)
       setMessages(prevMessages => [...prevMessages, data.message]);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
@@ -74,5 +84,6 @@ export function useMessages(chatId: string): UseMessagesReturn {
     error,
     sendMessage,
     refetch: fetchMessages,
+    addMessage,
   };
 }

@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
-    const businessUnitId = searchParams.get("businessUnitId");
+    // const businessUnitId = searchParams.get("businessUnitId");
 
     // Build query for users
     let query = supabase
@@ -33,15 +33,15 @@ export async function GET(request: NextRequest) {
       query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
     }
 
-    // Filter by business unit if provided
-    if (businessUnitId) {
-      query = query.in("id", 
-        supabase
-          .from("user_business_units")
-          .select("user_id")
-          .eq("business_unit_id", businessUnitId)
-      );
-    }
+    // // Filter by business unit if provided
+    // if (businessUnitId) {
+    //   query = query.in("id", 
+    //     supabase
+    //       .from("user_business_units")
+    //       .select("user_id")
+    //       .eq("business_unit_id", businessUnitId)
+    //   );
+    // }
 
     const { data: users, error } = await query
       .order("first_name")

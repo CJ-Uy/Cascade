@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 // GET /api/chat/[id]/participants - Get chat participants
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const chatId = params.id;
+    const { id: chatId } = await params;
 
     // Verify user is participant in this chat
     const { data: participant, error: participantError } = await supabase
@@ -28,13 +28,26 @@ export async function GET(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    // First get the chat creator info
+    const { data: chat, error: chatError } = await supabase
+      .from("chats")
+      .select("creator_id")
+      .eq("id", chatId)
+      .single();
+
+    if (chatError) {
+      console.error("Error fetching chat:", chatError);
+      return NextResponse.json({ error: "Failed to fetch chat info" }, { status: 500 });
+    }
+
     // Get participants with profile info
     const { data: participants, error } = await supabase
       .from("chat_participants")
       .select(`
         user_id,
         last_read_at,
-        profiles!chat_participants_user_id_fkey(
+        created_at,
+        profiles(
           first_name,
           last_name,
           image_url
@@ -44,15 +57,21 @@ export async function GET(
 
     if (error) {
       console.error("Error fetching participants:", error);
+      console.error("Chat ID:", chatId);
+      console.error("User ID:", user.id);
       return NextResponse.json({ error: "Failed to fetch participants" }, { status: 500 });
     }
+
+    console.log("Raw participants data:", participants);
 
     // Transform participants
     const transformedParticipants = participants?.map(participant => ({
       userId: participant.user_id,
       lastReadAt: participant.last_read_at,
+      joinedAt: participant.created_at,
       name: `${participant.profiles?.first_name || ''} ${participant.profiles?.last_name || ''}`.trim(),
-      avatar: participant.profiles?.image_url
+      avatar: participant.profiles?.image_url,
+      isCreator: participant.user_id === chat.creator_id
     })) || [];
 
     return NextResponse.json({ participants: transformedParticipants });
@@ -65,7 +84,7 @@ export async function GET(
 // POST /api/chat/[id]/participants - Add participants to chat
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -75,7 +94,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const chatId = params.id;
+    const { id: chatId } = await params;
     const body = await request.json();
     const { userIds } = body;
 
@@ -120,7 +139,7 @@ export async function POST(
 // DELETE /api/chat/[id]/participants - Remove participant from chat
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -130,7 +149,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const chatId = params.id;
+    const { id: chatId } = await params;
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get("userId");
 
