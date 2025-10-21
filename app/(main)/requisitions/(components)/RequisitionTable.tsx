@@ -51,10 +51,14 @@ export function RequisitionTable({
   const filteredRequisitions = useMemo(() => {
     return requisitions.filter(
       (req) =>
-        req.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        req.formName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        req.initiator.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        req.status.toLowerCase().includes(searchTerm.toLowerCase()),
+        (req.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (req.formName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (req.initiator || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (req.overallStatus || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()),
     );
   }, [requisitions, searchTerm]);
 

@@ -12,6 +12,14 @@ export function RequisitionSegmentedProgressBar({
   approvalSteps,
   overallStatus,
 }: RequisitionSegmentedProgressBarProps) {
+  if (!approvalSteps || approvalSteps.length === 0) {
+    return (
+      <div className="text-muted-foreground w-full text-sm">
+        No workflow defined.
+      </div>
+    );
+  }
+
   const currentPendingStepIndex = approvalSteps.findIndex(
     (step) => step.status === "PENDING" || step.status === "WAITING",
   );
