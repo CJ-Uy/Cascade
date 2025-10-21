@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Table2, LayoutGrid } from "lucide-react";
-import { WorkflowList } from "./(components)/WorkFlowList";
+import { WorkflowList, type Workflow } from "./(components)/WorkFlowList";
 import { WorkflowCardView } from "./(components)/WorkflowCardView";
 import { WorkflowDialog } from "./(components)/WorkflowDialog";
 import { Input } from "@/components/ui/input";
@@ -14,48 +14,38 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { saveWorkflowAction } from "../actions";
 
-interface Workflow {
-  id: string;
-  name: string;
-  formId?: string;
-  initiators: string[];
-  steps: string[];
-  version: number;
-  parent_workflow_id?: string;
-  is_latest: boolean;
-  status: string;
-}
+// Note: The Workflow type for the dialog/save action might differ slightly
+// from the one for listing, especially with the 'versionOfId' property.
+type SaveableWorkflow = Omit<Workflow, "id"> & {
+  id?: string;
+  versionOfId?: string;
+};
 
 export default function ApprovalSystem() {
   const params = useParams();
   const buId = params.bu_id as string;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
-  const [isCreatingNewVersion, setIsCreatingNewVersion] = useState(false); // Added
+  const [isCreatingNewVersion, setIsCreatingNewVersion] = useState(false);
   const [key, setKey] = useState(Date.now());
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [globalFilter, setGlobalFilter] = useState("");
   const [showArchived, setShowArchived] = useState(false);
 
+  const handleOpenWorkflowDialog = (
+    workflow: Workflow | null,
+    isNewVersion: boolean,
+  ) => {
+    setEditingWorkflow(workflow);
+    setIsCreatingNewVersion(isNewVersion);
+    setIsDialogOpen(true);
+  };
+
   const handleCreateNew = () => {
-    setEditingWorkflow(null);
-    setIsCreatingNewVersion(false); // Ensure this is false for new creation
-    setIsDialogOpen(true);
+    handleOpenWorkflowDialog(null, false);
   };
 
-  const handleEdit = (workflow: Workflow) => {
-    setEditingWorkflow(workflow);
-    setIsCreatingNewVersion(false); // Ensure this is false for editing
-    setIsDialogOpen(true);
-  };
-
-  const handleCreateNewVersion = (workflow: Workflow) => {
-    setEditingWorkflow(workflow);
-    setIsCreatingNewVersion(true);
-    setIsDialogOpen(true);
-  };
-
-  const handleSaveWorkflow = async (workflowData: Omit<Workflow, "id">) => {
+  const handleSaveWorkflow = async (workflowData: SaveableWorkflow) => {
     try {
       await saveWorkflowAction(
         workflowData,
@@ -132,7 +122,7 @@ export default function ApprovalSystem() {
         <WorkflowList
           refreshKey={key}
           businessUnitId={buId}
-          onEdit={handleEdit}
+          onOpenWorkflowDialog={handleOpenWorkflowDialog}
           globalFilter={globalFilter}
           showArchived={showArchived}
           onArchive={handleArchive}
@@ -142,7 +132,7 @@ export default function ApprovalSystem() {
         <WorkflowCardView
           refreshKey={key}
           businessUnitId={buId}
-          onEditWorkflow={handleEdit}
+          onOpenWorkflowDialog={handleOpenWorkflowDialog}
           onOpenPreview={() => {}} // Not implemented yet
           globalFilter={globalFilter}
           showArchived={showArchived}
@@ -158,7 +148,7 @@ export default function ApprovalSystem() {
           onSave={handleSaveWorkflow}
           workflow={editingWorkflow}
           businessUnitId={buId}
-          isNewVersion={isCreatingNewVersion} // Added
+          isNewVersion={isCreatingNewVersion}
         />
       )}
     </div>
