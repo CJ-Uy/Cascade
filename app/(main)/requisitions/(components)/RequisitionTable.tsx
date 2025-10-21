@@ -83,7 +83,10 @@ export function RequisitionTable({
               {columns.map((column) => (
                 <TableHead
                   key={column.key}
-                  className={cn(column.className, column.key === "actions" ? "text-right" : "")}
+                  className={cn(
+                    column.className,
+                    column.key === "actions" ? "text-right" : "",
+                  )}
                 >
                   {column.header}
                 </TableHead>
@@ -97,7 +100,10 @@ export function RequisitionTable({
                   {columns.map((column) => (
                     <TableCell
                       key={column.key}
-                      className={cn(column.className, column.key === "actions" ? "text-right" : "")}
+                      className={cn(
+                        column.className,
+                        column.key === "actions" ? "text-right" : "",
+                      )}
                     >
                       {column.render ? (
                         column.render(requisition)

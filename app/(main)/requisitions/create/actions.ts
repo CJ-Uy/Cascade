@@ -529,6 +529,109 @@ export async function getRequisitionDetails(
   };
 }
 
+export async function getHistoryRequisitions(): Promise<Requisition[]> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error("User not authenticated.");
+  }
+
+  const { data: requisitions, error } = await supabase
+    .from("requisitions")
+    .select(
+      `
+        id,
+        created_at,
+        updated_at,
+        overall_status,
+        requisition_templates(name, icon, approval_workflow_id, approval_workflows(approval_step_definitions(id, step_number, roles(name)))),
+        initiator_profile:profiles(first_name, last_name),
+        requisition_approvals(
+          status,
+          step_definition_id,
+          approver_id,
+          profiles(first_name, last_name)
+        )
+      `,
+    )
+    .eq("initiator_id", user.id)
+    .in("overall_status", ["APPROVED", "CANCELED"])
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching history requisitions:", error);
+    return [];
+  }
+
+  return requisitions.map((req: any) => {
+    const definedWorkflowSteps =
+      req.requisition_templates?.approval_workflows
+        ?.approval_step_definitions || [];
+    const actualRequisitionApprovals = req.requisition_approvals || [];
+
+    const approvalMap = new Map();
+    actualRequisitionApprovals.forEach((approval: any) => {
+      approvalMap.set(approval.step_definition_id, approval);
+    });
+
+    const approvalSteps: ApprovalStep[] = definedWorkflowSteps
+      .sort((a: any, b: any) => a.step_number - b.step_number)
+      .map((stepDef: any) => {
+        const correspondingApproval = approvalMap.get(stepDef.id);
+        return {
+          step_number: stepDef.step_number,
+          role_name: stepDef.roles.name,
+          approver_name: correspondingApproval?.profiles
+            ? `${correspondingApproval.profiles.first_name} ${correspondingApproval.profiles.last_name}`
+            : null,
+          status: correspondingApproval?.status || "WAITING", // Default to WAITING if no actual approval yet
+        };
+      });
+
+    const totalSteps = approvalSteps.length;
+    const currentPendingApproval = approvalSteps.find(
+      (step) => step.status === "PENDING" || step.status === "WAITING",
+    );
+
+    let currentApprover = "N/A";
+    if (approvalSteps.length === 0) {
+      currentApprover = "No Approvers Defined";
+    } else if (currentPendingApproval) {
+      currentApprover = currentPendingApproval.role_name;
+      if (currentPendingApproval.approver_name) {
+        currentApprover += ` (${currentPendingApproval.approver_name})`;
+      }
+    } else if (req.overall_status === "APPROVED") {
+      currentApprover = "Completed";
+    } else if (req.overall_status === "REJECTED") {
+      currentApprover = "Rejected";
+    } else if (req.overall_status === "CANCELED") {
+      currentApprover = "Canceled";
+    }
+
+    return {
+      id: req.id,
+      title: req.requisition_templates?.name || "Untitled Requisition",
+      formName: req.requisition_templates?.name || "N/A",
+      initiator:
+        `${req.initiator_profile?.first_name || ""} ${req.initiator_profile?.last_name || ""}`.trim(),
+      currentApprover: currentApprover,
+      overallStatus: req.overall_status,
+      currentStep: currentPendingApproval?.step_number || totalSteps,
+      totalSteps: totalSteps,
+      submittedDate: new Date(req.created_at).toLocaleDateString(),
+      lastUpdated: new Date(
+        req.updated_at || req.created_at,
+      ).toLocaleDateString(),
+      approvalSteps: approvalSteps,
+      icon: req.requisition_templates?.icon || undefined,
+    };
+  });
+}
+
 export async function addRequisitionComment(
   requisitionId: string,
   content: string,
