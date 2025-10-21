@@ -12,21 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RequisitionProgressBar } from "./RequisitionProgressBar";
+import { RequisitionSegmentedProgressBar } from "./RequisitionSegmentedProgressBar";
 
-export interface Requisition {
-  id: string;
-  title: string;
-  formName: string;
-  initiator: string;
-  currentApprover: string;
-  status: "Pending" | "Approved" | "Rejected" | "Flagged" | "Draft";
-  currentStep: number;
-  totalSteps: number;
-  submittedDate: string;
-  lastUpdated: string;
-  // Add other fields as needed
-}
+import { Requisition } from "@/lib/types/requisition";
 
 interface RequisitionTableProps {
   requisitions: Requisition[];
@@ -111,24 +99,23 @@ export function RequisitionTable({
                       {column.render ? (
                         column.render(requisition)
                       ) : column.key === "progress" ? (
-                        <RequisitionProgressBar
-                          currentStep={requisition.currentStep}
-                          totalSteps={requisition.totalSteps}
-                          status={requisition.status}
+                        <RequisitionSegmentedProgressBar
+                          approvalSteps={requisition.approvalSteps}
+                          overallStatus={requisition.overallStatus}
                         />
                       ) : column.key === "status" ? (
                         <Badge
                           variant={
-                            requisition.status === "Approved"
+                            requisition.overallStatus === "APPROVED"
                               ? "default"
-                              : requisition.status === "Rejected"
+                              : requisition.overallStatus === "REJECTED"
                                 ? "destructive"
-                                : requisition.status === "Pending"
+                                : requisition.overallStatus === "PENDING"
                                   ? "secondary"
                                   : "outline"
                           }
                         >
-                          {requisition.status}
+                          {requisition.overallStatus}
                         </Badge>
                       ) : (
                         requisition[column.key as keyof Requisition]
