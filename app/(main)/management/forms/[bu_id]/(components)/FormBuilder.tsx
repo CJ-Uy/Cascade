@@ -48,6 +48,7 @@ export interface Form {
   accessRoles: string[];
   status: string;
   icon: string;
+  workflowSteps?: string[]; // Added workflow steps
 }
 interface FormBuilderProps {
   fields: FormField[];
