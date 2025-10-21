@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-// --- ANIMATION STORYBOARDS (from your HeroSection) ---
+// --- ANIMATION STORYBOARDS (from home page HeroSection) ---
 const blob1Path = [
   "translate-x-0 translate-y-0 scale-100 rotate-0",
   "translate-x-48 -translate-y-24 scale-125 rotate-45",
@@ -75,14 +75,14 @@ export default function NotFound() {
           <div className="mt-10 flex items-center justify-center gap-x-6">
             <Link
               href="/"
-              className="rounded-md bg-emerald-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              className="rounded-md bg-emerald-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
             >
               Go back home
             </Link>
           </div>
         </div>
 
-        {/* --- THE ANIMATION CANVAS (Identical to your HeroSection) --- */}
+        {/* --- THE ANIMATION CANVAS (Identical to home Hero Section) --- */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 -z-10"
