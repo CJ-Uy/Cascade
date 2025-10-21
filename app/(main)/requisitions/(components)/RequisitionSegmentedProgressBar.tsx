@@ -12,22 +12,29 @@ export function RequisitionSegmentedProgressBar({
   approvalSteps,
   overallStatus,
 }: RequisitionSegmentedProgressBarProps) {
-  const getSegmentColorClass = (status: ApprovalStep["status"]) => {
-    switch (status) {
-      case "APPROVED":
-        return "bg-emerald-500";
-      case "PENDING":
-      case "WAITING":
-        return "bg-yellow-500";
-      case "NEEDS_CLARIFICATION":
-      case "IN_REVISION":
-        return "bg-orange-500";
-      case "REJECTED":
-      case "CANCELED":
-        return "bg-red-500";
-      default:
-        return "bg-gray-300";
+  const currentPendingStepIndex = approvalSteps.findIndex(
+    (step) => step.status === "PENDING" || step.status === "WAITING",
+  );
+
+  const getSegmentColorClass = (step: ApprovalStep, index: number) => {
+    if (step.status === "APPROVED") {
+      return "bg-emerald-500";
+    } else if (step.status === "REJECTED" || step.status === "CANCELED") {
+      return "bg-red-500";
+    } else if (index === currentPendingStepIndex) {
+      return "bg-yellow-500"; // Current pending step
+    } else if (
+      index > currentPendingStepIndex &&
+      currentPendingStepIndex !== -1
+    ) {
+      return "bg-gray-300"; // Future steps
+    } else if (
+      step.status === "NEEDS_CLARIFICATION" ||
+      step.status === "IN_REVISION"
+    ) {
+      return "bg-orange-500";
     }
+    return "bg-gray-300"; // Default for other statuses or if no pending step found yet
   };
 
   if (!approvalSteps || approvalSteps.length === 0) {
@@ -39,13 +46,13 @@ export function RequisitionSegmentedProgressBar({
   }
 
   return (
-    <div className="flex w-full items-center space-x-1">
+    <div className="flex w-full items-center space-x-1 pr-3">
       {approvalSteps.map((step, index) => (
         <div
           key={index}
           className={cn(
             "h-2 flex-1 rounded-sm",
-            getSegmentColorClass(step.status),
+            getSegmentColorClass(step, index),
           )}
           title={`Step ${step.step_number}: ${step.role_name} - ${step.status}`}
         />

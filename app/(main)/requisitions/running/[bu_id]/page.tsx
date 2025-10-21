@@ -44,9 +44,18 @@ export default function RunningRequisitionsPage() {
 
   // Define columns for the running requisitions table
   const runningRequisitionColumns = [
-    { key: "title", header: "Title" },
-    { key: "formName", header: "Form" },
-    { key: "currentApprover", header: "Next Approver" },
+    {
+      key: "formName",
+      header: "Form",
+      render: (requisition: Requisition) => (
+        <div className="flex items-center gap-2">
+          {requisition.icon && <span>{requisition.icon}</span>}
+          <span>{requisition.formName}</span>
+        </div>
+      ),
+      className: "w-[15%]", // Allocate 20% width
+    },
+    { key: "initiator", header: "Initiator", className: "w-[15%]" }, // Allocate 20% width
     {
       key: "progress",
       header: "Progress",
@@ -56,8 +65,10 @@ export default function RunningRequisitionsPage() {
           overallStatus={requisition.overallStatus}
         />
       ),
+      className: "w-[20%]", // Allocate 30% width
     },
-    { key: "submittedDate", header: "Submitted" },
+    { key: "currentApprover", header: "Next Approver", className: "w-[20%]" }, // Allocate 15% width
+    { key: "submittedDate", header: "Submitted", className: "w-[10%]" }, // Allocate 10% width
     {
       key: "actions",
       header: "Actions",
@@ -70,6 +81,7 @@ export default function RunningRequisitionsPage() {
           View Details
         </Button>
       ),
+      className: "w-[5%] text-right", // Allocate 5% width, right-align button
     },
   ];
 

@@ -55,4 +55,5 @@ export interface Requisition {
   approvalSteps: ApprovalStep[]; // New field for detailed approval steps
   values?: RequisitionValue[];
   comments?: RequisitionComment[];
+  icon?: string; // Optional icon for the form/template
 }

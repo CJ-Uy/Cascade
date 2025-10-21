@@ -16,12 +16,15 @@ import { RequisitionSegmentedProgressBar } from "./RequisitionSegmentedProgressB
 
 import { Requisition } from "@/lib/types/requisition";
 
+import { cn } from "@/lib/utils";
+
 interface RequisitionTableProps {
   requisitions: Requisition[];
   columns: {
     key: keyof Requisition | "actions" | "progress";
     header: string;
     render?: (requisition: Requisition) => React.ReactNode;
+    className?: string; // Add className property
   }[];
   onViewDetails: (requisition: Requisition) => void;
   // Add other action handlers as needed for specific pages
@@ -80,7 +83,7 @@ export function RequisitionTable({
               {columns.map((column) => (
                 <TableHead
                   key={column.key}
-                  className={column.key === "actions" ? "text-right" : ""}
+                  className={cn(column.className, column.key === "actions" ? "text-right" : "")}
                 >
                   {column.header}
                 </TableHead>
@@ -94,7 +97,7 @@ export function RequisitionTable({
                   {columns.map((column) => (
                     <TableCell
                       key={column.key}
-                      className={column.key === "actions" ? "text-right" : ""}
+                      className={cn(column.className, column.key === "actions" ? "text-right" : "")}
                     >
                       {column.render ? (
                         column.render(requisition)

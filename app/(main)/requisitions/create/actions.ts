@@ -301,7 +301,7 @@ export async function getRunningRequisitions(): Promise<Requisition[]> {
         created_at,
         updated_at,
         overall_status,
-        requisition_templates(name, approval_workflow_id, approval_workflows(approval_step_definitions(id, step_number, roles(name)))),
+        requisition_templates(name, icon, approval_workflow_id, approval_workflows(approval_step_definitions(id, step_number, roles(name)))),
         initiator_profile:profiles(first_name, last_name),
         requisition_approvals(
           status,
@@ -382,6 +382,7 @@ export async function getRunningRequisitions(): Promise<Requisition[]> {
         req.updated_at || req.created_at,
       ).toLocaleDateString(),
       approvalSteps: approvalSteps,
+      icon: req.requisition_templates?.icon || undefined,
     };
   });
 }
@@ -406,7 +407,7 @@ export async function getRequisitionDetails(
         created_at,
         updated_at,
         overall_status,
-        requisition_templates(name, approval_workflow_id, approval_workflows(approval_step_definitions(id, step_number, roles(name)))),
+        requisition_templates(name, icon, approval_workflow_id, approval_workflows(approval_step_definitions(id, step_number, roles(name)))),
         initiator_profile:profiles(first_name, last_name),
         requisition_approvals(
           status,
@@ -524,6 +525,7 @@ export async function getRequisitionDetails(
     approvalSteps: approvalSteps,
     values: requisitionValues,
     comments: comments,
+    icon: requisitionData.requisition_templates?.icon || undefined,
   };
 }
 
