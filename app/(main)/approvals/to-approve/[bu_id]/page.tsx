@@ -7,7 +7,6 @@ import { RequisitionTable } from "@/app/(main)/requisitions/(components)/Requisi
 import { Requisition } from "@/lib/types/requisition";
 import { RequisitionDetailsDialog } from "@/app/(main)/requisitions/(components)/RequisitionDetailsDialog";
 import { Button } from "@/components/ui/button";
-import { Check, X, MessageSquareWarning } from "lucide-react";
 import { getApproverRequisitions, processApproval } from "../../actions";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,6 +38,8 @@ export default function ToApproveRequisitionsPage() {
     "APPROVE" | "REJECT" | "CLARIFY" | null
   >(null);
 
+  const [isImmediateItem, setIsImmediateItem] = useState(false);
+
   const fetchRequisitions = () => {
     startLoading(async () => {
       try {
@@ -56,8 +57,15 @@ export default function ToApproveRequisitionsPage() {
     }
   }, [buId]);
 
-  const handleViewDetails = (requisition: ApproverRequisition) => {
+  const handleViewDetailsImmediate = (requisition: ApproverRequisition) => {
     setSelectedRequisition(requisition);
+    setIsImmediateItem(true);
+    setIsDetailsDialogOpen(true);
+  };
+
+  const handleViewDetailsReadOnly = (requisition: ApproverRequisition) => {
+    setSelectedRequisition(requisition);
+    setIsImmediateItem(false);
     setIsDetailsDialogOpen(true);
   };
 
@@ -68,6 +76,13 @@ export default function ToApproveRequisitionsPage() {
     setSelectedRequisition(requisition);
     setActionType(type);
     setIsActionDialogOpen(true);
+  };
+
+  const handleActionFromDialog = (type: "APPROVE" | "REJECT" | "CLARIFY") => {
+    if (selectedRequisition) {
+      setIsDetailsDialogOpen(false);
+      handleOpenActionDialog(selectedRequisition, type);
+    }
   };
 
   const handleConfirmAction = async (comment: string) => {
@@ -123,31 +138,9 @@ export default function ToApproveRequisitionsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleViewDetails(requisition)}
+            onClick={() => handleViewDetailsImmediate(requisition)}
           >
             View Details
-          </Button>
-          <Button
-            variant="default"
-            size="sm"
-            className="bg-green-600 hover:bg-green-700"
-            onClick={() => handleOpenActionDialog(requisition, "APPROVE")}
-          >
-            <Check className="mr-2 h-4 w-4" /> Approve
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => handleOpenActionDialog(requisition, "REJECT")}
-          >
-            <X className="mr-2 h-4 w-4" /> Reject
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => handleOpenActionDialog(requisition, "CLARIFY")}
-          >
-            <MessageSquareWarning className="mr-2 h-4 w-4" /> Clarification
           </Button>
         </div>
       ),
@@ -183,7 +176,7 @@ export default function ToApproveRequisitionsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleViewDetails(requisition)}
+            onClick={() => handleViewDetailsReadOnly(requisition)}
           >
             View Details
           </Button>
@@ -218,21 +211,21 @@ export default function ToApproveRequisitionsPage() {
               <RequisitionTable
                 requisitions={requisitions.immediate}
                 columns={immediateColumns}
-                onViewDetails={handleViewDetails}
+                onViewDetails={handleViewDetailsImmediate}
               />
             </TabsContent>
             <TabsContent value="onTheWay" className="mt-4">
               <RequisitionTable
                 requisitions={requisitions.onTheWay}
                 columns={readOnlyColumns}
-                onViewDetails={handleViewDetails}
+                onViewDetails={handleViewDetailsReadOnly}
               />
             </TabsContent>
             <TabsContent value="passed" className="mt-4">
               <RequisitionTable
                 requisitions={requisitions.passed}
                 columns={readOnlyColumns}
-                onViewDetails={handleViewDetails}
+                onViewDetails={handleViewDetailsReadOnly}
               />
             </TabsContent>
           </>
@@ -243,6 +236,8 @@ export default function ToApproveRequisitionsPage() {
         isOpen={isDetailsDialogOpen}
         onClose={() => setIsDetailsDialogOpen(false)}
         requisition={selectedRequisition}
+        showApprovalActions={isImmediateItem}
+        onAction={handleActionFromDialog}
       />
 
       {isActionDialogOpen && (

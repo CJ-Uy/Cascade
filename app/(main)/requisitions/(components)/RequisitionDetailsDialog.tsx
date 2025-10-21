@@ -1,45 +1,50 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+
+import { Check, MessageSquareWarning, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Requisition } from "@/lib/types/requisition";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "lucide-react";
-import { Requisition } from "@/lib/types/requisition";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  getRequisitionDetails,
-  addRequisitionComment,
-} from "@/app/(main)/requisitions/create/actions";
-import { toast } from "sonner";
+import { Tabs, TabsList, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RequisitionSegmentedProgressBar } from "./RequisitionSegmentedProgressBar";
-import { RequisitionCommentThread } from "./RequisitionCommentThread";
 import {
   CheckCircle,
-  XCircle,
   Clock,
+  XCircle,
   AlertCircle,
   CircleDotDashed,
 } from "lucide-react";
+
+import { RequisitionSegmentedProgressBar } from "./RequisitionSegmentedProgressBar";
+import { RequisitionCommentThread } from "./RequisitionCommentThread";
+
+import { addRequisitionComment } from "../create/actions";
+import { getRequisitionDetails } from "../create/actions";
 
 interface RequisitionDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   requisition: Requisition | null;
+  showApprovalActions?: boolean;
+  onAction?: (type: "APPROVE" | "REJECT" | "CLARIFY") => void;
 }
 
 export function RequisitionDetailsDialog({
   isOpen,
   onClose,
   requisition,
+  showApprovalActions = false,
+  onAction,
 }: RequisitionDetailsDialogProps) {
   const [detailedRequisition, setDetailedRequisition] =
     useState<Requisition | null>(null);
@@ -79,6 +84,13 @@ export function RequisitionDetailsDialog({
       toast.error("Failed to add comment.");
       throw error; // Re-throw to allow RequisitionCommentThread to handle loading state
     }
+  };
+
+  const handleActionClick = (type: "APPROVE" | "REJECT" | "CLARIFY") => {
+    if (onAction) {
+      onAction(type);
+    }
+    onClose(); // Close the details dialog
   };
 
   return (
@@ -302,11 +314,40 @@ export function RequisitionDetailsDialog({
             )}
           </TabsContent>
         </Tabs>
-        {/* <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter> */}
+        <DialogFooter>
+          {showApprovalActions ? (
+            <div className="flex w-full justify-end">
+              <div className="flex gap-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleActionClick("REJECT")}
+                >
+                  <X className="mr-2 h-4 w-4" /> Reject
+                </Button>
+                <Button
+                  className="bg-yellow-500"
+                  size="sm"
+                  onClick={() => handleActionClick("CLARIFY")}
+                >
+                  <MessageSquareWarning className="mr-2 h-4 w-4" />{" "}
+                  Clarification
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => handleActionClick("APPROVE")}
+                >
+                  <Check className="mr-2 h-4 w-4" /> Approve
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
