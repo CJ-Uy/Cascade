@@ -37,6 +37,11 @@ interface RequisitionDetailsDialogProps {
   requisition: Requisition | null;
   showApprovalActions?: boolean;
   onAction?: (type: "APPROVE" | "REJECT" | "CLARIFY") => void;
+  isInitiatorInRevision?: boolean;
+  onClarificationResponse?: (
+    comment: string,
+    attachments: File[],
+  ) => Promise<void>;
 }
 
 export function RequisitionDetailsDialog({
@@ -45,6 +50,8 @@ export function RequisitionDetailsDialog({
   requisition,
   showApprovalActions = false,
   onAction,
+  isInitiatorInRevision = false,
+  onClarificationResponse,
 }: RequisitionDetailsDialogProps) {
   const [detailedRequisition, setDetailedRequisition] =
     useState<Requisition | null>(null);
@@ -85,6 +92,11 @@ export function RequisitionDetailsDialog({
       throw error; // Re-throw to allow RequisitionCommentThread to handle loading state
     }
   };
+
+  const onNewCommentSubmit =
+    isInitiatorInRevision && onClarificationResponse
+      ? onClarificationResponse
+      : handleAddComment;
 
   const handleActionClick = (type: "APPROVE" | "REJECT" | "CLARIFY") => {
     if (onAction) {
@@ -304,7 +316,7 @@ export function RequisitionDetailsDialog({
                     <RequisitionCommentThread
                       comments={displayRequisition.comments}
                       requisitionId={displayRequisition.id}
-                      onNewComment={handleAddComment}
+                      onNewComment={onNewCommentSubmit}
                     />
                   )}
                 </div>

@@ -6,6 +6,7 @@ import {
   type Form,
   type FormField,
 } from "@/app/(main)/management/(components)/forms/FormBuilder"; // Reusing types
+import { Requisition, ApprovalStep } from "@/lib/types/requisition";
 
 // Helper to transform DB fields to FormField type
 const transformDbFieldsToFormFields = (dbFields: any[]): FormField[] => {
@@ -281,9 +282,10 @@ export async function submitRequisition(
   return requisitionId;
 }
 
-import { Requisition, ApprovalStep } from "@/lib/types/requisition";
-
-export async function getRunningRequisitions(): Promise<Requisition[]> {
+export async function getRunningRequisitions(): Promise<{
+  requisitions: Requisition[];
+  currentUserId: string;
+}> {
   const supabase = await createClient();
 
   const {
@@ -301,6 +303,7 @@ export async function getRunningRequisitions(): Promise<Requisition[]> {
         created_at,
         updated_at,
         overall_status,
+        initiator_id,
         requisition_templates(name, icon, approval_workflow_id, approval_workflows(approval_step_definitions(id, step_number, roles(name)))),
         initiator_profile:profiles(first_name, last_name),
         requisition_approvals(
@@ -318,10 +321,10 @@ export async function getRunningRequisitions(): Promise<Requisition[]> {
 
   if (error) {
     console.error("Error fetching running requisitions:", error);
-    return [];
+    return { requisitions: [], currentUserId: user.id };
   }
 
-  return requisitions.map((req: any) => {
+  const mappedRequisitions = requisitions.map((req: any) => {
     const definedWorkflowSteps =
       req.requisition_templates?.approval_workflows
         ?.approval_step_definitions || [];
@@ -369,6 +372,7 @@ export async function getRunningRequisitions(): Promise<Requisition[]> {
 
     return {
       id: req.id,
+      initiatorId: req.initiator_id,
       title: req.requisition_templates?.name || "Untitled Requisition",
       formName: req.requisition_templates?.name || "N/A",
       initiator:
@@ -385,6 +389,8 @@ export async function getRunningRequisitions(): Promise<Requisition[]> {
       icon: req.requisition_templates?.icon || undefined,
     };
   });
+
+  return { requisitions: mappedRequisitions, currentUserId: user.id };
 }
 
 export async function getRequisitionDetails(
@@ -702,4 +708,94 @@ export async function addRequisitionComment(
 
   revalidatePath(`/app/(main)/requisitions/running/${requisitionId}`); // Revalidate the page to show new comment
   revalidatePath(`/app/(main)/requisitions/history/${requisitionId}`); // Also revalidate history if applicable
+}
+
+export async function respondToClarification(
+  requisitionId: string,
+  comment: string,
+  attachments: File[],
+  pathname: string,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  // 1. Add comment
+  const { data: newComment, error: commentError } = await supabase
+    .from("comments")
+    .insert({
+      requisition_id: requisitionId,
+      author_id: user.id,
+      content: comment,
+      action: "COMMENT",
+    })
+    .select("id")
+    .single();
+
+  if (commentError) {
+    console.error("Error adding comment:", commentError);
+    throw new Error("Failed to add comment.");
+  }
+
+  // Attachment logic from addRequisitionComment
+  const commentId = newComment.id;
+  if (attachments.length > 0) {
+    const attachmentInserts = [];
+    for (const file of attachments) {
+      const filePath = `${requisitionId}/${commentId}/${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("requisition_attachments")
+        .upload(filePath, file, { cacheControl: "3600", upsert: false });
+
+      if (uploadError) {
+        console.error("Error uploading attachment:", uploadError);
+        throw new Error(`Failed to upload attachment ${file.name}.`);
+      }
+
+      attachmentInserts.push({
+        filename: file.name,
+        filetype: file.type,
+        storage_path: filePath,
+        size_bytes: file.size,
+        uploader_id: user.id,
+        comment_id: commentId,
+      });
+    }
+
+    const { error: attachmentError } = await supabase
+      .from("attachments")
+      .insert(attachmentInserts);
+
+    if (attachmentError) {
+      console.error("Error inserting attachment metadata:", attachmentError);
+      throw new Error("Failed to save attachment metadata.");
+    }
+  }
+
+  // 2. Find and reset approval step
+  const { error: updateApprovalError } = await supabase
+    .from("requisition_approvals")
+    .update({ status: "WAITING" })
+    .eq("requisition_id", requisitionId)
+    .eq("status", "NEEDS_CLARIFICATION");
+
+  if (updateApprovalError) {
+    console.error("Error resetting approval step:", updateApprovalError);
+    throw new Error("Failed to reset approval step.");
+  }
+
+  // 3. Update overall status
+  const { error: updateReqError } = await supabase
+    .from("requisitions")
+    .update({ overall_status: "PENDING" })
+    .eq("id", requisitionId);
+
+  if (updateReqError) {
+    console.error("Error updating overall status:", updateReqError);
+    throw new Error("Failed to update overall status.");
+  }
+
+  revalidatePath(pathname);
 }

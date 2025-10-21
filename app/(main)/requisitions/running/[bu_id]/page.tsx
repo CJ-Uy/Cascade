@@ -1,45 +1,82 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { RequisitionTable } from "@/app/(main)/requisitions/(components)/RequisitionTable";
 import { Requisition } from "@/lib/types/requisition";
 import { RequisitionDetailsDialog } from "@/app/(main)/requisitions/(components)/RequisitionDetailsDialog";
 import { Button } from "@/components/ui/button";
-import { getRunningRequisitions } from "@/app/(main)/requisitions/create/actions";
+
+import {
+  getRunningRequisitions,
+  respondToClarification,
+} from "@/app/(main)/requisitions/create/actions";
+
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { RequisitionSegmentedProgressBar } from "../../(components)/RequisitionSegmentedProgressBar";
 
+interface RunningRequisition extends Requisition {
+  initiatorId?: string;
+}
+
 export default function RunningRequisitionsPage() {
-  const [runningRequisitions, setRunningRequisitions] = useState<Requisition[]>(
-    [], // Initialize with empty array
-  );
+  const [runningRequisitions, setRunningRequisitions] = useState<
+    RunningRequisition[]
+  >([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedRequisition, setSelectedRequisition] =
-    useState<Requisition | null>(null);
+    useState<RunningRequisition | null>(null);
   const [loading, startTransition] = useTransition();
+  const pathname = usePathname();
+
+  const fetchRequisitions = () => {
+    startTransition(async () => {
+      try {
+        const { requisitions, currentUserId } = await getRunningRequisitions();
+        setRunningRequisitions(requisitions);
+        setCurrentUserId(currentUserId);
+      } catch (error: any) {
+        console.error("Error fetching running requisitions:", error);
+        toast.error(error.message || "Failed to load running requisitions.");
+      }
+    });
+  };
 
   useEffect(() => {
-    const fetchRequisitions = async () => {
-      startTransition(async () => {
-        // Use startTransition for loading state
-        try {
-          const fetchedRequisitions = await getRunningRequisitions();
-          setRunningRequisitions(fetchedRequisitions);
-        } catch (error: any) {
-          console.error("Error fetching running requisitions:", error);
-          toast.error(error.message || "Failed to load running requisitions.");
-        }
-      });
-    };
     fetchRequisitions();
-  }, []); // Empty dependency array to fetch once on mount
+  }, []);
 
-  const handleViewDetails = (requisition: Requisition) => {
+  const handleViewDetails = (requisition: RunningRequisition) => {
     setSelectedRequisition(requisition);
     setIsDetailsDialogOpen(true);
+  };
+
+  const handleClarificationResponse = async (
+    comment: string,
+    attachments: File[],
+  ) => {
+    if (!selectedRequisition) return;
+
+    startTransition(async () => {
+      try {
+        await respondToClarification(
+          selectedRequisition.id,
+          comment,
+          attachments,
+          pathname,
+        );
+        toast.success("Response submitted successfully.");
+        fetchRequisitions(); // Re-fetch data
+        setIsDetailsDialogOpen(false); // Close dialog
+      } catch (error: any) {
+        toast.error(error.message || "Failed to submit response.");
+        throw error; // Re-throw for the comment thread to handle its loading state
+      }
+    });
   };
 
   // Define columns for the running requisitions table
@@ -110,6 +147,11 @@ export default function RunningRequisitionsPage() {
         isOpen={isDetailsDialogOpen}
         onClose={() => setIsDetailsDialogOpen(false)}
         requisition={selectedRequisition}
+        isInitiatorInRevision={
+          selectedRequisition?.overallStatus === "IN_REVISION" &&
+          selectedRequisition?.initiatorId === currentUserId
+        }
+        onClarificationResponse={handleClarificationResponse}
       />
     </div>
   );

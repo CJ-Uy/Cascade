@@ -204,7 +204,7 @@ export async function processApproval(
   if (action === "REJECTED") {
     await supabase
       .from("requisitions")
-      .update({ overall_status: "REJECTED" })
+      .update({ overall_status: "CANCELED" })
       .eq("id", requisitionId);
   } else if (action === "NEEDS_CLARIFICATION") {
     await supabase
