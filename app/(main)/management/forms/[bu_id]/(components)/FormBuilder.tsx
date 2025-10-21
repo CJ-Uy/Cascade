@@ -425,12 +425,17 @@ function SortableFieldCard({
           </div>
         </div>
 
-        <Input
-          value={field.label}
-          onChange={(e) => onUpdate(field.id, { label: e.target.value })}
-          className="h-auto w-full flex-grow border-none p-0 text-lg font-semibold focus-visible:ring-0 focus-visible:ring-offset-0"
-          placeholder="Type your question here"
-        />
+        <div className="flex items-center">
+          <Input
+            value={field.label}
+            onChange={(e) => onUpdate(field.id, { label: e.target.value })}
+            className="h-auto w-full flex-grow border-none p-0 text-lg font-semibold focus-visible:ring-0 focus-visible:ring-offset-0"
+            placeholder="Type your question here"
+          />
+          {field.required && (
+            <span className="ml-2 text-2xl font-semibold text-red-500">*</span>
+          )}
+        </div>
 
         <div className="mt-4">{renderFieldTypeContent()}</div>
       </div>

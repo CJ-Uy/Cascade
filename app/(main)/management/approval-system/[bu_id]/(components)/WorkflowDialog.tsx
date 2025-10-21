@@ -263,8 +263,27 @@ export function WorkflowDialog({
   };
 
   const handleAttemptClose = () => {
-    const currentState = { name, description, formId, initiators, steps }; // Include description in currentState
-    if (JSON.stringify(initialState) !== JSON.stringify(currentState)) {
+    const initialComparableState = {
+      name: initialState?.name || "",
+      description: initialState?.description || "",
+      formId: initialState?.formId,
+      initiators: initialState?.initiators || [],
+      steps: initialState?.steps || [],
+    };
+
+    const currentState = {
+      name,
+      description: description || "",
+      formId,
+      initiators,
+      steps,
+    };
+
+    // Deep comparison of just the editable fields.
+    // This prevents the confirmation dialog from showing if there are no changes.
+    if (
+      JSON.stringify(currentState) !== JSON.stringify(initialComparableState)
+    ) {
       setShowCloseConfirm(true);
     } else {
       setIsOpen(false);

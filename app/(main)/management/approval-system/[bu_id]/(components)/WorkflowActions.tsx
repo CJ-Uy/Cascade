@@ -26,7 +26,7 @@ import {
   activateWorkflowAction,
 } from "../../actions"; // New workflow actions
 import { toast } from "sonner";
-// import { VersionHistoryDialog } from "./VersionHistoryDialog"; // Will create this later
+import { VersionHistoryDialog } from "./VersionHistoryDialog";
 
 interface WorkflowActionsProps {
   workflow: Workflow;
@@ -187,7 +187,7 @@ export function WorkflowActions({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* {isHistoryOpen && (
+      {isHistoryOpen && (
         <VersionHistoryDialog
           isOpen={isHistoryOpen}
           onClose={() => setIsHistoryOpen(false)}
@@ -195,7 +195,7 @@ export function WorkflowActions({
           workflowId={workflow.id}
           onRestore={onRestore}
         />
-      )} */}
+      )}
     </>
   );
 }

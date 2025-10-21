@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { type Workflow } from "./WorkFlowList";
+import { icons } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -127,6 +128,21 @@ export function WorkflowCardView({
                   <WorkflowIcon className="h-6 w-6 text-emerald-500" />
                   <CardTitle>{workflow.name}</CardTitle>
                 </div>
+                {workflow.formName && (
+                  <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                    {(() => {
+                      const IconComponent =
+                        workflow.formIcon &&
+                        icons[workflow.formIcon as keyof typeof icons];
+                      return IconComponent ? (
+                        <IconComponent className="h-4 w-4 text-blue-500" />
+                      ) : workflow.formIcon ? (
+                        <span className="text-lg">{workflow.formIcon}</span>
+                      ) : null;
+                    })()}
+                    <span>{workflow.formName}</span>
+                  </div>
+                )}
                 <WorkflowActions
                   workflow={workflow}
                   onOpenWorkflowDialog={onOpenWorkflowDialog} // Modified

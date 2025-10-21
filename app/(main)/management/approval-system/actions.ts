@@ -36,7 +36,8 @@ export async function getWorkflows(
             approval_step_definitions (
                 step_number,
                 roles ( id, name )
-            )
+            ),
+            requisition_templates!left(id, name, icon)
         `,
     )
     .order("created_at", { ascending: false });
@@ -109,20 +110,31 @@ export async function getWorkflows(
     }
   }
 
-  return workflows.map((wf: any) => ({
-    id: wf.id,
-    name: wf.name,
-    version: wf.version,
-    parent_workflow_id: wf.parent_workflow_id,
-    is_latest: wf.is_latest,
-    status: wf.status,
-    steps: wf.approval_step_definitions
-      .sort((a: any, b: any) => a.step_number - b.step_number)
-      .map((step: any) => step.roles.name),
-    initiators: initiatorsByWorkflow.has(wf.id)
-      ? Array.from(initiatorsByWorkflow.get(wf.id)!)
-      : [],
-  }));
+  return workflows.map((wf: any) => {
+    // A workflow can be linked to multiple templates. We'll display the first one for now.
+    const template = Array.isArray(wf.requisition_templates)
+      ? wf.requisition_templates[0]
+      : wf.requisition_templates;
+
+    return {
+      id: wf.id,
+      name: wf.name,
+      description: wf.description,
+      version: wf.version,
+      parent_workflow_id: wf.parent_workflow_id,
+      is_latest: wf.is_latest,
+      status: wf.status,
+      steps: wf.approval_step_definitions
+        .sort((a: any, b: any) => a.step_number - b.step_number)
+        .map((step: any) => step.roles.name),
+      initiators: initiatorsByWorkflow.has(wf.id)
+        ? Array.from(initiatorsByWorkflow.get(wf.id)!)
+        : [],
+      formId: template?.id || null,
+      formName: template?.name || null,
+      formIcon: template?.icon || null,
+    };
+  });
 }
 
 export async function saveWorkflowAction(
@@ -470,11 +482,13 @@ export async function getRequisitionTemplates(businessUnitId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("requisition_templates")
-    .select("id, name")
-    .eq("business_unit_id", businessUnitId);
+    .select("id, name, icon")
+    .eq("business_unit_id", businessUnitId)
+    .eq("is_latest", true)
+    .eq("status", "active");
 
   if (error) {
-    console.error("Error fetching requisition templates", error);
+    console.error("Error fetching active requisition templates", error);
     return [];
   }
   return data;

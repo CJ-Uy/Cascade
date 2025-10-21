@@ -26,16 +26,21 @@ import {
 } from "@tanstack/react-table";
 import { WorkflowActions } from "./WorkflowActions";
 
+import { icons } from "lucide-react"; // Import icons for dynamic rendering
+
 export interface Workflow {
   id: string;
   name: string;
-  description?: string; // Added
+  description?: string;
   initiators: string[];
   steps: string[];
   version: number;
   parent_workflow_id?: string;
   is_latest: boolean;
   status: string;
+  formId?: string; // Added
+  formName?: string; // Added
+  formIcon?: string; // Added
 }
 
 export interface WorkflowListProps {
@@ -99,6 +104,35 @@ export function WorkflowList({
           </div>
         </div>
       ),
+    },
+    {
+      accessorKey: "formName",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Form <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const formIcon = row.original.formIcon;
+        const formName = row.original.formName;
+        if (!formName)
+          return <span className="text-muted-foreground">N/A</span>;
+
+        const IconComponent = formIcon && icons[formIcon as keyof typeof icons];
+        return (
+          <div className="flex items-center gap-2">
+            {IconComponent ? (
+              <IconComponent className="h-5 w-5 text-blue-500" />
+            ) : formIcon ? (
+              <span className="text-xl">{formIcon}</span>
+            ) : null}
+            <span>{formName}</span>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "status",
