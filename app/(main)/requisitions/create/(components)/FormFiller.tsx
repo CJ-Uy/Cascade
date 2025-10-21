@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { type FormField } from "@/app/(main)/management/(components)/forms/FormBuilder";
 import { Label } from "@/components/ui/label";
@@ -10,6 +8,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Table, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"; // New import
 
 interface FormFillerProps {
   formFields: FormField[];
@@ -26,12 +34,20 @@ export function FormFiller({
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
+  const [isFormValid, setIsFormValid] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false); // New state for confirmation dialog
 
   useEffect(() => {
     // Reset form data and errors when formFields change
     setFormData({});
     setValidationErrors({});
+    setIsFormValid(false);
   }, [formFields]);
+
+  useEffect(() => {
+    // Re-validate form whenever formData changes
+    setIsFormValid(validateForm(true)); // Pass true to not set errors, just check validity
+  }, [formData, formFields]); // Depend on formData and formFields
 
   const handleValueChange = (fieldId: string, value: any) => {
     setFormData((prev) => ({ ...prev, [fieldId]: value }));
@@ -45,19 +61,21 @@ export function FormFiller({
     }
   };
 
-  const validateForm = () => {
+  const validateForm = (silent = false) => {
     const errors: Record<string, string> = {};
     formFields.forEach((field) => {
       if (field.required) {
         if (field.type === "table") {
-          // For table fields, check if any rows exist and if columns are filled
           const tableData = formData[field.id] || [];
           if (tableData.length === 0) {
             errors[field.id] = `${field.label} is required.`;
           } else {
             tableData.forEach((row: any, rowIndex: number) => {
               field.columns?.forEach((col) => {
-                if (col.required && !row[col.id]) {
+                if (
+                  col.required &&
+                  (!row[col.id] || String(row[col.id]).trim() === "")
+                ) {
                   errors[`${field.id}-${col.id}-${rowIndex}`] =
                     `${col.label} in row ${rowIndex + 1} is required.`;
                 }
@@ -65,7 +83,6 @@ export function FormFiller({
             });
           }
         } else if (field.type === "checkbox") {
-          // For checkboxes, check if at least one option is selected
           const checkboxData = formData[field.id] || {};
           const isAnyChecked = Object.values(checkboxData).some(Boolean);
           if (!isAnyChecked) {
@@ -79,17 +96,24 @@ export function FormFiller({
         }
       }
     });
-    setValidationErrors(errors);
+    if (!silent) {
+      setValidationErrors(errors);
+    }
     return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      onSubmit(formData);
+      setShowSubmitConfirm(true); // Open confirmation dialog
     } else {
       toast.error("Please fill in all required fields.");
     }
+  };
+
+  const handleConfirmSubmit = () => {
+    setShowSubmitConfirm(false); // Close dialog
+    onSubmit(formData); // Call original onSubmit
   };
 
   const renderField = (field: FormField, parentId?: string) => {
@@ -226,28 +250,68 @@ export function FormFiller({
           fieldKey,
         );
       default:
-        return null;
+        return fieldWrapper(
+          field.label,
+          <p className="mt-2 text-sm text-red-500">
+            Unsupported field type in table.
+          </p>,
+          fieldKey,
+        );
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      {formFields.map((field) => renderField(field))}
-      <Button
-        type="submit"
-        className="w-full bg-emerald-600 hover:bg-emerald-500"
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Submitting...
-          </>
-        ) : (
-          "Submit Requisition"
-        )}
-      </Button>
-    </form>
+    <>
+      {" "}
+      {/* Use a fragment to wrap multiple top-level elements */}
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {formFields.map((field) => renderField(field))}
+        <Button
+          type="submit"
+          className="w-full bg-emerald-600 hover:bg-emerald-500"
+          disabled={isSubmitting || !isFormValid}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Submitting...
+            </>
+          ) : (
+            "Submit Requisition"
+          )}
+        </Button>
+      </form>
+      <AlertDialog open={showSubmitConfirm} onOpenChange={setShowSubmitConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Requisition Submission</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to submit this requisition? Please review
+              your entries carefully.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmSubmit}
+              disabled={isSubmitting}
+              className="bg-emerald-600 hover:bg-emerald-500"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
