@@ -123,7 +123,11 @@ export function RequisitionCommentThread({
               ? `${attachments.length} file(s) selected`
               : "Attach files"}
           </label>
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-emerald-500">
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="bg-emerald-500"
+          >
             <Send className="mr-2 h-4 w-4" />
             {isSubmitting ? "Posting..." : "Post Comment"}
           </Button>
