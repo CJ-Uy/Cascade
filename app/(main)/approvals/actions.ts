@@ -22,6 +22,7 @@ export async function formatRequisition(
 
   return {
     id: req.id,
+    approvalId: approvalId,
     title: req.template?.name || "Untitled Requisition",
     formName: req.template?.name || "N/A",
     initiator:
@@ -157,86 +158,6 @@ export async function getApproverRequisitions(buId: string) {
     .map((r) => r.data);
 
   return { immediate, onTheWay, passed };
-}
-
-export async function processApproval(
-  approvalId: string,
-  requisitionId: string,
-  action: "APPROVED" | "REJECTED" | "NEEDS_CLARIFICATION",
-  comment: string,
-  pathname: string,
-) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  // 1. Update the approval step
-  const { data: updatedApproval, error: updateError } = await supabase
-    .from("requisition_approvals")
-    .update({
-      status: action,
-      approver_id: user.id,
-      actioned_at: new Date().toISOString(),
-    })
-    .eq("id", approvalId)
-    .select(
-      "*, step_definition:approval_step_definitions(*, workflow:approval_workflows(*, steps:approval_step_definitions(*)))",
-    )
-    .single();
-
-  if (updateError) throw new Error("Failed to update approval status.");
-  if (!updatedApproval)
-    throw new Error("Could not find the approval to update.");
-
-  // 2. Add a comment
-  if (comment) {
-    await supabase.from("comments").insert({
-      requisition_id: requisitionId,
-      author_id: user.id,
-      content: comment,
-      action: action,
-    });
-  }
-
-  // 3. Update overall status and next step if needed
-  if (action === "REJECTED") {
-    await supabase
-      .from("requisitions")
-      .update({ overall_status: "CANCELED" })
-      .eq("id", requisitionId);
-  } else if (action === "NEEDS_CLARIFICATION") {
-    await supabase
-      .from("requisitions")
-      .update({ overall_status: "IN_REVISION" })
-      .eq("id", requisitionId);
-  } else if (action === "APPROVED") {
-    const currentStepNumber = updatedApproval.step_definition.step_number;
-    const allSteps = updatedApproval.step_definition.workflow.steps.sort(
-      (a: any, b: any) => a.step_number - b.step_number,
-    );
-    const nextStep = allSteps.find(
-      (s: any) => s.step_number === currentStepNumber + 1,
-    );
-
-    if (nextStep) {
-      // There is a next step, set it to 'WAITING'
-      await supabase
-        .from("requisition_approvals")
-        .update({ status: "WAITING" })
-        .eq("requisition_id", requisitionId)
-        .eq("step_definition_id", nextStep.id);
-    } else {
-      // This was the last step, approve the whole requisition
-      await supabase
-        .from("requisitions")
-        .update({ overall_status: "APPROVED" })
-        .eq("id", requisitionId);
-    }
-  }
-
-  revalidatePath(pathname);
 }
 
 export async function getFlaggedRequisitions(

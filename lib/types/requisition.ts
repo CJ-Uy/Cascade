@@ -37,6 +37,7 @@ export interface RequisitionAttachment {
 
 export interface Requisition {
   id: string;
+  approvalId?: string;
   title: string;
   formName: string;
   initiator: string;

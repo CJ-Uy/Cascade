@@ -7,7 +7,7 @@ import { RequisitionTable } from "@/app/(main)/requisitions/(components)/Requisi
 import { Requisition } from "@/lib/types/requisition";
 import { RequisitionDetailsDialog } from "@/app/(main)/requisitions/(components)/RequisitionDetailsDialog";
 import { Button } from "@/components/ui/button";
-import { getApproverRequisitions, processApproval } from "../../actions";
+import { getApproverRequisitions } from "../../actions";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApprovalActionDialog } from "../../(components)/ApprovalActionDialog";
@@ -30,6 +30,7 @@ export default function ToApproveRequisitionsPage() {
   }>({ immediate: [], onTheWay: [], passed: [] });
 
   const [loading, startLoading] = useTransition();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedRequisition, setSelectedRequisition] =
     useState<ApproverRequisition | null>(null);
@@ -86,33 +87,65 @@ export default function ToApproveRequisitionsPage() {
   };
 
   const handleConfirmAction = async (comment: string) => {
-    if (!selectedRequisition || !actionType || !selectedRequisition.approvalId)
-      return;
-
-    startLoading(async () => {
-      try {
-        let action: "APPROVED" | "REJECTED" | "NEEDS_CLARIFICATION";
-        if (actionType === "APPROVE") action = "APPROVED";
-        else if (actionType === "REJECT") action = "REJECTED";
-        else action = "NEEDS_CLARIFICATION";
-
-        await processApproval(
-          selectedRequisition.approvalId,
-          selectedRequisition.id,
-          action,
-          comment,
-          pathname,
-        );
-        toast.success(`Requisition has been ${action.toLowerCase()}.`);
-        fetchRequisitions(); // Refresh list
-      } catch (error: any) {
-        toast.error(error.message || "Failed to process action.");
-      } finally {
-        setIsActionDialogOpen(false);
-        setSelectedRequisition(null);
-        setActionType(null);
-      }
+    console.log("handleConfirmAction called with:", {
+      comment,
+      selectedRequisition,
+      actionType,
     });
+
+    if (
+      !selectedRequisition ||
+      !actionType ||
+      !selectedRequisition.approvalId
+    ) {
+      console.error("Pre-flight check failed. Missing data.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      let action: "APPROVED" | "REJECTED" | "NEEDS_CLARIFICATION";
+      if (actionType === "APPROVE") action = "APPROVED";
+      else if (actionType === "REJECT") action = "REJECTED";
+      else action = "NEEDS_CLARIFICATION";
+
+      const payload = {
+        approvalId: selectedRequisition.approvalId,
+        requisitionId: selectedRequisition.id,
+        action,
+        comment,
+        pathname,
+      };
+      console.log("Submitting to API:", payload);
+
+      const response = await fetch("/api/approvals/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const { error } = await response.json();
+        console.error("API Error:", error);
+        throw new Error(error || "Failed to process action.");
+      }
+
+      const result = await response.json();
+      console.log("API Success:", result);
+
+      toast.success(
+        result.message || `Requisition has been ${action.toLowerCase()}.`,
+      );
+      fetchRequisitions(); // Refresh list
+    } catch (error: any) {
+      console.error("handleConfirmAction error:", error);
+      toast.error(error.message || "An unexpected error occurred.");
+    } finally {
+      setIsSubmitting(false);
+      setIsActionDialogOpen(false);
+      setSelectedRequisition(null);
+      setActionType(null);
+    }
   };
 
   const immediateColumns = [
@@ -246,7 +279,7 @@ export default function ToApproveRequisitionsPage() {
           onClose={() => setIsActionDialogOpen(false)}
           actionType={actionType}
           onConfirm={handleConfirmAction}
-          isSubmitting={loading}
+          isSubmitting={isSubmitting}
         />
       )}
     </div>
