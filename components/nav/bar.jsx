@@ -37,6 +37,9 @@ import {
   Settings,
   Home,
   MessagesSquare,
+  Building2, // Added for Business Units
+  ClipboardEdit, // Added for Form Templates
+  Milestone, // Added for Approval Workflows
 } from "lucide-react";
 
 import { getMiddleInitial } from "@/lib/utils";
@@ -86,8 +89,26 @@ const adminItems = [
 ];
 
 const systemAdminItems = [
-  { title: "System Settings", url: "/system-admin/settings", icon: Settings },
-  { title: "- All BUs -", url: "/system-admin/all-bus", icon: Shield },
+  {
+    title: "User Management",
+    url: "/admin/users",
+    icon: Users,
+  },
+  {
+    title: "Business Units",
+    url: "/management/business-units",
+    icon: Building2,
+  },
+  {
+    title: "Form Templates",
+    url: "/management/form-templates",
+    icon: ClipboardEdit,
+  },
+  {
+    title: "Approval Workflows",
+    url: "/management/approval-workflows",
+    icon: Milestone,
+  },
 ];
 
 export function Navbar() {
@@ -162,27 +183,29 @@ export function Navbar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Group 1: Requisitions (Visible to almost everyone) */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Requisitions</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {requisitionItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={path.startsWith(item.url)}
-                  >
-                    <Link href={`${item.url}/${selectedBuId}`}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Group 1: Requisitions (Visible to almost everyone EXCEPT Super Admins) */}
+        {!hasSystemRole("Super Admin") && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Requisitions</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {requisitionItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={path.startsWith(item.url)}
+                    >
+                      <Link href={`${item.url}/${selectedBuId}`}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Group 2: Approvals (Visible to Approvers, BU Admins, and System Admins) */}
         {(permissionLevel === "APPROVER" ||
@@ -235,7 +258,7 @@ export function Navbar() {
         )}
 
         {/* Group 4: System Administration (Visible ONLY to System Admins) */}
-        {hasSystemRole("SYSTEM_ADMIN") && (
+        {hasSystemRole("Super Admin") && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-red-500">
               System Admin

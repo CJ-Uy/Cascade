@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, ReactNode, useMemo } from "react";
 
 // 1. Define the TypeScript types for our auth data. This gives us autocompletion.
-type SystemRole = "SYSTEM_ADMIN" | "AUDITOR" | string; // Allow other string values
+type SystemRole = "Super Admin" | "AUDITOR" | string; // Allow other string values
 
 export type BuPermission = {
   business_unit_id: string;
