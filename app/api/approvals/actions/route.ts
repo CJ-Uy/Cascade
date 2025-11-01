@@ -3,23 +3,18 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 
 export async function POST(request: Request) {
-  console.log("API route /api/approvals/actions hit");
-
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    console.error("API Error: Not authenticated");
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const body = await request.json();
-  console.log("Request body:", body);
-  const { approvalId, requisitionId, action, comment, pathname } = body;
+  const { approvalId, requisitionId, action, comment, pathname } =
+    await request.json();
 
   if (!approvalId || !requisitionId || !action || !pathname) {
-    console.error("API Error: Missing required parameters");
     return NextResponse.json(
       { error: "Missing required parameters" },
       { status: 400 },

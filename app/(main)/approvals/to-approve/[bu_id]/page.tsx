@@ -87,20 +87,8 @@ export default function ToApproveRequisitionsPage() {
   };
 
   const handleConfirmAction = async (comment: string) => {
-    console.log("handleConfirmAction called with:", {
-      comment,
-      selectedRequisition,
-      actionType,
-    });
-
-    if (
-      !selectedRequisition ||
-      !actionType ||
-      !selectedRequisition.approvalId
-    ) {
-      console.error("Pre-flight check failed. Missing data.");
+    if (!selectedRequisition || !actionType || !selectedRequisition.approvalId)
       return;
-    }
 
     setIsSubmitting(true);
     try {
@@ -109,36 +97,26 @@ export default function ToApproveRequisitionsPage() {
       else if (actionType === "REJECT") action = "REJECTED";
       else action = "NEEDS_CLARIFICATION";
 
-      const payload = {
-        approvalId: selectedRequisition.approvalId,
-        requisitionId: selectedRequisition.id,
-        action,
-        comment,
-        pathname,
-      };
-      console.log("Submitting to API:", payload);
-
       const response = await fetch("/api/approvals/actions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          approvalId: selectedRequisition.approvalId,
+          requisitionId: selectedRequisition.id,
+          action,
+          comment,
+          pathname,
+        }),
       });
 
       if (!response.ok) {
         const { error } = await response.json();
-        console.error("API Error:", error);
         throw new Error(error || "Failed to process action.");
       }
 
-      const result = await response.json();
-      console.log("API Success:", result);
-
-      toast.success(
-        result.message || `Requisition has been ${action.toLowerCase()}.`,
-      );
+      toast.success(`Requisition has been ${action.toLowerCase()}.`);
       fetchRequisitions(); // Refresh list
     } catch (error: any) {
-      console.error("handleConfirmAction error:", error);
       toast.error(error.message || "An unexpected error occurred.");
     } finally {
       setIsSubmitting(false);
