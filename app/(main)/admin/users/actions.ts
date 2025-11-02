@@ -28,7 +28,7 @@ export async function getUsersWithRolesAndOwnedBUs() {
     last_name,
     email,
     roles:user_role_assignments(roles(id, name)),
-    owned_business_units:business_units(id, name)
+    owned_business_units:business_units!business_units_owner_id_fkey(id, name)
   `);
 
   if (error) {

@@ -95,6 +95,11 @@ const systemAdminItems = [
     icon: Users,
   },
   {
+    title: "Manage Organizations",
+    url: "/admin/organizations",
+    icon: Building,
+  },
+  {
     title: "Business Units",
     url: "/management/business-units",
     icon: Building2,
@@ -111,10 +116,23 @@ const systemAdminItems = [
   },
 ];
 
+const orgAdminItems = [
+  {
+    title: "Org Dashboard",
+    url: "/organization-admin",
+    icon: Building,
+  },
+];
+
 export function Navbar() {
   const path = usePathname();
-  const { authContext, currentBuPermission, hasSystemRole, selectedBuId } =
-    useSession();
+  const {
+    authContext,
+    currentBuPermission,
+    hasSystemRole,
+    hasOrgAdminRole,
+    selectedBuId,
+  } = useSession();
 
   if (!authContext) {
     // User is logged out, show a minimal state or nothing
@@ -150,6 +168,7 @@ export function Navbar() {
               width={150}
               height={40}
               className="block dark:hidden" // `block` by default, `hidden` in dark mode
+              priority
             />
             {/* Dark Mode Logo */}
             <Image
@@ -158,6 +177,7 @@ export function Navbar() {
               width={150}
               height={40}
               className="hidden dark:block" // `hidden` by default, `block` in dark mode
+              priority
             />
           </Link>
         </div>
@@ -266,6 +286,32 @@ export function Navbar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {systemAdminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={path.startsWith(item.url)}
+                    >
+                      <Link href={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Group 5: Organization Administration (Visible ONLY to Organization Admins) */}
+        {hasOrgAdminRole() && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-blue-500">
+              Organization Admin
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {orgAdminItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild

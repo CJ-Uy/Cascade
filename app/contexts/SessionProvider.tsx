@@ -14,7 +14,14 @@ export type BuPermission = {
 
 export type AuthContextType = {
   user_id: string;
+  profile: {
+    first_name: string | null;
+    middle_name: string | null;
+    last_name: string | null;
+    image_url: string | null;
+  } | null;
   system_roles: SystemRole[];
+  organization_roles: string[];
   bu_permissions: BuPermission[];
 };
 
@@ -25,6 +32,7 @@ type SessionContextValue = {
   setSelectedBuId: (id: string | null) => void;
   currentBuPermission: BuPermission | undefined; // The permission for the selected BU
   hasSystemRole: (role: SystemRole) => boolean;
+  hasOrgAdminRole: () => boolean;
 };
 
 // 3. Create the context with a default value of null
@@ -55,12 +63,21 @@ export function SessionProvider({
       return initialAuthContext?.system_roles?.includes(role) ?? false;
     };
 
+    const hasOrgAdminRole = (): boolean => {
+      return (
+        initialAuthContext?.organization_roles?.includes(
+          "Organization Admin",
+        ) ?? false
+      );
+    };
+
     return {
       authContext: initialAuthContext,
       selectedBuId,
       setSelectedBuId,
       currentBuPermission,
       hasSystemRole,
+      hasOrgAdminRole,
     };
   }, [initialAuthContext, selectedBuId]);
 
