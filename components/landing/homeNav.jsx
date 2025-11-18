@@ -36,15 +36,15 @@ export function HomeNav() {
 
       {/* SECTION 2: Hyperlink Navs (Middle on Desktop, Hidden on Mobile) */}
       <div className="hidden md:absolute md:top-1/2 md:left-1/2 md:flex md:-translate-x-1/2 md:-translate-y-1/2 md:gap-x-6 lg:gap-x-8">
-        <Link href="/" className="text-gray-700 hover:text-blue-600">
+        <Link href="/" className="text-foreground hover:text-primary">
           Home
         </Link>
-        <Link href="/dashboard" className="text-gray-700 hover:text-blue-600">
+        <Link href="/dashboard" className="text-foreground hover:text-primary">
           Dashboard
         </Link>
         <Link
           href={process.env.NEXT_PUBLIC_GFORM_SUPPORT_TICKET_LINK || "#"}
-          className="text-gray-700 hover:text-blue-600"
+          className="text-foreground hover:text-primary"
           target="_blank"
         >
           Support
@@ -61,7 +61,7 @@ export function HomeNav() {
         <button
           onClick={() => setSidebarOpen(true)}
           aria-label="Open menu"
-          className="text-gray-700 focus:outline-none"
+          className="text-foreground focus:outline-none"
         >
           <svg
             className="h-6 w-6"
@@ -82,17 +82,17 @@ export function HomeNav() {
 
       {/* SIDEBAR (The slide-out menu) */}
       <aside
-        className={`fixed top-0 right-0 z-40 h-full w-64 transform bg-white shadow-xl transition-transform duration-300 ease-in-out md:hidden ${
+        className={`bg-card fixed top-0 right-0 z-40 h-full w-64 transform shadow-xl transition-transform duration-300 ease-in-out md:hidden ${
           isSidebarOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Sidebar Header with Logo and Close Button */}
-        <div className="flex h-16 items-center justify-between border-b px-4">
-          <h1 className="text-xl font-bold">Akiva Cascade</h1>
+        <div className="border-border flex h-16 items-center justify-between border-b px-4">
+          <h1 className="text-foreground text-xl font-bold">Akiva Cascade</h1>
           <button
             onClick={() => setSidebarOpen(false)}
             aria-label="Close menu"
-            className="text-gray-700 focus:outline-none"
+            className="text-foreground focus:outline-none"
           >
             <svg
               className="h-6 w-6"
@@ -115,26 +115,26 @@ export function HomeNav() {
         <div className="flex flex-col gap-y-4 p-4">
           <Link
             href="/"
-            className="text-gray-700 hover:text-blue-600"
+            className="text-foreground hover:text-primary"
             onClick={() => setSidebarOpen(false)}
           >
             Home
           </Link>
           <Link
             href="/dashboard"
-            className="text-gray-700 hover:text-blue-600"
+            className="text-foreground hover:text-primary"
             onClick={() => setSidebarOpen(false)}
           >
             Dashboard
           </Link>
           <Link
             href="/contact"
-            className="text-gray-700 hover:text-blue-600"
+            className="text-foreground hover:text-primary"
             onClick={() => setSidebarOpen(false)}
           >
             Support
           </Link>
-          <div className="border-t pt-4">
+          <div className="border-border border-t pt-4">
             <ThemeSwitcher />
           </div>
         </div>

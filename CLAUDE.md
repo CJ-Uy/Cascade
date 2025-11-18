@@ -36,6 +36,7 @@ The application uses a **hierarchical permission system** with multiple role lev
    - `MEMBER` - Can create and view own requisitions
 
 **Key Auth Files:**
+
 - [lib/supabase/auth.ts](lib/supabase/auth.ts) - `getUserAuthContext()` fetches complete auth context via RPC
 - [app/contexts/SessionProvider.tsx](app/contexts/SessionProvider.tsx) - Client-side context with `useSession()` hook
 - [middleware.ts](middleware.ts) - Cookie-based session management for Next.js
@@ -84,20 +85,25 @@ app/
 ### Core Domain Models
 
 #### Requisition (Document Request)
+
 Defined in [lib/types/requisition.ts](lib/types/requisition.ts):
+
 - Has a form template with custom fields
 - Goes through multi-step approval workflow
 - Statuses: `PENDING`, `APPROVED`, `REJECTED`, `FLAGGED`, `DRAFT`, `CANCELED`
 - Each approval step tracks: `WAITING`, `PENDING`, `APPROVED`, `REJECTED`, `NEEDS_CLARIFICATION`, `IN_REVISION`, `CANCELED`
 
 #### Form Templates
-Built with drag-and-drop form builder in [app/(main)/management/forms/[bu_id]/(components)/FormBuilder.tsx](app/(main)/management/forms/[bu_id]/(components)/FormBuilder.tsx):
+
+Built with drag-and-drop form builder in [app/(main)/management/forms/[bu_id]/(components)/FormBuilder.tsx](<app/(main)/management/forms/[bu_id]/(components)/FormBuilder.tsx>):
+
 - Field types: `short-text`, `long-text`, `number`, `radio`, `checkbox`, `table`, `file-upload`
 - Table fields support nested columns
 - Version controlled with `parent_template_id` and `version` fields
-- Actions in [app/(main)/management/forms/actions.ts](app/(main)/management/forms/actions.ts)
+- Actions in [app/(main)/management/forms/actions.ts](<app/(main)/management/forms/actions.ts>)
 
 #### Approval Workflows
+
 - Multi-step approval chains with roles
 - Each step assigned to a role within the business unit
 - Users with that role can approve/reject at that step
@@ -111,6 +117,7 @@ Navigation is dynamically filtered based on permissions:
 - [components/nav/permissions-helper.js](components/nav/permissions-helper.js) - `getVisibleMenuItems()` filters menu based on user's BU permission level
 
 **Menu Access Levels:**
+
 - **Members**: Create, Running, History
 - **Approvers**: To Approve + all member items
 - **BU Admins**: All items including Employees, Approval System, Templates
@@ -154,18 +161,21 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`. Key patterns:
 ## Common Tasks
 
 ### Adding a New Form Field Type
-1. Add type to `FieldType` union in [FormBuilder.tsx](app/(main)/management/forms/[bu_id]/(components)/FormBuilder.tsx)
+
+1. Add type to `FieldType` union in [FormBuilder.tsx](<app/(main)/management/forms/[bu_id]/(components)/FormBuilder.tsx>)
 2. Add display name to `fieldTypeDisplay` object
 3. Implement field editor in `FieldEditor` component
-4. Implement field renderer in [FormFiller.tsx](app/(main)/requisitions/create/(components)/FormFiller.tsx)
+4. Implement field renderer in [FormFiller.tsx](<app/(main)/requisitions/create/(components)/FormFiller.tsx>)
 
 ### Adding a New Route for a Business Unit
+
 1. Create in `app/(main)/[feature]/[bu_id]/page.tsx`
 2. Add menu item to [menu-items.js](components/nav/menu-items.js)
 3. Update permission logic in [permissions-helper.js](components/nav/permissions-helper.js)
 4. Use `useSession()` to get `selectedBuId` and `currentBuPermission`
 
 ### Working with Requisitions
+
 - Fetch with joins to get approval steps, comments, attachments
 - Use server actions for approve/reject/flag actions
 - Update overall status based on current step's status
@@ -174,6 +184,7 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`. Key patterns:
 ## Environment Variables
 
 Required in `.env.local`:
+
 ```
 NEXT_PUBLIC_SUPABASE_URL=[your-project-url]
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=[your-anon-key]

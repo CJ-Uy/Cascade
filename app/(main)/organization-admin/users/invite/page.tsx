@@ -120,14 +120,14 @@ export default function InviteUserPage() {
                   </FormItem>
                 )}
               />
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              {success && <p className="text-sm text-green-500">{success}</p>}
+              {error && <p className="text-destructive text-sm">{error}</p>}
+              {success && <p className="text-primary text-sm">{success}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Sending Invitation..." : "Invite User"}
               </Button>
             </form>
           </Form>
-          <p className="mt-4 text-xs text-gray-500">
+          <p className="text-muted-foreground mt-4 text-xs">
             Note: The ability to invite users requires appropriate permissions.
             Ensure your role is configured in Supabase RLS policies to use the
             admin invite functionality.

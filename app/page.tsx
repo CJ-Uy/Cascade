@@ -6,7 +6,7 @@ import { AboutSection } from "@/components/landing/about-section";
 
 export default function Home() {
   return (
-    <div className="h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="bg-background h-screen">
       <HomeNav />
       <main>
         <HeroSection />

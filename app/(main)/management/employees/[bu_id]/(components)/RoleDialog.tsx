@@ -123,7 +123,7 @@ export function RoleDialog({
             </Button>
             <Button
               onClick={handleSave}
-              className="bg-emerald-600 hover:bg-emerald-500"
+              className="bg-primary hover:bg-primary/90"
             >
               Save
             </Button>

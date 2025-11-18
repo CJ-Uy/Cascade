@@ -81,7 +81,7 @@ export function FormList({
             {(() => {
               if (form.icon && icons[form.icon as keyof typeof icons]) {
                 const IconComponent = icons[form.icon as keyof typeof icons];
-                return <IconComponent className="h-6 w-6 text-emerald-500" />;
+                return <IconComponent className="text-primary h-6 w-6" />;
               }
               if (form.icon) {
                 return <span className="text-2xl">{form.icon}</span>;

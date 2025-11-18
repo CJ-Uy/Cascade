@@ -142,7 +142,7 @@ export default function DashboardClientPage() {
           </CardContent>
         </Card>
         <Card
-          className="text-primary-foreground flex flex-col items-center justify-center bg-emerald-500 hover:bg-emerald-600"
+          className="text-primary-foreground bg-primary hover:bg-primary/90 flex flex-col items-center justify-center"
           onClick={() => navigateTo(`/requisitions/create/${buId}`)}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

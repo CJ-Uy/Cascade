@@ -63,19 +63,17 @@ export default function NotFound() {
       <div className="mx-auto max-w-2xl text-center">
         {/* This is the text content that will appear on top */}
         <div className="relative z-10">
-          <p className="text-8xl font-semibold text-emerald-600 dark:text-emerald-500">
-            404
-          </p>
-          <h1 className="mt-4 text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl dark:text-white">
+          <p className="text-primary text-8xl font-semibold">404</p>
+          <h1 className="text-foreground mt-4 text-4xl font-bold tracking-tight sm:text-6xl">
             Page not found
           </h1>
-          <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
+          <p className="text-muted-foreground mt-6 text-lg leading-8">
             Sorry, we couldn&apos;t find the page you&apos;re looking for.
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
             <Link
               href="/"
-              className="rounded-md bg-emerald-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:outline-primary rounded-md px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               Go back home
             </Link>
@@ -91,21 +89,21 @@ export default function NotFound() {
             {/* --- BLOB 1 --- */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
               <div
-                className={`h-96 w-96 rounded-full bg-emerald-300/40 mix-blend-multiply blur-3xl filter transition-transform duration-[5000ms] ease-in-out dark:bg-emerald-800/40 ${blob1Path[blob1Index]}`}
+                className={`bg-primary/20 h-96 w-96 rounded-full mix-blend-multiply blur-3xl filter transition-transform duration-[5000ms] ease-in-out ${blob1Path[blob1Index]}`}
               ></div>
             </div>
 
             {/* --- BLOB 2 --- */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
               <div
-                className={`h-80 w-80 rounded-full bg-teal-200/40 mix-blend-multiply blur-3xl filter transition-transform duration-[8000ms] ease-in-out dark:bg-teal-700/40 ${blob2Path[blob2Index]}`}
+                className={`bg-primary/15 h-80 w-80 rounded-full mix-blend-multiply blur-3xl filter transition-transform duration-[8000ms] ease-in-out ${blob2Path[blob2Index]}`}
               ></div>
             </div>
 
             {/* --- BLOB 3 --- */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
               <div
-                className={`h-72 w-72 rounded-full bg-green-200/40 mix-blend-multiply blur-3xl filter transition-transform duration-[9000ms] ease-in-out dark:bg-green-700/40 ${blob3Path[blob3Index]}`}
+                className={`bg-primary/10 h-72 w-72 rounded-full mix-blend-multiply blur-3xl filter transition-transform duration-[9000ms] ease-in-out ${blob3Path[blob3Index]}`}
               ></div>
             </div>
           </div>

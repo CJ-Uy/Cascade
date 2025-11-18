@@ -197,7 +197,7 @@ export function FormBuilderDialog({
                     id="form-title"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="h-auto w-full border-0 border-b-2 border-dashed border-gray-300 bg-transparent p-2 text-center text-4xl font-bold transition-colors focus:border-solid focus:border-emerald-500 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-muted-foreground focus:border-primary h-auto w-full border-0 border-b-2 border-dashed bg-transparent p-2 text-center text-4xl font-bold transition-colors focus:border-solid focus-visible:ring-0 focus-visible:ring-offset-0"
                     placeholder="Untitled Form"
                   />
                 </div>
@@ -243,7 +243,7 @@ export function FormBuilderDialog({
               <Button
                 onClick={handleSave}
                 disabled={isSaving || !!validationError}
-                className="bg-emerald-600 hover:bg-emerald-500"
+                className="bg-primary hover:bg-primary/90"
               >
                 {isSaving ? (
                   <>

@@ -41,7 +41,7 @@ export function StepCard({ step, roles, onUpdate, onRemove }: StepCardProps) {
           <div
             {...attributes}
             {...listeners}
-            className="cursor-grab rounded-md p-2 hover:bg-gray-200"
+            className="hover:bg-muted cursor-grab rounded-md p-2"
           >
             <GripVertical className="text-muted-foreground h-5 w-5" />
           </div>

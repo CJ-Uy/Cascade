@@ -125,7 +125,7 @@ export function WorkflowCardView({
             <CardHeader className="flex-grow">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <WorkflowIcon className="h-6 w-6 text-emerald-500" />
+                  <WorkflowIcon className="text-primary h-6 w-6" />
                   <CardTitle>{workflow.name}</CardTitle>
                 </div>
                 {workflow.formName && (
@@ -135,7 +135,7 @@ export function WorkflowCardView({
                         workflow.formIcon &&
                         icons[workflow.formIcon as keyof typeof icons];
                       return IconComponent ? (
-                        <IconComponent className="h-4 w-4 text-blue-500" />
+                        <IconComponent className="text-secondary h-4 w-4" />
                       ) : workflow.formIcon ? (
                         <span className="text-lg">{workflow.formIcon}</span>
                       ) : null;

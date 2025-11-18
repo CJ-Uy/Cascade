@@ -82,10 +82,7 @@ export default function FormsManagementPage() {
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-sm"
         />
-        <Button
-          onClick={handleOpenBuilderForNew}
-          className="bg-emerald-600 hover:bg-emerald-500"
-        >
+        <Button onClick={handleOpenBuilderForNew}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Create New Form
         </Button>

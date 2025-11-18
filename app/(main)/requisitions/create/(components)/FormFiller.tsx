@@ -268,7 +268,7 @@ export function FormFiller({
         {formFields.map((field) => renderField(field))}
         <Button
           type="submit"
-          className="w-full bg-emerald-600 hover:bg-emerald-500"
+          className="w-full"
           disabled={isSubmitting || !isFormValid}
         >
           {isSubmitting ? (
@@ -297,7 +297,6 @@ export function FormFiller({
             <AlertDialogAction
               onClick={handleConfirmSubmit}
               disabled={isSubmitting}
-              className="bg-emerald-600 hover:bg-emerald-500"
             >
               {isSubmitting ? (
                 <>
@@ -348,8 +347,8 @@ function RepeaterFiller({
   };
 
   return (
-    <div className="mb-6 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50/50 p-4">
-      <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-blue-800">
+    <div className="border-primary/30 bg-muted/50 mb-6 rounded-lg border-2 border-dashed p-4">
+      <h3 className="text-primary mb-4 flex items-center gap-2 text-lg font-semibold">
         <Table className="h-5 w-5" />
         {field.label}
         {field.required && (
@@ -365,7 +364,7 @@ function RepeaterFiller({
         {value.map((row, rowIndex) => (
           <div
             key={rowIndex}
-            className="relative rounded-md border bg-white p-4 shadow-sm"
+            className="bg-background relative rounded-md border p-4 shadow-sm"
           >
             <div className="absolute top-1 right-1 z-10">
               <Button
@@ -394,7 +393,7 @@ function RepeaterFiller({
           </div>
         ))}
       </div>
-      <Button onClick={addRow} variant="outline" className="mt-4 bg-white">
+      <Button onClick={addRow} variant="outline" className="mt-4">
         <Plus className="mr-2 h-4 w-4" />
         Add Row
       </Button>

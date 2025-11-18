@@ -181,7 +181,7 @@ const RequisitionDetails: React.FC<RequisitionDetailsProps> = ({
                           key={index}
                           className={
                             index === stage && approval.status === "PENDING"
-                              ? "bg-blue-50 dark:bg-blue-900/30"
+                              ? "bg-primary/10 dark:bg-primary/20"
                               : ""
                           }
                         >

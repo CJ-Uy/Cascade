@@ -134,7 +134,7 @@ export default function FlaggedRequisitionsPage() {
           <Button
             variant="default"
             size="sm"
-            className="bg-green-600 hover:bg-green-700"
+            className="bg-primary hover:bg-primary/90"
             onClick={() => handleAction(requisition, "resolve")}
           >
             <Check className="mr-2 h-4 w-4" /> Resolve
@@ -183,7 +183,7 @@ export default function FlaggedRequisitionsPage() {
                 actionType === "unflag"
                   ? "bg-yellow-600 hover:bg-yellow-700"
                   : actionType === "resolve"
-                    ? "bg-green-600 hover:bg-green-700"
+                    ? "bg-primary hover:bg-primary/90"
                     : ""
               }
             >

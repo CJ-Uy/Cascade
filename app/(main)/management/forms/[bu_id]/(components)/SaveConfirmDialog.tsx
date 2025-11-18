@@ -48,7 +48,7 @@ export function SaveConfirmDialog({
             Save as Draft
           </Button>
           <Button
-            className="bg-emerald-600 hover:bg-emerald-500"
+            className="bg-primary hover:bg-primary/90"
             onClick={() => onSave("active")}
             disabled={isSaving}
           >

@@ -155,7 +155,7 @@ export function VersionHistoryDialog({
                 versions.map((v) => (
                   <TableRow
                     key={v.id}
-                    className={v.is_latest ? "bg-emerald-50/50" : ""}
+                    className={v.is_latest ? "bg-primary/5" : ""}
                   >
                     <TableCell className="font-medium">
                       Version {v.version}

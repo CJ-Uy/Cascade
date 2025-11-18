@@ -121,7 +121,7 @@ function SortableStep({
         </Button>
         <Badge
           variant="outline"
-          className="mr-4 ml-2 border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300"
+          className="border-primary/20 bg-primary/10 text-primary dark:border-primary/50 dark:bg-primary/20 dark:text-primary mr-4 ml-2"
         >
           {index + 1}
         </Badge>
@@ -405,7 +405,7 @@ export function WorkflowDialog({
                         onClick={() => toggleInitiator(role)}
                         className={
                           initiators.includes(role)
-                            ? "bg-emerald-600 hover:bg-emerald-500"
+                            ? "bg-primary hover:bg-primary/90"
                             : ""
                         }
                       >
@@ -473,7 +473,7 @@ export function WorkflowDialog({
                     <Button
                       onClick={addStep}
                       disabled={!newStep}
-                      className="bg-emerald-600 hover:bg-emerald-500"
+                      className="bg-primary hover:bg-primary/90"
                     >
                       <PlusCircle className="mr-2 h-4 w-4" /> Add Step
                     </Button>
@@ -488,7 +488,7 @@ export function WorkflowDialog({
             </Button>
             <Button
               onClick={handleSave}
-              className="bg-emerald-600 hover:bg-emerald-500"
+              className="bg-primary hover:bg-primary/90"
             >
               Save Workflow
             </Button>
@@ -516,7 +516,7 @@ export function WorkflowDialog({
               Discard
             </Button>
             <Button
-              className="bg-emerald-600 hover:bg-emerald-500"
+              className="bg-primary hover:bg-primary/90"
               onClick={() => {
                 handleSave();
                 setShowCloseConfirm(false);

@@ -63,7 +63,7 @@ export function FormCardViewSelector({
             onClick={() => onSelectForm(form.id)}
             className={`flex cursor-pointer flex-col ${
               selectedFormId === form.id
-                ? "border-emerald-500 ring-2 ring-emerald-500"
+                ? "border-primary ring-primary ring-2"
                 : ""
             }`}
           >
@@ -74,9 +74,7 @@ export function FormCardViewSelector({
                     if (form.icon && icons[form.icon as keyof typeof icons]) {
                       const IconComponent =
                         icons[form.icon as keyof typeof icons];
-                      return (
-                        <IconComponent className="h-6 w-6 text-emerald-500" />
-                      );
+                      return <IconComponent className="text-primary h-6 w-6" />;
                     }
                     if (form.icon) {
                       return <span className="text-2xl">{form.icon}</span>;

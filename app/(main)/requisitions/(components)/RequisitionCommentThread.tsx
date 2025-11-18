@@ -57,23 +57,20 @@ export function RequisitionCommentThread({
       <div className="comment-list max-h-[300px] space-y-4 overflow-y-auto pr-2">
         {comments.length > 0 ? (
           comments.map((comment) => (
-            <div
-              key={comment.id}
-              className="rounded-lg bg-gray-50 p-3 shadow-sm"
-            >
-              <div className="flex items-center justify-between text-sm text-gray-500">
-                <span className="font-semibold text-gray-700">
+            <div key={comment.id} className="bg-muted rounded-lg p-3 shadow-sm">
+              <div className="text-muted-foreground flex items-center justify-between text-sm">
+                <span className="text-foreground font-semibold">
                   {comment.author_name}
                 </span>
                 <span>{new Date(comment.created_at).toLocaleString()}</span>
               </div>
-              <p className="mt-1 text-gray-800">{comment.content}</p>
+              <p className="text-foreground mt-1">{comment.content}</p>
               {comment.attachments && comment.attachments.length > 0 && (
                 <div className="mt-2">
-                  <h5 className="text-xs font-semibold text-gray-600">
+                  <h5 className="text-muted-foreground text-xs font-semibold">
                     Attachments:
                   </h5>
-                  <ul className="text-sm text-blue-600 underline">
+                  <ul className="text-primary text-sm underline">
                     {comment.attachments.map((att) => (
                       <li key={att.id}>
                         <a
@@ -116,18 +113,14 @@ export function RequisitionCommentThread({
           />
           <label
             htmlFor="attachment-upload"
-            className="text-muted-foreground flex cursor-pointer items-center gap-1 text-sm hover:text-blue-600"
+            className="text-muted-foreground hover:text-primary flex cursor-pointer items-center gap-1 text-sm"
           >
             <Paperclip className="h-4 w-4" />
             {attachments.length > 0
               ? `${attachments.length} file(s) selected`
               : "Attach files"}
           </label>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="bg-emerald-500"
-          >
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
             <Send className="mr-2 h-4 w-4" />
             {isSubmitting ? "Posting..." : "Post Comment"}
           </Button>

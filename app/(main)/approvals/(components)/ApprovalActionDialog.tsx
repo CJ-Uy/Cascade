@@ -37,19 +37,19 @@ export function ApprovalActionDialog({
         return {
           title: "Approve Requisition",
           buttonText: "Confirm Approval",
-          buttonClass: "bg-green-600 hover:bg-green-700",
+          buttonClass: "bg-primary hover:bg-primary/90",
         };
       case "REJECT":
         return {
           title: "Reject Requisition",
           buttonText: "Confirm Rejection",
-          buttonClass: "bg-red-600 hover:bg-red-700",
+          buttonClass: "bg-destructive hover:bg-destructive/90",
         };
       case "CLARIFY":
         return {
           title: "Request Clarification",
           buttonText: "Send for Clarification",
-          buttonClass: "bg-yellow-500 hover:bg-yellow-600",
+          buttonClass: "bg-yellow-600 hover:bg-yellow-700",
         };
       default:
         return {

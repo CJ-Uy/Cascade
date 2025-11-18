@@ -68,7 +68,7 @@ export function RolesTable({
       header: "Admin",
       cell: ({ row }) => {
         return row.getValue("is_bu_admin") ? (
-          <ShieldCheck className="h-5 w-5 text-emerald-500" />
+          <ShieldCheck className="text-primary h-5 w-5" />
         ) : null;
       },
     },
@@ -121,10 +121,7 @@ export function RolesTable({
           onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
-        <Button
-          onClick={onCreate}
-          className="bg-emerald-600 hover:bg-emerald-500"
-        >
+        <Button onClick={onCreate} className="bg-primary hover:bg-primary/90">
           <PlusCircle className="mr-2 h-4 w-4" />
           Create Role
         </Button>

@@ -95,7 +95,7 @@ export function WorkflowList({
       ),
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
-          <WorkflowIcon className="h-6 w-6 text-emerald-500" />
+          <WorkflowIcon className="text-primary h-6 w-6" />
           <div>
             <div className="font-medium">{row.original.name}</div>
             <div className="text-muted-foreground truncate text-sm">
@@ -125,7 +125,7 @@ export function WorkflowList({
         return (
           <div className="flex items-center gap-2">
             {IconComponent ? (
-              <IconComponent className="h-5 w-5 text-blue-500" />
+              <IconComponent className="text-secondary h-5 w-5" />
             ) : formIcon ? (
               <span className="text-xl">{formIcon}</span>
             ) : null}

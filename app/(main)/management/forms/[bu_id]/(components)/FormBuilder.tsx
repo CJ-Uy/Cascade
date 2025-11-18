@@ -145,7 +145,7 @@ export function FormBuilder({ fields, setFields }: FormBuilderProps) {
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
       {/* Left Column: Canvas */}
-      <div className="flex-grow rounded-lg bg-slate-100 p-4">
+      <div className="bg-muted/50 flex-grow rounded-lg p-4">
         <DndContext
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
@@ -166,8 +166,10 @@ export function FormBuilder({ fields, setFields }: FormBuilderProps) {
                   />
                 ))
               ) : (
-                <div className="rounded-lg border-2 border-dashed border-gray-300 bg-slate-50 p-8 text-center">
-                  <p className="text-slate-500">Add a field to get started</p>
+                <div className="border-border bg-muted rounded-lg border-2 border-dashed p-8 text-center">
+                  <p className="text-muted-foreground">
+                    Add a field to get started
+                  </p>
                 </div>
               )}
             </div>
@@ -195,9 +197,9 @@ function FieldPalette({
   description?: string;
 }) {
   return (
-    <Card className="border-emerald-200 bg-emerald-50/30">
+    <Card className="border-primary/20 bg-primary/5">
       <CardHeader>
-        <CardTitle className="text-base text-emerald-800">{title}</CardTitle>
+        <CardTitle className="text-primary text-base">{title}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {Object.keys(fieldTypeDisplay).map((type) => (
@@ -207,7 +209,7 @@ function FieldPalette({
             onClick={() => onAddField(type as FieldType)}
             className="justify-start bg-white"
           >
-            <Plus className="mr-2 h-4 w-4 text-emerald-600" />
+            <Plus className="text-primary mr-2 h-4 w-4" />
             {fieldTypeDisplay[type as FieldType]}
           </Button>
         ))}
@@ -271,17 +273,13 @@ function SortableFieldCard({
           <Input
             placeholder="Short answer text"
             disabled
-            className="bg-gray-100"
+            className="bg-muted"
           />
         );
 
       case "long-text":
         return (
-          <Input
-            placeholder="Long answer text"
-            disabled
-            className="bg-gray-100"
-          />
+          <Input placeholder="Long answer text" disabled className="bg-muted" />
         );
 
       case "radio":
@@ -317,7 +315,7 @@ function SortableFieldCard({
               <Button
                 variant="link"
                 onClick={addOption}
-                className="text-emerald-600"
+                className="text-primary"
               >
                 Add option
               </Button>
@@ -327,14 +325,14 @@ function SortableFieldCard({
 
       case "table":
         return (
-          <div className="mt-4 space-y-3 rounded-lg border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-4">
-            <div className="flex items-center gap-2 text-emerald-800">
+          <div className="border-primary/30 bg-primary/5 mt-4 space-y-3 rounded-lg border-2 border-dashed p-4">
+            <div className="text-primary flex items-center gap-2">
               <Table className="h-5 w-5" />
 
               <h3 className="text-base font-semibold">Table / Repeater</h3>
             </div>
 
-            <p className="text-sm text-emerald-700">
+            <p className="text-primary/90 text-sm">
               Define columns for the repeater. Users can add multiple rows of
               this data.
             </p>
@@ -352,7 +350,7 @@ function SortableFieldCard({
             </div>
 
             <div className="pt-2">
-              <h4 className="mb-2 text-sm font-semibold text-emerald-800">
+              <h4 className="text-primary mb-2 text-sm font-semibold">
                 Add New Column
               </h4>
 
@@ -377,7 +375,7 @@ function SortableFieldCard({
 
       case "file-upload":
         return (
-          <div className="mt-2 flex items-center justify-center rounded-lg border border-gray-200 bg-gray-100 p-4">
+          <div className="border-border bg-muted mt-2 flex items-center justify-center rounded-lg border p-4">
             <Input type="file" disabled className="w-full" />
           </div>
         );
@@ -389,9 +387,9 @@ function SortableFieldCard({
 
   return (
     <div ref={setNodeRef} style={style} className="group">
-      <div className="relative rounded-lg border-2 border-white bg-white p-6 shadow-sm transition-all focus-within:border-emerald-400 focus-within:shadow-lg hover:border-emerald-200 hover:shadow-lg">
+      <div className="focus-within:border-primary hover:border-primary/30 relative rounded-lg border-2 border-white bg-white p-6 shadow-sm transition-all focus-within:shadow-lg hover:shadow-lg">
         <div className="absolute top-4 right-4 z-10 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-          <div className="flex items-center gap-2 rounded-full bg-gray-100/80 p-1 backdrop-blur-sm">
+          <div className="bg-muted/80 flex items-center gap-2 rounded-full p-1 backdrop-blur-sm">
             <Label
               htmlFor={`required-${field.id}`}
               className="text-muted-foreground pl-2 text-sm font-medium"
@@ -412,7 +410,7 @@ function SortableFieldCard({
             variant="ghost"
             size="icon"
             onClick={() => onRemove(field.id)}
-            className="rounded-full bg-gray-100/80 backdrop-blur-sm"
+            className="bg-muted/80 rounded-full backdrop-blur-sm"
           >
             <Trash2 className="h-5 w-5 text-red-400 hover:text-red-600" />
           </Button>
@@ -420,7 +418,7 @@ function SortableFieldCard({
           <div
             {...attributes}
             {...listeners}
-            className="cursor-grab rounded-full bg-gray-100/80 p-2 backdrop-blur-sm hover:bg-gray-200"
+            className="bg-muted/80 hover:bg-muted cursor-grab rounded-full p-2 backdrop-blur-sm"
           >
             <GripVertical className="text-muted-foreground h-5 w-5" />
           </div>
@@ -509,7 +507,7 @@ function ColumnField({
               <Button
                 variant="link"
                 onClick={addOption}
-                className="h-8 px-1 text-sm text-emerald-600"
+                className="text-primary h-8 px-1 text-sm"
               >
                 Add option
               </Button>
@@ -519,7 +517,7 @@ function ColumnField({
       case "file-upload":
         return (
           <div className="mt-3 border-t pt-3">
-            <div className="flex items-center justify-center rounded-lg border border-gray-200 bg-gray-100 p-2">
+            <div className="border-border bg-muted flex items-center justify-center rounded-lg border p-2">
               <Input type="file" disabled className="w-full text-sm" />
             </div>
           </div>

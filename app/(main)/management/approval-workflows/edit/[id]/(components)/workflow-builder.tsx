@@ -128,7 +128,7 @@ export function WorkflowBuilder({ initialWorkflow }: WorkflowBuilderProps) {
         </Button>
       </div>
 
-      <div className="flex-grow rounded-lg bg-slate-100 p-4">
+      <div className="bg-muted flex-grow rounded-lg p-4">
         <DndContext
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
@@ -149,8 +149,8 @@ export function WorkflowBuilder({ initialWorkflow }: WorkflowBuilderProps) {
                   />
                 ))
               ) : (
-                <div className="rounded-lg border-2 border-dashed border-gray-300 bg-slate-50 p-8 text-center">
-                  <p className="text-slate-500">
+                <div className="border-border bg-muted rounded-lg border-2 border-dashed p-8 text-center">
+                  <p className="text-muted-foreground">
                     Add an approval step to get started
                   </p>
                 </div>

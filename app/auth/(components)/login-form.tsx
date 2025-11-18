@@ -42,18 +42,18 @@ export function LoginForm({
   return (
     <div className={cn("flex flex-col gap-10", className)} {...props}>
       <div className="flex flex-col gap-2">
-        <h1 className="text-4xl font-bold tracking-tight text-gray-900">
+        <h1 className="text-foreground text-4xl font-bold tracking-tight">
           Enhance productivity
-          <br /> with <span className="text-emerald-500">Cascade</span>
+          <br /> with <span className="text-primary">Cascade</span>
         </h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-muted-foreground text-sm">
           Brought to you by AKIVA Holdings
         </p>
       </div>
 
       <form onSubmit={handleLogin} className="flex flex-col gap-6">
         <div className="grid gap-2">
-          <Label htmlFor="email" className="font-medium text-gray-700">
+          <Label htmlFor="email" className="text-foreground font-medium">
             Email
           </Label>
           <Input
@@ -62,11 +62,11 @@ export function LoginForm({
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded-lg border-gray-200 bg-green-50/50 px-4 py-5 text-sm focus:border-green-400 focus:ring-green-400"
+            className="border-border bg-primary/5 focus:border-primary focus:ring-primary rounded-lg px-4 py-5 text-sm"
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="password" className="font-medium text-gray-700">
+          <Label htmlFor="password" className="text-foreground font-medium">
             Password
           </Label>
           <Input
@@ -75,28 +75,28 @@ export function LoginForm({
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded-lg border-gray-200 bg-green-50/50 px-4 py-5 text-sm focus:border-green-400 focus:ring-green-400"
+            className="border-border bg-primary/5 focus:border-primary focus:ring-primary rounded-lg px-4 py-5 text-sm"
           />
           <Link
             href="/auth/forgot-password"
-            className="mt-1 text-xs text-gray-500 hover:text-gray-800"
+            className="text-muted-foreground hover:text-foreground mt-1 text-xs"
           >
             Forgot Username/Password?
           </Link>
         </div>
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-destructive text-sm">{error}</p>}
         <Button
           type="submit"
-          className="w-full rounded-lg bg-emerald-400 py-6 text-sm font-semibold text-gray-900 hover:bg-emerald-300"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-lg py-6 text-sm font-semibold"
           disabled={isLoading}
         >
           {isLoading ? "Logging in..." : "Login"}
         </Button>
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-muted-foreground text-center text-sm">
           Don&apos;t have an account?{" "}
           <Link
             href="/auth/sign-up"
-            className="font-medium text-emerald-500 hover:underline"
+            className="text-primary font-medium hover:underline"
           >
             Register
           </Link>

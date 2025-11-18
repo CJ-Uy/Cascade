@@ -55,7 +55,9 @@ export function UsersTab({ users }: UsersTabProps) {
                     <p className="font-semibold">
                       {user.first_name} {user.last_name}
                     </p>
-                    <p className="text-sm text-gray-500">{user.email}</p>
+                    <p className="text-muted-foreground text-sm">
+                      {user.email}
+                    </p>
                   </div>
                   <Button
                     variant="outline"

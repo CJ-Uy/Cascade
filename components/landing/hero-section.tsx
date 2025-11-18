@@ -64,27 +64,27 @@ export function HeroSection() {
       <div className="mx-auto max-w-2xl text-center">
         {/* This is the text content that will appear on top */}
         <div className="relative z-10">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl dark:text-white">
+          <h1 className="text-foreground text-4xl font-bold tracking-tight sm:text-6xl">
             Effortlessly{" "}
             <span className="relative inline-block">
-              <span className="text-emerald-500">Cascade</span>
+              <span className="text-primary">Cascade</span>
             </span>{" "}
             Requests to Approvals
           </h1>
-          <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
+          <p className="text-muted-foreground mt-6 text-lg leading-8">
             Remotely guide requisitions, approvals, and files down the line. No
             bottlenecks, just a seamless, transparent flow from start to finish.
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
             <a
               href="/dashboard"
-              className="rounded-md bg-emerald-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:outline-primary rounded-md px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               Get started
             </a>
             <a
               href="/dashboard"
-              className="text-sm leading-6 font-semibold text-gray-900 dark:text-white"
+              className="text-foreground text-sm leading-6 font-semibold"
             >
               Learn more <span aria-hidden="true">→</span>
             </a>
@@ -100,21 +100,21 @@ export function HeroSection() {
             {/* --- BLOB 1 --- */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
               <div
-                className={`h-96 w-96 rounded-full bg-emerald-300/40 mix-blend-multiply blur-3xl filter transition-transform duration-[5000ms] ease-in-out dark:bg-emerald-800/40 ${blob1Path[blob1Index]}`}
+                className={`bg-primary/20 dark:bg-primary/30 h-96 w-96 rounded-full mix-blend-multiply blur-3xl filter transition-transform duration-[5000ms] ease-in-out ${blob1Path[blob1Index]}`}
               ></div>
             </div>
 
             {/* --- BLOB 2 --- */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
               <div
-                className={`h-80 w-80 rounded-full bg-teal-200/40 mix-blend-multiply blur-3xl filter transition-transform duration-[8000ms] ease-in-out dark:bg-teal-700/40 ${blob2Path[blob2Index]}`}
+                className={`bg-secondary/15 dark:bg-secondary/25 h-80 w-80 rounded-full mix-blend-multiply blur-3xl filter transition-transform duration-[8000ms] ease-in-out ${blob2Path[blob2Index]}`}
               ></div>
             </div>
 
             {/* --- BLOB 3 --- */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
               <div
-                className={`h-72 w-72 rounded-full bg-green-200/40 mix-blend-multiply blur-3xl filter transition-transform duration-[9000ms] ease-in-out dark:bg-green-700/40 ${blob3Path[blob3Index]}`}
+                className={`bg-accent/25 dark:bg-accent/20 h-72 w-72 rounded-full mix-blend-multiply blur-3xl filter transition-transform duration-[9000ms] ease-in-out ${blob3Path[blob3Index]}`}
               ></div>
             </div>
           </div>

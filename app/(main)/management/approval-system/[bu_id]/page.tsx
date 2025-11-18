@@ -83,10 +83,7 @@ export default function ApprovalSystem() {
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-sm"
         />
-        <Button
-          onClick={handleCreateNew}
-          className="bg-emerald-600 hover:bg-emerald-500"
-        >
+        <Button onClick={handleCreateNew}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Create New Workflow
         </Button>

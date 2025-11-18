@@ -280,7 +280,7 @@ export function Navbar() {
         {/* Group 4: System Administration (Visible ONLY to System Admins) */}
         {hasSystemRole("Super Admin") && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-red-500">
+            <SidebarGroupLabel className="text-destructive">
               System Admin
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -306,7 +306,7 @@ export function Navbar() {
         {/* Group 5: Organization Administration (Visible ONLY to Organization Admins) */}
         {hasOrgAdminRole() && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-blue-500">
+            <SidebarGroupLabel className="text-primary">
               Organization Admin
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -330,7 +330,7 @@ export function Navbar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="bg-gray-200 hover:bg-gray-100 dark:bg-gray-900/50 dark:hover:bg-gray-800/50">
+      <SidebarFooter className="bg-muted hover:bg-muted/80">
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>

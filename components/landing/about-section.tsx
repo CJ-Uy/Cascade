@@ -5,13 +5,9 @@ const FeatureCard = ({
   title: string;
   description: string;
 }) => (
-  <div className="rounded-lg bg-gray-100/50 p-6 dark:bg-gray-800/50">
-    <h3 className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
-      {title}
-    </h3>
-    <p className="mt-2 text-base text-gray-600 dark:text-gray-300">
-      {description}
-    </p>
+  <div className="bg-muted/50 rounded-lg p-6">
+    <h3 className="text-primary text-lg font-semibold">{title}</h3>
+    <p className="text-muted-foreground mt-2 text-base">{description}</p>
   </div>
 );
 
@@ -21,10 +17,10 @@ export function AboutSection() {
     // The background color is inherited from the layout in page.tsx
     <section className="relative flex min-h-screen items-center justify-center px-6 py-24 sm:py-32 lg:px-8">
       <div className="mx-auto max-w-4xl text-center">
-        <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl dark:text-white">
+        <h2 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
           What is Cascade?
         </h2>
-        <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
+        <p className="text-muted-foreground mt-6 text-lg leading-8">
           Cascade is a custom built web-app for Akiva to handle the internal
           requisition-approval process efficiently, conveniently, digitally, and
           securely. It is an online mass requisitiona and approval system.

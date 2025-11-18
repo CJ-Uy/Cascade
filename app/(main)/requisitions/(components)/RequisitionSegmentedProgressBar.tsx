@@ -26,23 +26,23 @@ export function RequisitionSegmentedProgressBar({
 
   const getSegmentColorClass = (step: ApprovalStep, index: number) => {
     if (step.status === "APPROVED") {
-      return "bg-emerald-500";
+      return "bg-primary";
     } else if (step.status === "REJECTED" || step.status === "CANCELED") {
-      return "bg-red-500";
+      return "bg-destructive";
     } else if (index === currentPendingStepIndex) {
       return "bg-yellow-500"; // Current pending step
     } else if (
       index > currentPendingStepIndex &&
       currentPendingStepIndex !== -1
     ) {
-      return "bg-gray-300"; // Future steps
+      return "bg-muted"; // Future steps
     } else if (
       step.status === "NEEDS_CLARIFICATION" ||
       step.status === "IN_REVISION"
     ) {
       return "bg-orange-500";
     }
-    return "bg-gray-300"; // Default for other statuses or if no pending step found yet
+    return "bg-muted"; // Default for other statuses or if no pending step found yet
   };
 
   if (!approvalSteps || approvalSteps.length === 0) {

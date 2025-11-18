@@ -52,7 +52,7 @@ export default async function OrganizationsPage() {
             </Card>
           ))
         ) : (
-          <p className="col-span-full text-center text-gray-500">
+          <p className="text-muted-foreground col-span-full text-center">
             No organizations found.
           </p>
         )}

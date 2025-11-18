@@ -131,7 +131,7 @@ export function RequisitionDetailsDialog({
               </div>
             ) : displayRequisition ? (
               <div className="space-y-6 py-4">
-                <div className="rounded-md border bg-gray-50 p-4">
+                <div className="bg-muted rounded-md border p-4">
                   <h4 className="mb-3 text-lg font-semibold">
                     Requisition Overview
                   </h4>
@@ -175,7 +175,7 @@ export function RequisitionDetailsDialog({
                   </dl>
                 </div>
 
-                <div className="rounded-md border bg-gray-50 p-4">
+                <div className="bg-muted rounded-md border p-4">
                   <h4 className="mb-3 text-lg font-semibold">
                     Filled Form Data
                   </h4>
@@ -213,7 +213,7 @@ export function RequisitionDetailsDialog({
               </div>
             ) : displayRequisition ? (
               <div className="space-y-6 py-4">
-                <div className="rounded-md border bg-gray-50 p-4">
+                <div className="bg-muted rounded-md border p-4">
                   <h4 className="mb-3 text-lg font-semibold">
                     Approval Workflow
                   </h4>
@@ -239,14 +239,14 @@ export function RequisitionDetailsDialog({
 
                               switch (step.status) {
                                 case "APPROVED":
-                                  statusColorClass = "text-emerald-600";
+                                  statusColorClass = "text-primary";
                                   statusIcon = (
                                     <CheckCircle className="h-4 w-4" />
                                   );
                                   break;
                                 case "REJECTED":
                                 case "CANCELED":
-                                  statusColorClass = "text-red-600";
+                                  statusColorClass = "text-destructive";
                                   statusIcon = <XCircle className="h-4 w-4" />;
                                   break;
                                 case "PENDING":
@@ -262,7 +262,7 @@ export function RequisitionDetailsDialog({
                                   );
                                   break;
                                 default:
-                                  statusColorClass = "text-gray-500";
+                                  statusColorClass = "text-muted-foreground";
                                   statusIcon = (
                                     <CircleDotDashed className="h-4 w-4" />
                                   );
@@ -277,7 +277,7 @@ export function RequisitionDetailsDialog({
                                       currentPendingStepIndex !== -1,
                                   })}
                                 >
-                                  <span className="font-medium text-gray-700">
+                                  <span className="text-foreground font-medium">
                                     Step {step.step_number}:
                                   </span>
                                   <span>{step.role_name}</span>
@@ -290,7 +290,7 @@ export function RequisitionDetailsDialog({
                                     {statusIcon} {step.status}
                                   </span>
                                   {step.approver_name && (
-                                    <span className="text-gray-500">
+                                    <span className="text-muted-foreground">
                                       ({step.approver_name})
                                     </span>
                                   )}
@@ -308,7 +308,7 @@ export function RequisitionDetailsDialog({
                   )}
                 </div>
 
-                <div className="rounded-md border bg-gray-50 p-4">
+                <div className="bg-muted rounded-md border p-4">
                   <h4 className="mb-3 text-lg font-semibold">
                     Comments & Activity
                   </h4>
@@ -345,11 +345,7 @@ export function RequisitionDetailsDialog({
                   <MessageSquareWarning className="mr-2 h-4 w-4" />{" "}
                   Clarification
                 </Button>
-                <Button
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => handleActionClick("APPROVE")}
-                >
+                <Button size="sm" onClick={() => handleActionClick("APPROVE")}>
                   <Check className="mr-2 h-4 w-4" /> Approve
                 </Button>
               </div>
