@@ -4,7 +4,8 @@
       "Bash(ls:*)",
       "Bash(npx supabase gen types:*)",
       "Bash(lib/database.types.ts)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npx supabase --help)"
     ],
     "deny": [],
     "ask": []

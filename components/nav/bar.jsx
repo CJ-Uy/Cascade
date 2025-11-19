@@ -16,7 +16,16 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -26,6 +35,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ChevronUp,
+  ChevronDown,
   FilePlus,
   History,
   Play,
@@ -48,6 +58,7 @@ import {
 
 import { getMiddleInitial } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { AnimatedSection } from "@/components/nav/animated-section";
 
 const generalItems = [
   {
@@ -294,52 +305,56 @@ export function Navbar() {
         {/* Group 4: System Administration (Visible ONLY to System Admins) */}
         {hasSystemRole("Super Admin") && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-destructive">
-              System Admin
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {systemAdminItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={path.startsWith(item.url)}
-                    >
-                      <Link href={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
+            <AnimatedSection
+              title="System Admin"
+              titleClassName="text-destructive"
+            >
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {systemAdminItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={path.startsWith(item.url)}
+                      >
+                        <Link href={item.url}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </AnimatedSection>
           </SidebarGroup>
         )}
 
         {/* Group 5: Organization Administration (Visible ONLY to Organization Admins) */}
         {hasOrgAdminRole() && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-primary">
-              Organization Admin
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {orgAdminItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={path.startsWith(item.url)}
-                    >
-                      <Link href={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
+            <AnimatedSection
+              title="Organization Admin"
+              titleClassName="text-primary"
+            >
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {orgAdminItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={path.startsWith(item.url)}
+                      >
+                        <Link href={item.url}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </AnimatedSection>
           </SidebarGroup>
         )}
       </SidebarContent>

@@ -3,6 +3,7 @@
 import { Navbar } from "@/components/nav/bar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useSession } from "@/app/contexts/SessionProvider";
+import { NavigationProgress } from "@/components/navigation-progress";
 
 export default function ProtectedLayout({
   children,
@@ -18,6 +19,7 @@ export default function ProtectedLayout({
 
   return (
     <SidebarProvider>
+      <NavigationProgress />
       <Navbar />
       <main className="flex-grow">
         <SidebarTrigger />

@@ -1,11 +1,12 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { createBusinessUnitAction } from "../../actions";
+import { createClient } from "@/lib/supabase/client";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,25 +78,20 @@ export default function NewBusinessUnitPage() {
   });
 
   async function onSubmit(values: BusinessUnitFormValues) {
-    if (!organizationId) {
-      setError("Could not determine your organization.");
-      return;
-    }
     setIsLoading(true);
     setError(null);
 
-    const { data, error } = await supabase.from("business_units").insert({
-      ...values,
-      organization_id: organizationId,
+    const result = await createBusinessUnitAction({
+      name: values.name,
+      headId: values.head_id,
     });
 
-    if (error) {
-      console.error("Error creating business unit:", error);
-      setError(error.message);
+    if (result.error) {
+      setError(result.error);
+      setIsLoading(false);
     } else {
       router.push("/organization-admin");
     }
-    setIsLoading(false);
   }
 
   return (

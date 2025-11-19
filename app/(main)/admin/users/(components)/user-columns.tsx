@@ -3,6 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { RoleToggleAction } from "./role-toggle-action";
+import { InviteUserAction } from "./invite-user-action";
 
 export type UserWithRoles = {
   id: string;
@@ -11,6 +12,8 @@ export type UserWithRoles = {
   email: string | null;
   roles: string[];
   owned_business_units: string[];
+  organization_id: string | null;
+  organization_name?: string | null;
 };
 
 export const columns: ColumnDef<UserWithRoles>[] = [
@@ -54,6 +57,18 @@ export const columns: ColumnDef<UserWithRoles>[] = [
     },
   },
   {
+    accessorKey: "organization_name",
+    header: "Organization",
+    cell: ({ row }) => {
+      const orgName = row.original.organization_name;
+      return orgName ? (
+        <span className="text-sm">{orgName}</span>
+      ) : (
+        <Badge variant="secondary">No Organization</Badge>
+      );
+    },
+  },
+  {
     accessorKey: "owned_business_units",
     header: "Owned BUs",
     cell: ({ row }) => {
@@ -75,9 +90,15 @@ export const columns: ColumnDef<UserWithRoles>[] = [
   },
   {
     id: "actions",
+    header: "Actions",
     cell: ({ row }) => {
       const user = row.original;
-      return <RoleToggleAction user={user} />;
+      return (
+        <div className="flex gap-2">
+          <RoleToggleAction user={user} />
+          {!user.organization_id && <InviteUserAction user={user} />}
+        </div>
+      );
     },
   },
 ];

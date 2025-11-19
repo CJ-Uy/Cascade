@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { createClient } from "@/lib/supabase/client";
+import { updateBusinessUnitAction, deleteBusinessUnitAction } from "../actions";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,8 +59,6 @@ export function EditBuDialog({
   users,
   onBuUpdated,
 }: EditBuDialogProps) {
-  const supabase = createClient();
-
   const form = useForm<EditBuFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -70,17 +68,35 @@ export function EditBuDialog({
   });
 
   async function onSubmit(values: EditBuFormValues) {
-    const { error } = await supabase
-      .from("business_units")
-      .update(values)
-      .eq("id", businessUnit.id);
+    const result = await updateBusinessUnitAction(businessUnit.id, {
+      name: values.name,
+      headId: values.head_id,
+    });
 
-    if (error) {
+    if (result.error) {
       toast.error("Failed to update Business Unit:", {
-        description: error.message,
+        description: result.error,
       });
     } else {
       toast.success("Business Unit updated successfully.");
+      onBuUpdated();
+      onOpenChange(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm("Are you sure you want to delete this business unit?")) {
+      return;
+    }
+
+    const result = await deleteBusinessUnitAction(businessUnit.id);
+
+    if (result.error) {
+      toast.error("Failed to delete Business Unit:", {
+        description: result.error,
+      });
+    } else {
+      toast.success("Business Unit deleted successfully.");
       onBuUpdated();
       onOpenChange(false);
     }
@@ -134,7 +150,15 @@ export function EditBuDialog({
                 </FormItem>
               )}
             />
-            <DialogFooter>
+            <DialogFooter className="flex justify-between">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={form.formState.isSubmitting}
+              >
+                Delete
+              </Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
               </Button>

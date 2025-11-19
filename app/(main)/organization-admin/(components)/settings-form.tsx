@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { createClient } from "@/lib/supabase/client";
+import { updateOrganizationSettingsAction } from "../actions";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,8 +40,6 @@ interface SettingsFormProps {
 }
 
 export function SettingsForm({ organization }: SettingsFormProps) {
-  const supabase = createClient();
-
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -58,16 +56,13 @@ export function SettingsForm({ organization }: SettingsFormProps) {
   }, [organization, form]);
 
   async function onSubmit(values: SettingsFormValues) {
-    const { error } = await supabase
-      .from("organizations")
-      .update({
-        name: values.name,
-        logo_url: values.logo_url || null,
-      })
-      .eq("id", organization.id);
+    const result = await updateOrganizationSettingsAction({
+      name: values.name,
+      logoUrl: values.logo_url || undefined,
+    });
 
-    if (error) {
-      toast.error("Failed to update settings:", { description: error.message });
+    if (result.error) {
+      toast.error("Failed to update settings:", { description: result.error });
     } else {
       toast.success("Organization settings updated successfully.");
     }

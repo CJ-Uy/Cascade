@@ -27,6 +27,8 @@ export async function getUsersWithRolesAndOwnedBUs() {
     first_name,
     last_name,
     email,
+    organization_id,
+    organizations(name),
     roles:user_role_assignments(roles(id, name)),
     owned_business_units:business_units!business_units_owner_id_fkey(id, name)
   `);
@@ -38,6 +40,7 @@ export async function getUsersWithRolesAndOwnedBUs() {
 
   return data.map((user) => ({
     ...user,
+    organization_name: user.organizations?.name || null,
     roles: user.roles.map((r: any) => r.roles.name),
     owned_business_units: user.owned_business_units.map((bu: any) => bu.name),
   }));

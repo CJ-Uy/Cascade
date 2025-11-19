@@ -1,6 +1,7 @@
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+"use client";
+
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -16,8 +17,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database } from "@/lib/database.types";
 import Link from "next/link";
+import { createOrganizationAction } from "../actions";
 
 const formSchema = z.object({
   name: z
@@ -34,7 +35,6 @@ type OrganizationFormValues = z.infer<typeof formSchema>;
 
 export default function NewOrganizationPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,19 +50,14 @@ export default function NewOrganizationPage() {
     setIsLoading(true);
     setError(null);
 
-    const { data, error } = await supabase
-      .from("organizations")
-      .insert({
-        name: values.name,
-        logo_url: values.logo_url || null, // Ensure empty string becomes null
-      })
-      .select();
+    const result = await createOrganizationAction({
+      name: values.name,
+      logo_url: values.logo_url || undefined,
+    });
 
-    if (error) {
-      console.error("Error creating organization:", error);
-      setError(error.message);
+    if (result.error) {
+      setError(result.error);
     } else {
-      console.log("Organization created:", data);
       router.push("/admin/organizations");
     }
     setIsLoading(false);

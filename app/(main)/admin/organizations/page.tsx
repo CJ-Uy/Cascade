@@ -41,11 +41,10 @@ export default async function OrganizationsPage() {
                   />
                 )}
                 <div className="mt-4 flex space-x-2">
-                  <Button variant="outline" size="sm">
-                    Edit
-                  </Button>
-                  <Button variant="destructive" size="sm">
-                    Delete
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/admin/organizations/${org.id}`}>
+                      View Details
+                    </Link>
                   </Button>
                 </div>
               </CardContent>
