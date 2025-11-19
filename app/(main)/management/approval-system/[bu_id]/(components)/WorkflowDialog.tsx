@@ -1,0 +1,532 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  PlusCircle,
+  ArrowUp,
+  ArrowDown,
+  Trash2,
+  GripVertical,
+} from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+import { getRequisitionTemplates, getRoles } from "../../actions";
+
+interface Workflow {
+  id: string;
+  name: string;
+  formId?: string;
+  initiators: string[];
+  steps: string[];
+  version: number;
+  parent_workflow_id?: string;
+  is_latest: boolean;
+  status: string;
+  versionOfId?: string; // Added for versioning
+  description?: string; // Added for description
+}
+
+interface WorkflowDialogProps {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
+  onSave: (workflowData: Omit<Workflow, "id">) => void;
+  workflow: Workflow | null;
+  businessUnitId: string;
+  isNewVersion?: boolean; // Added
+}
+
+function SortableStep({
+  id,
+  step,
+  index,
+  totalSteps,
+  onMove,
+  onRemove,
+}: {
+  id: string;
+  step: string;
+  index: number;
+  totalSteps: number;
+  onMove: (index: number, direction: "up" | "down") => void;
+  onRemove: (index: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="bg-background flex items-center justify-between rounded-md border p-3"
+    >
+      <div className="flex items-center">
+        <Button
+          variant="ghost"
+          size="icon"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab"
+        >
+          <GripVertical className="text-muted-foreground h-5 w-5" />
+        </Button>
+        <Badge
+          variant="outline"
+          className="border-primary/20 bg-primary/10 text-primary dark:border-primary/50 dark:bg-primary/20 dark:text-primary mr-4 ml-2"
+        >
+          {index + 1}
+        </Badge>
+        <span className="font-medium">{step}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onMove(index, "up")}
+          disabled={index === 0}
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onMove(index, "down")}
+          disabled={index === totalSteps - 1}
+        >
+          <ArrowDown className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-red-500 hover:text-red-600"
+          onClick={() => onRemove(index)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function WorkflowDialog({
+  isOpen,
+  setIsOpen,
+  onSave,
+  workflow,
+  businessUnitId,
+  isNewVersion, // Destructure isNewVersion
+}: WorkflowDialogProps) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState(""); // Added description state
+  const [formId, setFormId] = useState<string | undefined>(undefined);
+  const [initiators, setInitiators] = useState<string[]>([]);
+  const [steps, setSteps] = useState<string[]>([]);
+  const [newStep, setNewStep] = useState("");
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [initialState, setInitialState] = useState<Omit<Workflow, "id"> | null>(
+    null,
+  );
+  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
+  const [availableForms, setAvailableForms] = useState<
+    { id: string; name: string }[]
+  >([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchInitialData = async () => {
+        const roles = await getRoles(businessUnitId);
+        setAvailableRoles(roles);
+        const forms = await getRequisitionTemplates(businessUnitId);
+        setAvailableForms(forms);
+      };
+      fetchInitialData();
+
+      const state = {
+        name: workflow?.name || "",
+        description: workflow?.description || "", // Initialize description
+        formId: workflow?.formId,
+        initiators: workflow?.initiators || [],
+        steps: workflow?.steps || [],
+        version: workflow?.version || 1,
+        parent_workflow_id: workflow?.parent_workflow_id,
+        is_latest: workflow?.is_latest || true,
+        status: workflow?.status || "draft",
+        versionOfId: isNewVersion && workflow?.id ? workflow.id : undefined, // Initialize versionOfId
+      };
+      setInitialState(state);
+      setName(state.name);
+      setDescription(state.description); // Set description state
+      setFormId(state.formId);
+      setInitiators(state.initiators);
+      setSteps(state.steps);
+    } else {
+      setInitialState(null);
+    }
+  }, [workflow, isOpen, businessUnitId, isNewVersion]); // Add isNewVersion to dependencies
+
+  const handleSave = () => {
+    const workflowToSave: Omit<Workflow, "id"> = {
+      name,
+      description, // Include description
+      formId,
+      initiators,
+      steps,
+      version: workflow?.version || 1, // Keep existing version or default to 1
+      parent_workflow_id: workflow?.parent_workflow_id, // Keep existing parent_workflow_id
+      is_latest: workflow?.is_latest || true, // Keep existing is_latest
+      status: workflow?.status || "draft", // Keep existing status
+    };
+
+    if (isNewVersion && workflow?.id) {
+      workflowToSave.versionOfId = workflow.id; // Set versionOfId when creating a new version
+    }
+
+    onSave(workflowToSave);
+  };
+
+  const addStep = () => {
+    if (newStep && !steps.includes(newStep)) {
+      setSteps([...steps, newStep]);
+      setNewStep("");
+    }
+  };
+
+  const removeStep = (index: number) => {
+    setSteps(steps.filter((_, i) => i !== index));
+  };
+
+  const moveStep = (index: number, direction: "up" | "down") => {
+    const newSteps = [...steps];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex >= 0 && targetIndex < newSteps.length) {
+      [newSteps[index], newSteps[targetIndex]] = [
+        newSteps[targetIndex],
+        newSteps[index],
+      ];
+      setSteps(newSteps);
+    }
+  };
+
+  const toggleInitiator = (role: string) => {
+    setInitiators((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
+    );
+  };
+
+  const handleAttemptClose = () => {
+    const initialComparableState = {
+      name: initialState?.name || "",
+      description: initialState?.description || "",
+      formId: initialState?.formId,
+      initiators: initialState?.initiators || [],
+      steps: initialState?.steps || [],
+    };
+
+    const currentState = {
+      name,
+      description: description || "",
+      formId,
+      initiators,
+      steps,
+    };
+
+    // Deep comparison of just the editable fields.
+    // This prevents the confirmation dialog from showing if there are no changes.
+    if (
+      JSON.stringify(currentState) !== JSON.stringify(initialComparableState)
+    ) {
+      setShowCloseConfirm(true);
+    } else {
+      setIsOpen(false);
+    }
+  };
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSteps((items) => {
+        const oldIndex = items.indexOf(active.id as string);
+        const newIndex = items.indexOf(over.id as string);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  }
+
+  return (
+    <>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleAttemptClose();
+          } else {
+            setIsOpen(true);
+          }
+        }}
+      >
+        <DialogContent
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="sm:max-w-[625px]"
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {workflow ? "Edit Workflow" : "Create a New Workflow"}
+            </DialogTitle>
+            <DialogDescription>
+              Define the name, initiators, and approval sequence for this
+              workflow.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[70vh] pr-6">
+            <div className="grid gap-6 py-4">
+              {/* Step 1: Name and Description */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">1. Workflow Details</CardTitle>
+                  <CardDescription>
+                    Give your workflow a clear and descriptive name and
+                    description.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label htmlFor="name">Workflow Name</Label>
+                      <Input
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g., 'IT Hardware Request'"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="e.g., 'Workflow for approving IT hardware requests from employees.'"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Step 2: Select Form */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">2. Select Form</CardTitle>
+                  <CardDescription>
+                    Choose the form that will be used for this workflow.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Select value={formId} onValueChange={setFormId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a form..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableForms.map((form) => (
+                        <SelectItem key={form.id} value={form.id}>
+                          {form.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+
+              {/* Step 3: Initiators */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">3. Initiators</CardTitle>
+                  <CardDescription>
+                    Select the roles that are allowed to start this workflow.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {availableRoles.map((role) => (
+                      <Button
+                        key={role}
+                        variant={
+                          initiators.includes(role) ? "default" : "outline"
+                        }
+                        onClick={() => toggleInitiator(role)}
+                        className={
+                          initiators.includes(role)
+                            ? "bg-primary hover:bg-primary/90"
+                            : ""
+                        }
+                      >
+                        {role}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Step 4: Approval Chain */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">4. Approval Chain</CardTitle>
+                  <CardDescription>
+                    Drag to reorder, or use the arrows to define the sequence of
+                    roles.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <DndContext
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={steps}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-4">
+                        {steps.map((step, index) => (
+                          <SortableStep
+                            key={step}
+                            id={step}
+                            step={step}
+                            index={index}
+                            totalSteps={steps.length}
+                            onMove={moveStep}
+                            onRemove={removeStep}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                  {steps.length === 0 && (
+                    <p className="text-muted-foreground py-4 text-center text-sm">
+                      No approval steps added yet.
+                    </p>
+                  )}
+                  <Separator className="my-4" />
+                  <div className="flex items-center gap-2">
+                    <Select value={newStep} onValueChange={setNewStep}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a role to add..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableRoles
+                          .filter((r) => !steps.includes(r))
+                          .map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {role}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={addStep}
+                      disabled={!newStep}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" /> Add Step
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleAttemptClose}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Save Workflow
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to discard them? Your changes won't be
+              saved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowCloseConfirm(false);
+                setIsOpen(false);
+              }}
+            >
+              Discard
+            </Button>
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => {
+                handleSave();
+                setShowCloseConfirm(false);
+              }}
+            >
+              Save Changes
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
