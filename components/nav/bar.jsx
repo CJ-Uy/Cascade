@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "@/app/contexts/SessionProvider";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import {
   Sidebar,
   SidebarHeader,
@@ -37,16 +38,16 @@ import {
   Settings,
   Home,
   MessagesSquare,
-  Building2, // Added for Business Units
-  ClipboardEdit, // Added for Form Templates
-  Milestone, // Added for Approval Workflows
+  Building2,
+  ClipboardEdit,
+  Milestone,
+  Sun,
+  Moon,
+  LogOut,
 } from "lucide-react";
 
 import { getMiddleInitial } from "@/lib/utils";
-
-import { LogoutButton } from "@/components/nav/logout-button";
-import { ThemeToggleButton } from "@/components/nav/theme-toggle";
-import { ReturnToLanding } from "@/components/nav/return-to-landing";
+import { createClient } from "@/lib/supabase/client";
 
 const generalItems = [
   {
@@ -126,6 +127,8 @@ const orgAdminItems = [
 
 export function Navbar() {
   const path = usePathname();
+  const router = useRouter();
+  const { theme, setTheme } = useTheme();
   const {
     authContext,
     currentBuPermission,
@@ -153,6 +156,17 @@ export function Navbar() {
   ]
     .filter(Boolean) // Removes any null, undefined, or empty parts
     .join(" "); // Joins the remaining parts with a space
+
+  // Handlers for dropdown actions
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/auth/login");
+  };
 
   return (
     <Sidebar>
@@ -330,37 +344,56 @@ export function Navbar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="bg-muted hover:bg-muted/80">
+      <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton className="flex w-full items-center">
-                  <Avatar className="mr-3 h-8 w-8">
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group/footer-btn focus-visible:ring-0 focus-visible:ring-offset-0"
+                >
+                  <Avatar className="h-8 w-8 rounded-lg">
                     <AvatarImage
                       src={profile.image_url ?? undefined}
                       alt={fullName}
                     />
-                    <AvatarFallback>
+                    <AvatarFallback className="bg-primary text-primary-foreground group-hover/footer-btn:bg-muted group-hover/footer-btn:text-foreground group-data-[state=open]/footer-btn:bg-muted group-data-[state=open]/footer-btn:text-foreground rounded-lg font-semibold transition-colors">
                       {profile.first_name?.[0]?.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="truncate">{fullName}</span>
-                  <ChevronUp className="ml-auto" />
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">{fullName}</span>
+                    <span className="truncate text-xs">{profile.email}</span>
+                  </div>
+                  <ChevronUp className="ml-auto size-4" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 side="top"
-                className="w-[--radix-popper-anchor-width]"
+                align="end"
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
               >
-                <DropdownMenuItem>
-                  <ThemeToggleButton />
+                <DropdownMenuItem onSelect={toggleTheme}>
+                  {theme === "dark" ? (
+                    <>
+                      <Sun />
+                      <span>Light Mode</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon />
+                      <span>Dark Mode</span>
+                    </>
+                  )}
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <ReturnToLanding />
+                <DropdownMenuItem onSelect={() => router.push("/")}>
+                  <Home />
+                  <span>Landing</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <LogoutButton />
+                <DropdownMenuItem onSelect={handleLogout}>
+                  <LogOut />
+                  <span>Log out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

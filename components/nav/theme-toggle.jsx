@@ -24,33 +24,22 @@ const ThemeToggleButton = () => {
   const ICON_SIZE = 16;
 
   return (
-    // Use a div with an onClick handler that spans the full width.
-    // The parent DropdownMenuItem provides the hover effect and padding.
-    <div
+    <button
       onClick={toggleTheme}
       className="flex w-full cursor-pointer items-center gap-2"
     >
-      {/* Use a React Fragment <> to avoid an unnecessary div */}
       {theme === "dark" ? (
         <>
-          <Sun
-            size={ICON_SIZE}
-            className="text-muted-foreground"
-            aria-label="Switch to light mode"
-          />
+          <Sun size={ICON_SIZE} aria-label="Switch to light mode" />
           <span>Light Mode</span>
         </>
       ) : (
         <>
-          <Moon
-            size={ICON_SIZE}
-            className="text-muted-foreground"
-            aria-label="Switch to dark mode"
-          />
+          <Moon size={ICON_SIZE} aria-label="Switch to dark mode" />
           <span>Dark Mode</span>
         </>
       )}
-    </div>
+    </button>
   );
 };
 

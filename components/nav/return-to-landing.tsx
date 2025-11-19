@@ -9,7 +9,7 @@ export function ReturnToLanding() {
   return (
     <button
       onClick={() => router.push("/")}
-      className="text-foreground hover:bg-muted flex w-full items-center gap-2 rounded-md px-3 text-sm font-medium"
+      className="flex w-full items-center gap-2"
     >
       <Home className="h-4 w-4" />
       <span>Landing</span>
