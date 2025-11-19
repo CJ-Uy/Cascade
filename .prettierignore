@@ -1,0 +1,19 @@
+# Supabase generated types - ignore due to encoding issues
+lib/database.types.ts
+
+# Build outputs
+.next
+out
+dist
+build
+
+# Dependencies
+node_modules
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+.env*.local

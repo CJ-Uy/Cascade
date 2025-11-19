@@ -1,6 +1,11 @@
 {
   "permissions": {
-    "allow": ["Bash(ls:*)"],
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(npx supabase gen types:*)",
+      "Bash(lib/database.types.ts)",
+      "Bash(cat:*)"
+    ],
     "deny": [],
     "ask": []
   }
