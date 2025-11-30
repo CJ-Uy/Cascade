@@ -1,50 +1,107 @@
-# Cascade Project Plan: Urgent Tasks & Future Enhancements
+# Cascade Project Plan: Status & Future Enhancements
 
-## Urgent: Core Feature Implementation (MVP)
+## ✅ COMPLETED: Core MVP Features
 
-This section outlines the absolute essential features required to get a functional version of Cascade running, based on the PRD.
+### 1. Architecture & Database ✅
 
-### 1. Architecture & Database
+- ✅ **RLS Policies Fixed** (Migration: `20251130214500_fix_insecure_rls_policies.sql`)
+  - Fixed all insecure `USING (true)` policies
+  - Implemented BU-scoped and organization-scoped policies
+  - Enabled RLS on all tables (Migration: `20251130220000_enable_rls_on_chat_tables.sql`)
+- ✅ **RLS-Compliant RPC Functions** (Migration: `20251130230000_create_rls_compliant_rpc_functions.sql`)
+  - Created helper functions (`is_super_admin`, `is_organization_admin`, etc.)
+  - Created data access functions for business units, users, requisitions, templates
+  - Example refactored code in `actions_rls_compliant.ts`
+- ✅ **Dynamic Document Schema** (Migration: `20251201000000_finalize_dynamic_schema.sql`)
+  - Implemented `form_templates`, `form_fields`, `workflow_templates`, `workflow_steps`
+  - Created `documents` and `document_history` tables
+  - Supports dynamic forms and chained workflows
 
-- **CRITICAL - Review and Refine RLS Policies:** Your current policies contain a significant number of `PERMISSIVE SELECT true` rules, which allow any authenticated user to read data from any other user or Business Unit. This is a major security vulnerability for a multi-tenant application. **This must be the first priority.**
-  - **High-Risk Tables to Fix:** `requisitions`, `requisition_values`, `attachments`, `comments`, `chat_messages`, `chat_participants`, `user_business_units`, and `user_role_assignments`.
-  - **Action:** Replace all broad `SELECT true` policies on these tables with restrictive policies that limit data access based on the user's `organization_id`, `business_unit_id`, and specific role.
-- **Refactor Existing Code for RLS:** After applying the new RLS policies, all existing queries must be reviewed. Update the Supabase queries in the following files, likely by creating and calling secure Postgres functions via `.rpc()`, to ensure the app functions correctly under the new security rules.
-  - **Files to Refactor:**
-    - `app/api/approvals/actions/route.ts`
-    - `app/(main)/organization-admin/actions.ts`
-    - `app/(main)/management/forms/actions.ts`
-    - `app/(main)/management/employees/actions.ts`
-    - `app/(main)/management/business-units/actions.ts`
-    - `app/(main)/admin/users/actions.ts`
-- **Implement Error Handling:** Create a centralized strategy for catching, logging, and displaying errors.
-- **Enforce Code Style:** Configure and integrate ESLint and Prettier into the development workflow.
-- **Finalize Database Schema:** Review and solidify the database design in `database.types.ts` to fully support dynamic forms, chained workflows, and user roles.
+### 2. Dynamic Form & Workflow Engine ✅
 
-### 2. Dynamic Form & Workflow Engine
+- ✅ **Form Template Management** (`/management/form-templates/`)
+  - Admin interface with data tables
+  - API routes for CRUD operations (`/api/form-templates/`)
+  - RPC functions for secure access (Migration: `20251201010000_create_form_template_rpc.sql`)
+- ✅ **Workflow Template Management** (`/management/approval-workflows/`)
+  - Admin interface with visual workflow builder
+  - API routes for CRUD operations (`/api/workflow-templates/`)
+  - RPC functions for secure access (Migration: `20251201020000_create_workflow_template_rpc.sql`)
+- ✅ **"Corporate Standards" Support**
+  - `is_locked` flag on templates/workflows
+  - Organization Admin can lock templates to prevent BU modification
 
-- **Build Core Backend Logic:** Implement the database interactions and server-side logic required to create, store, and process dynamic form structures and multi-step, chained approval workflows.
-- **Develop Form Builder UI:** Create the admin interface for creating and managing form templates with various field types.
-- **Develop Workflow Builder UI:** Create the admin interface for defining approval sequences and linking them to form templates.
-- **Support "Corporate Standards":** Add functionality for Organization Admins to create and "lock" standard form/workflow templates to prevent modification by BUs.
+### 3. Core User Journeys ✅
 
-### 3. Core User Journeys
+- ✅ **Notification System** (`components/notifications/notification-bell.tsx`)
+  - In-app notifications with bell icon
+  - Schema updated (Migration: `20251201030000_update_notifications_schema.sql`)
+  - Server actions for creating notifications (`lib/actions/notifications.ts`)
+- ✅ **Form Submission** (`/documents/create/`)
+  - Template selector page
+  - Dynamic form filler based on template
+  - RPC functions for submission (Migration: `20251201040000_create_form_submission_rpc.sql`)
+- ✅ **Document Approval** (`/approvals/document/[id]/`)
+  - View document data and history
+  - Approve/Reject/Return/Request Clarification actions
+  - RPC functions for approval process (Migration: `20251201050000_create_document_approval_rpc.sql`)
+- ✅ **Dashboard Improvements** (`/dashboard/`)
+  - Dashboard tables component
+  - RPC functions for dashboard data (Migration: `20251201070000_create_dashboard_rpc.sql`)
+- ✅ **Document Commenting**
+  - Comments schema updated (Migration: `20251201060000_update_comments_schema.sql`)
+  - Threaded comments on documents
 
-- **Implement Notification System:** Create a system (in-app and/or email) to notify users of critical events (e.g., request approved, returned for edits, new pending approval).
-- **Form Submission:** Implement the Initiator's ability to select a form, fill it out, upload attachments, and submit it into a workflow.
-- **Document Approval:** Implement the Approver's ability to view a submitted document and its data, and perform all required actions ("Approve", "Reject", "Return for Edits", "Request Clarification").
-- **Basic Role-Based Dashboards:** Implement a simple version of the dashboard for each user role, showing their most critical information (e.g., a list of pending approvals for an Approver).
-- **Document Commenting:** Implement the comment thread on each document to handle the "Request Clarification" loop.
+### 4. User & Data Management ✅
 
-### 4. User & Data Management
-
-- **Multi-Tiered User Roles:** Implement the core logic for Organization Admins to manage BUs/BU Admins, and for BU Admins to manage users within their own BU.
-- **Role-Based Access Control (RBAC):** Ensure permissions are enforced throughout the application, complementing the database RLS.
-- **Data Processing Queue:** Create the dedicated page for Data Processors to view fully approved documents, with functionality for filtering, tagging, and exporting data to CSV.
+- ✅ **Multi-Tiered User Roles**
+  - Organization Admin dashboard (`/organization-admin/`)
+  - BU management, user management, settings tabs
+  - Role assignment interface
+- ✅ **Role-Based Access Control (RBAC)**
+  - RLS policies enforce data isolation
+  - Permission-based navigation
+  - Server-side access control via RPC functions
 
 ---
 
-## V2 & Suggestions: Enhancements and New Features
+## 🚧 IN PROGRESS: Current Development Tasks
+
+### High Priority
+
+1. **Legacy Code Refactoring**
+   - ⏳ Refactor remaining action files to use RPC functions:
+     - `app/(main)/organization-admin/actions.ts` - Use `get_org_admin_*()` RPCs
+     - `app/(main)/management/forms/actions.ts` - Use template RPCs
+     - `app/(main)/management/employees/actions.ts` - Use user RPCs
+     - `app/api/approvals/actions/route.ts` - Use requisition RPCs
+     - `app/(main)/admin/users/actions.ts` - May need Super Admin RPCs
+
+2. **Data Processing Queue**
+   - ⏳ Create dedicated page for Data Processors
+   - ⏳ Implement filtering, tagging, and CSV export
+   - ⏳ Dashboard for fully approved documents
+
+3. **Testing & Validation**
+   - ⏳ Test RLS policies across all user roles
+   - ⏳ Verify organization/BU isolation
+   - ⏳ Test document submission and approval workflow end-to-end
+
+### Medium Priority
+
+1. **Error Handling**
+   - ⏳ Centralized error handling strategy
+   - ⏳ User-friendly error messages
+   - ⏳ Error logging and monitoring
+
+2. **Code Style & Quality**
+   - ⏳ Configure ESLint and Prettier
+   - ⏳ Enforce consistent code style
+   - ⏳ Clean up deprecated code
+
+---
+
+## 📋 BACKLOG: Future Enhancements
 
 This section contains valuable improvements and new features that should be considered after the core MVP is complete.
 

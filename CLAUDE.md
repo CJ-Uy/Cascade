@@ -93,13 +93,17 @@ app/
 ├── (main)/                   # Protected routes with sidebar navigation
 │   ├── layout.tsx           # Requires auth, includes Navbar sidebar
 │   ├── dashboard/           # User dashboard with invitations card
-│   ├── requisitions/        # Requisition workflows
+│   ├── requisitions/        # LEGACY: Requisition workflows
 │   │   ├── create/[bu_id]  # Form selector & filler
 │   │   ├── running/[bu_id] # Active requisitions
 │   │   └── history/[bu_id] # Completed requisitions
+│   ├── documents/           # NEW: Dynamic document system
+│   │   ├── create/          # Template selector & form submission
+│   │   └── create/[template_id] # Dynamic form filler
 │   ├── approvals/          # Approval queue
 │   │   ├── to-approve/[bu_id] # Pending approvals
-│   │   └── flagged/[bu_id]    # Flagged items
+│   │   ├── flagged/[bu_id]    # Flagged items
+│   │   └── document/[id]       # NEW: Document approval view
 │   ├── management/         # BU Admin & System Admin features
 │   │   ├── forms/[bu_id]   # Legacy BU-specific form builder
 │   │   ├── form-templates/ # NEW: System-wide template management
@@ -129,6 +133,8 @@ app/
 │   ├── confirm/, error/
 ├── api/                    # API endpoints
 │   ├── approvals/actions   # Approval operations
+│   ├── form-templates/     # NEW: Form template CRUD
+│   ├── workflow-templates/ # NEW: Workflow template CRUD
 │   └── chat/               # Chat endpoints
 └── outdated Routes/        # Legacy code - DO NOT USE
 ```
@@ -141,7 +147,57 @@ app/
 
 ### Core Domain Models
 
-#### Requisition (Document Request)
+**⚠️ IMPORTANT: Dual Schema System**
+
+The application currently maintains **two parallel systems**:
+
+1. **LEGACY: Requisitions** - Original implementation (still functional)
+2. **NEW: Dynamic Documents** - Modern flexible system (recommended for new features)
+
+Both systems coexist for backwards compatibility. All new development should use the Dynamic Documents system.
+
+---
+
+#### Dynamic Documents (NEW - Recommended)
+
+**Database Tables** (Migration: `20251201000000_finalize_dynamic_schema.sql`):
+
+- `form_templates` - Form definitions with custom fields
+- `form_fields` - Field specifications (type, validation, options)
+- `workflow_templates` - Approval workflow definitions
+- `workflow_steps` - Individual steps in workflows
+- `documents` - Document submissions (data stored as JSONB)
+- `document_history` - Audit trail of all document actions
+
+**Document Lifecycle:**
+
+1. User selects form template at [/documents/create/](<app/(main)/documents/create/>)
+2. Fills out dynamic form at [/documents/create/[template_id]/](<app/(main)/documents/create/[template_id]/>)
+3. Submission creates `documents` record with JSONB data
+4. Triggers workflow based on template's `workflow_template_id`
+5. Approvers review at [/approvals/document/[id]/](<app/(main)/approvals/document/[id]/>)
+6. All actions logged in `document_history`
+
+**Document Actions:**
+
+- `SUBMIT`, `APPROVE`, `REJECT`, `REQUEST_REVISION`, `REQUEST_CLARIFICATION`, `COMMENT`
+
+**RPC Functions:**
+
+- `create_form_submission_rpc.sql` - Submission logic
+- `create_document_approval_rpc.sql` - Approval operations
+- `create_dashboard_rpc.sql` - Dashboard queries
+
+**Key Files:**
+
+- Template selector: [app/(main)/documents/create/page.tsx](<app/(main)/documents/create/page.tsx>)
+- Form filler: [app/(main)/documents/create/[template_id]/page.tsx](<app/(main)/documents/create/[template_id]/page.tsx>)
+- Approval view: [app/(main)/approvals/document/[id]/page.tsx](<app/(main)/approvals/document/[id]/page.tsx>)
+- API routes: [app/api/form-templates/](app/api/form-templates/), [app/api/workflow-templates/](app/api/workflow-templates/)
+
+---
+
+#### Requisitions (LEGACY - Backwards Compatibility)
 
 Defined in [lib/types/requisition.ts](lib/types/requisition.ts):
 
@@ -156,6 +212,10 @@ Defined in [lib/types/requisition.ts](lib/types/requisition.ts):
 - Form filler: [app/(main)/requisitions/create/(components)/FormFiller.tsx](<app/(main)/requisitions/create/(components)/FormFiller.tsx>)
 - Create actions: [app/(main)/requisitions/create/actions.ts](<app/(main)/requisitions/create/actions.ts>)
 - Approval actions: [app/(main)/approvals/actions.ts](<app/(main)/approvals/actions.ts>)
+
+**Note:** This system is maintained for backwards compatibility but new features should use the Dynamic Documents system.
+
+---
 
 #### Form Templates
 
@@ -211,6 +271,39 @@ The system has **dual workflow management**:
 - Step numbers define execution order
 - Workflow versioning with `parent_workflow_id`
 - Lifecycle statuses: `draft`, `active`, `archived`
+
+#### Notification System
+
+**NEW Feature**: In-app notification system for user alerts.
+
+**Database Schema** (Migration: `20251201030000_update_notifications_schema.sql`):
+
+- `notifications` table with recipient, message, read status, and link URL
+- RLS policies ensure users only see their own notifications
+
+**Features:**
+
+- Bell icon in navbar shows unread count
+- Real-time notification badge updates
+- Click notification to navigate to relevant page
+- Mark as read functionality
+
+**Key Files:**
+
+- Component: [components/notifications/notification-bell.tsx](components/notifications/notification-bell.tsx)
+- Server actions: [lib/actions/notifications.ts](lib/actions/notifications.ts)
+
+**Usage:**
+
+```typescript
+import { createNotification } from "@/lib/actions/notifications";
+
+await createNotification({
+  recipient_id: userId,
+  message: "Your document has been approved",
+  link_url: `/approvals/document/${documentId}`,
+});
+```
 
 #### Organization Invitations
 
@@ -542,7 +635,16 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 - `roles` - Role definitions (BU, SYSTEM, ORGANIZATION, AUDITOR scopes)
 - `user_role_assignments` - User-role assignments
 
-**Form Templates & Workflows:**
+**Dynamic Documents (NEW - Migration: `20251201000000_finalize_dynamic_schema.sql`):**
+
+- `form_templates` - Dynamic form definitions
+- `form_fields` - Field specifications with types and validation
+- `workflow_templates` - Workflow definitions
+- `workflow_steps` - Individual workflow steps
+- `documents` - Document submissions (JSONB data storage)
+- `document_history` - Complete audit trail of document actions
+
+**Form Templates & Workflows (LEGACY):**
 
 - `requisition_templates` - Form templates with versioning
 - `template_fields` - Form field definitions
@@ -551,12 +653,12 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 - `approval_workflows` - Workflow definitions with versioning
 - `approval_step_definitions` - Workflow steps
 
-**Requisitions:**
+**Requisitions (LEGACY):**
 
 - `requisitions` - Document requests
 - `requisition_values` - Form field values
 - `requisition_approvals` - Approval step instances
-- `comments` - Comments on requisitions
+- `comments` - Comments on requisitions and documents
 - `attachments` - File attachments
 - `requisition_tags` - Tagging system
 - `tags` - Tag definitions
@@ -586,16 +688,51 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 
 ### RPC Functions
 
+**⚠️ CRITICAL: Always use RPC functions for SELECT queries**
+
+See [docs/rls_documentation.md](docs/rls_documentation.md) for complete reference.
+
+**Helper Functions** (Migration: `20251130230000_create_rls_compliant_rpc_functions.sql`):
+
+- `is_bu_admin_for_unit(bu_id)` - Check if user is BU Admin for specific BU
+- `is_organization_admin()` - Check if user has Organization Admin role
+- `is_super_admin()` - Check if user has Super Admin role
+- `get_user_organization_id()` - Get current user's organization ID
+
+**Data Access Functions:**
+
+- `get_business_units_for_user()` - BUs user can access (role-based filtering)
+- `get_business_unit_options()` - BU id/name for dropdowns
+- `get_users_in_organization()` - Users in user's org
+- `get_org_admin_business_units()` - BUs with user counts (Org Admin only)
+- `get_org_admin_users()` - Users with roles/BUs (Org Admin only)
+- `get_requisitions_for_bu(bu_id)` - Requisitions for a BU
+- `get_templates_for_bu(bu_id)` - Templates for a BU
+
+**Auth & User Management:**
+
 - `get_user_auth_context()` - Returns complete auth context with roles and permissions
 - `get_administered_bu_ids()` - Returns BUs user can administer
-- `is_bu_admin()` - Check if user is BU admin
-- `is_super_admin()` - Check if user is super admin
-- `is_organization_admin()` - Check if user is org admin
 - `get_my_organization_id()` - Get user's organization ID
-- `create_new_template_version()` - Template versioning helper
 - `update_avatar_url()` - Profile picture update
 
+**Template & Workflow Management** (Migrations: `20251201010000`, `20251201020000`):
+
+- Form template RPC functions
+- Workflow template RPC functions
+- `create_new_template_version()` - Template versioning helper
+
+**Document Operations** (Migrations: `20251201040000`, `20251201050000`, `20251201070000`):
+
+- Form submission RPC functions
+- Document approval RPC functions
+- Dashboard data RPC functions
+
 ### Row Level Security (RLS)
+
+**✅ SECURITY HARDENED** (Migrations: `20251130214500`, `20251130220000`)
+
+All tables now have proper RLS policies enforcing data isolation. See [docs/rls_documentation.md](docs/rls_documentation.md) for details.
 
 **Organization-level:**
 
@@ -609,10 +746,19 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 - Organization Admins can manage BUs in their organization
 - Users can view BUs they're members of
 
+**Data Isolation:**
+
+- Requisitions/Documents: Users can only access data from their BUs
+- Chat: Users can only access chats they participate in
+- User/Role Management: Scoped to same organization
+- Comments/Attachments: Scoped via parent resource (requisition/document/chat)
+
 **Invitation-level:**
 
 - Super Admins can manage all invitations
 - Users can view/update their own invitations
+
+**⚠️ IMPORTANT:** Never use direct `supabase.from()` queries for SELECT operations. Always use RPC functions to ensure proper access control. See [docs/rls_documentation.md](docs/rls_documentation.md) for refactoring guidelines.
 
 ### Database Types
 

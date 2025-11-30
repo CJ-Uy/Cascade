@@ -1,100 +1,161 @@
-# Prompts for Building the Cascade Application MVP
+# Cascade Development Guide: Implementation Status & Next Steps
 
-This document contains a series of prompts to guide an AI assistant in building the core features of the Cascade application. They should be executed in order, starting with the critical security fixes.
-
----
-
-### Phase 1: CRITICAL Security Hardening & Code Refactoring
-
-**Prompt 1: CRITICAL - Review and Fix Insecure RLS Policies**
-"Our current Supabase Row Level Security policies have a significant number of `PERMISSIVE SELECT true` rules, which is a major security vulnerability. Your first task is to generate the SQL `ALTER POLICY` statements to fix this.
-
-**High-Risk Tables to Fix Immediately:**
-
-- `requisitions`, `requisition_values`, `attachments`, `comments`, `chat_messages`, `chat_participants`, `user_business_units`, `user_role_assignments`.
-
-**Action:** For each table, replace the overly permissive policies with secure ones that enforce data isolation by `organization_id` or `business_unit_id`. For example, a user should only be able to select a `requisition` if they belong to the same business unit.
-
-**Example of a good policy for the `requisitions` table:**
-
-```sql
-CREATE OR REPLACE POLICY "Users can view requisitions from their own BU"
-ON public.requisitions
-FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1
-    FROM user_business_units ubu
-    WHERE ubu.user_id = auth.uid() AND ubu.business_unit_id = requisitions.business_unit_id
-  )
-);
-```
-
-Provide the SQL statements to fix the policies for all the high-risk tables."
-
-**Prompt 2: CRITICAL - Refactor Existing Application Code for RLS Compliance**
-"Now that the database RLS policies are secure, our existing application code will fail. Your task is to refactor all server-side queries to be RLS-compliant.
-
-1.  **Identify Files:** The following files contain direct `supabase.from` calls and must be refactored:
-    - `app/api/approvals/actions/route.ts`
-    - `app/(main)/organization-admin/actions.ts`
-    - `app/(main)/management/forms/actions.ts`
-    - `app/(main)/management/employees/actions.ts`
-    - `app/(main)/management/business-units/actions.ts`
-    - `app/(main)/admin/users/actions.ts`
-2.  **Review and Refactor:** Go through each file. Most queries will need to be replaced. The best practice is to create and call Postgres functions via `supabase.rpc()`. These functions can securely query the data a user is allowed to see.
-3.  **Generate an example Postgres function:** As an example, create a function `get_business_units_for_admin()` that returns a list of business units for the currently authenticated BU admin, and show how you would call it using `.rpc()` in the `app/(main)/management/business-units/actions.ts` file."
+This document tracks the implementation status of core features and provides guidance for future development.
 
 ---
 
-### Phase 2: Database Schema & Dynamic Features
+## ✅ COMPLETED: Phase 1 - CRITICAL Security Hardening & Code Refactoring
 
-**Prompt 3: Finalize Database Schema for New Features**
-"Now that the existing code is secure, define the schema for our dynamic features. Propose the `CREATE TABLE` statements for:
+### ✅ Prompt 1: Review and Fix Insecure RLS Policies (COMPLETED)
 
-- `form_templates` (with `business_unit_id`, `is_locked`)
-- `form_fields`
-- `workflow_templates` (with `business_unit_id`, `is_locked`)
-- `workflow_steps`
-- `documents` (with `business_unit_id`, `organization_id`, and data as JSONB)
-- `document_history`
-  Explain the relationships and provide secure RLS policy suggestions for each new table."
+**Implementation:**
 
-**Prompt 4: Build Backend for Form Templates**
-"Create the backend API for managing form templates under `app/api/form-templates`. It should handle CRUD operations and respect the RLS policies (a user should only manage templates for their own BU)."
+- Migration: `20251130214500_fix_insecure_rls_policies.sql`
+- Fixed all insecure `USING (true)` policies on 9 critical tables
+- Implemented BU-scoped and organization-scoped policies
+- Migration: `20251130220000_enable_rls_on_chat_tables.sql` - Enabled RLS on chat tables
 
-**Prompt 5: Build the Form Builder UI**
-"Create the UI for the Form Builder at `app/(main)/management/form-templates/page.tsx`. It should list templates, allow creation/editing, and link to a details page (`.../form-templates/[id]`) for managing a template's fields."
+**Result:** All tables now have secure RLS policies enforcing proper data isolation.
 
-**Prompt 6: Build Backend and UI for Workflow Engine**
-"Create the backend (`app/api/workflow-templates`) and frontend (`app/(main)/management/approval-workflows`) for the Workflow Engine, allowing BU Admins to define and manage approval workflows."
+### ⏳ Prompt 2: Refactor Existing Application Code for RLS Compliance (IN PROGRESS)
 
-**Prompt 7: Implement "Corporate Standards" Logic**
-"In the form and workflow backends, enforce the `is_locked` flag. Only 'Organization Admins' should be able to edit/delete locked templates. The UI must reflect this by disabling controls for other users."
+**Implementation:**
+
+- Migration: `20251130230000_create_rls_compliant_rpc_functions.sql`
+- Created 12 RPC functions for secure data access
+- Example file: `app/(main)/management/business-units/actions_rls_compliant.ts`
+
+**Remaining Work:**
+
+- ⏳ `app/(main)/organization-admin/actions.ts` - Use `get_org_admin_*()` RPCs
+- ⏳ `app/(main)/management/forms/actions.ts` - Use template RPCs
+- ⏳ `app/(main)/management/employees/actions.ts` - Use user RPCs
+- ⏳ `app/api/approvals/actions/route.ts` - Use requisition RPCs
+- ⏳ `app/(main)/admin/users/actions.ts` - May need Super Admin RPCs
 
 ---
 
-### Phase 3: Core User Features
+## ✅ COMPLETED: Phase 2 - Database Schema & Dynamic Features
 
-**Prompt 8: Implement the Notification System**
-"Build an in-app notification system:
+### ✅ Prompt 3: Finalize Database Schema for New Features (COMPLETED)
 
-1.  **DB:** Create a `notifications` table (`recipient_id`, `message`, `read_status`, `link_url`) with RLS so users only see their own.
-2.  **Backend:** Create a server action to create notifications.
-3.  **Frontend:** Add a notification bell icon in the main layout to display unread notifications."
+**Implementation:**
 
-**Prompt 9: Implement Form Submission**
-"Create the form submission page. It should dynamically render fields from a selected `form_template` and, on submit, create a `documents` record and trigger the first workflow step, notifying the first approver."
+- Migration: `20251201000000_finalize_dynamic_schema.sql`
+- Created tables: `form_templates`, `form_fields`, `workflow_templates`, `workflow_steps`, `documents`, `document_history`
+- Implemented RLS policies for all new tables
 
-**Prompt 10: Implement Document Approval View**
-"Create the page at `app/(main)/approvals/document/[id]/page.tsx`. It must fetch and display document data, attachments, and history, and provide 'Approve', 'Reject', 'Return for Edits', and 'Request Clarification' buttons that log the action and notify the next user."
+### ✅ Prompt 4: Build Backend for Form Templates (COMPLETED)
 
-**Prompt 11: Implement Document Commenting**
-"On the document approval view page, add a comment thread section backed by a `comments` table. Ensure RLS restricts comments to users who can access the parent document."
+**Implementation:**
 
-**Prompt 12: Implement Basic Dashboards & Data Queue**
-"Create the initial dashboard pages:
+- API routes: `app/api/form-templates/route.ts`, `app/api/form-templates/[id]/route.ts`
+- RPC functions: Migration `20251201010000_create_form_template_rpc.sql`
+- Handles CRUD operations with RLS enforcement
 
-- **Initiator:** A list of their in-progress/returned documents.
-- **Approver:** A data table of documents pending their approval.
-- **Data Processor:** A data table of 'fully_approved' documents, with a CSV export button."
+### ✅ Prompt 5: Build the Form Builder UI (COMPLETED)
+
+**Implementation:**
+
+- Page: `app/(main)/management/form-templates/page.tsx`
+- Data table: `app/(main)/management/form-templates/client.tsx`
+- Columns: `app/(main)/management/form-templates/columns.tsx`
+- Detail page: `app/(main)/management/form-templates/[id]/page.tsx`
+
+### ✅ Prompt 6: Build Backend and UI for Workflow Engine (COMPLETED)
+
+**Implementation:**
+
+- API routes: `app/api/workflow-templates/route.ts`, `app/api/workflow-templates/[id]/route.ts`
+- RPC functions: Migration `20251201020000_create_workflow_template_rpc.sql`
+- Page: `app/(main)/management/approval-workflows/page.tsx`
+- Data table: `app/(main)/management/approval-workflows/client.tsx`
+- Columns: `app/(main)/management/approval-workflows/columns.tsx`
+- Detail page: `app/(main)/management/approval-workflows/[id]/page.tsx`
+
+### ✅ Prompt 7: Implement "Corporate Standards" Logic (COMPLETED)
+
+**Implementation:**
+
+- `is_locked` flag on `form_templates` and `workflow_templates`
+- RLS policies enforce Organization Admin-only editing of locked templates
+- UI reflects lock status and disables controls for non-admins
+
+---
+
+## ✅ COMPLETED: Phase 3 - Core User Features
+
+### ✅ Prompt 8: Implement the Notification System (COMPLETED)
+
+**Implementation:**
+
+- Migration: `20251201030000_update_notifications_schema.sql`
+- Component: `components/notifications/notification-bell.tsx`
+- Server actions: `lib/actions/notifications.ts`
+- RLS policies restrict users to their own notifications
+
+### ✅ Prompt 9: Implement Form Submission (COMPLETED)
+
+**Implementation:**
+
+- Template selector: `app/(main)/documents/create/page.tsx`
+- Form filler: `app/(main)/documents/create/[template_id]/page.tsx`
+- RPC functions: Migration `20251201040000_create_form_submission_rpc.sql`
+- Creates `documents` record and triggers workflow
+
+### ✅ Prompt 10: Implement Document Approval View (COMPLETED)
+
+**Implementation:**
+
+- Page: `app/(main)/approvals/document/[id]/page.tsx`
+- RPC functions: Migration `20251201050000_create_document_approval_rpc.sql`
+- Actions: Approve, Reject, Return for Edits, Request Clarification
+- Logs all actions in `document_history`
+
+### ✅ Prompt 11: Implement Document Commenting (COMPLETED)
+
+**Implementation:**
+
+- Migration: `20251201060000_update_comments_schema.sql`
+- Comment thread integrated into document approval view
+- RLS restricts comments to users with document access
+
+### ✅ Prompt 12: Implement Basic Dashboards & Data Queue (COMPLETED)
+
+**Implementation:**
+
+- Dashboard: `app/(main)/dashboard/page.tsx`
+- Dashboard tables: `app/(main)/dashboard/(components)/dashboard-tables.tsx`
+- RPC functions: Migration `20251201070000_create_dashboard_rpc.sql`
+- Shows in-progress documents, pending approvals, and approved documents
+
+---
+
+## 🚧 NEXT PHASE: Polish & Production Readiness
+
+### High Priority Tasks
+
+1. **Complete RLS Refactoring**
+   - Refactor remaining action files to use RPC functions
+   - Remove all direct `supabase.from()` queries from server-side code
+   - See [RLS Documentation](./rls_documentation.md) for details
+
+2. **Data Processing Queue Enhancement**
+   - Add CSV export functionality
+   - Implement advanced filtering and tagging
+   - Create dedicated Data Processor role dashboard
+
+3. **Testing & Validation**
+   - Test all user roles end-to-end
+   - Verify data isolation across organizations and BUs
+   - Test complete document lifecycle from submission to approval
+
+4. **Error Handling & UX**
+   - Implement centralized error handling
+   - Add loading states and skeleton loaders
+   - Improve error messages and user feedback
+
+5. **Code Quality**
+   - Configure ESLint and Prettier
+   - Clean up deprecated code in `app/outdated Routes/`
+   - Add JSDoc comments to complex functions

@@ -20,10 +20,12 @@ The database is built around a few core entities that define the tenancy and use
 
 The database schema has undergone a significant evolution from a rigid "Requisition" model to a flexible "Dynamic Document" model.
 
-- **Legacy Schema**: Based on tables like `requisitions`, `requisition_templates`, and `approval_workflows`. This schema was tightly coupled to a single use case. These tables are now considered deprecated and will be phased out.
-- **Current Schema**: A new, flexible schema has been introduced, centered around `documents`, `form_templates`, and `workflow_templates`. This allows administrators to create custom forms and approval processes without changing the database schema.
+- **Legacy Schema**: Based on tables like `requisitions`, `requisition_templates`, and `approval_workflows`. This schema was tightly coupled to a single use case. **These tables are still in use but considered legacy.**
+- **Current Schema**: A new, flexible schema has been introduced (Migration: `20251201000000_finalize_dynamic_schema.sql`), centered around `documents`, `form_templates`, and `workflow_templates`. This allows administrators to create custom forms and approval processes without changing the database schema.
 
-**All new development should use the Current Schema.**
+**Status**: Both schemas coexist. The application is transitioning to the new dynamic document model. The legacy requisition system remains functional for backwards compatibility.
+
+**All new development should use the Current Schema (documents, form_templates, workflow_templates).**
 
 ## 4. Current Schema: The Dynamic Document Model
 
@@ -206,8 +208,24 @@ export async function createDocument(formData: any, buId: string) {
 
 Database schema changes are managed through SQL files in the `supabase/migrations/` directory. The files are named with a timestamp prefix (e.g., `YYYYMMDDHHMMSS_description.sql`).
 
-To make a schema change:
+### Recent Critical Migrations
 
-1.  Create a new SQL file in the `supabase/migrations/` directory.
-2.  Write the `CREATE TABLE`, `ALTER TABLE`, or other DDL statements.
-3.  To apply migrations locally, you can use the Supabase CLI: `supabase db reset` (for a clean slate) or manage them with `supabase migration ...` commands.
+1. **`20251130214500_fix_insecure_rls_policies.sql`** - Fixed insecure RLS policies
+2. **`20251130220000_enable_rls_on_chat_tables.sql`** - Enabled RLS on chat tables
+3. **`20251130230000_create_rls_compliant_rpc_functions.sql`** - Created RPC functions for secure data access
+4. **`20251201000000_finalize_dynamic_schema.sql`** - Finalized dynamic document schema
+5. **`20251201010000_create_form_template_rpc.sql`** - RPC functions for form templates
+6. **`20251201020000_create_workflow_template_rpc.sql`** - RPC functions for workflow templates
+7. **`20251201030000_update_notifications_schema.sql`** - Updated notifications schema
+8. **`20251201040000_create_form_submission_rpc.sql`** - RPC functions for form submission
+9. **`20251201050000_create_document_approval_rpc.sql`** - RPC functions for document approval
+10. **`20251201060000_update_comments_schema.sql`** - Updated comments schema
+11. **`20251201070000_create_dashboard_rpc.sql`** - RPC functions for dashboard data
+
+### To make a schema change:
+
+1. Create a new SQL file in the `supabase/migrations/` directory.
+2. Write the `CREATE TABLE`, `ALTER TABLE`, or other DDL statements.
+3. To apply migrations locally: `npm run db:push` or `supabase db push`
+4. To reset database: `npm run db:reset` or `supabase db reset`
+5. If migration already exists on remote: `npx supabase migration repair --status applied YYYYMMDDHHMMSS`
