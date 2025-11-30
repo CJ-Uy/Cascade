@@ -9,7 +9,7 @@ export async function getBusinessUnits() {
       id,
       name,
       created_at,
-      head:profiles ( id, first_name, last_name, email )
+      head:profiles!business_units_head_id_fkey ( id, first_name, last_name, email )
     `);
 
   if (error) {

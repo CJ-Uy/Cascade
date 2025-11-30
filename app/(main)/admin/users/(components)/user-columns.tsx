@@ -11,7 +11,7 @@ export type UserWithRoles = {
   last_name: string | null;
   email: string | null;
   roles: string[];
-  owned_business_units: string[];
+  headed_business_units: string[];
   organization_id: string | null;
   organization_name?: string | null;
 };
@@ -69,10 +69,10 @@ export const columns: ColumnDef<UserWithRoles>[] = [
     },
   },
   {
-    accessorKey: "owned_business_units",
-    header: "Owned BUs",
+    accessorKey: "headed_business_units",
+    header: "BU Head Of",
     cell: ({ row }) => {
-      const bus = row.getValue("owned_business_units") as string[];
+      const bus = row.getValue("headed_business_units") as string[];
       return (
         <div className="flex flex-col">
           {bus.length > 0 ? (

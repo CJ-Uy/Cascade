@@ -30,7 +30,7 @@ export async function getUsersWithRolesAndOwnedBUs() {
     organization_id,
     organizations(name),
     roles:user_role_assignments(roles(id, name)),
-    owned_business_units:business_units!business_units_owner_id_fkey(id, name)
+    headed_business_units:business_units!business_units_head_id_fkey(id, name)
   `);
 
   if (error) {
@@ -42,7 +42,9 @@ export async function getUsersWithRolesAndOwnedBUs() {
     ...user,
     organization_name: user.organizations?.name || null,
     roles: user.roles.map((r: any) => r.roles.name),
-    owned_business_units: user.owned_business_units.map((bu: any) => bu.name),
+    headed_business_units: Array.isArray(user.headed_business_units)
+      ? user.headed_business_units.map((bu: any) => bu.name)
+      : [],
   }));
 }
 
