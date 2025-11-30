@@ -225,7 +225,8 @@ Database schema changes are managed through SQL files in the `supabase/migration
 13. **`20251201090000_update_chat_function_to_plpgsql.sql`** - Second attempt with PLPGSQL (failed)
 14. **`20251201100000_fix_chat_recursion_final.sql`** - Third attempt with hierarchical policies (failed)
 15. **`20251201110000_force_fix_chat_policies.sql`** - Fourth attempt dropping all policies (failed)
-16. **`20251201120000_disable_rls_on_chat_tables.sql`** - **FINAL FIX** - Disabled RLS on chat tables (restores original working state)
+16. **`20251201120000_disable_rls_on_chat_tables.sql`** - **CHAT FIX** - Disabled RLS on chat tables (restores original working state)
+17. **`20251201130000_fix_business_units_recursion.sql`** - **BU FIX** - Fixed circular dependency between business_units and user_business_units policies
 
 ### To make a schema change:
 
@@ -290,3 +291,31 @@ Security is maintained through:
 - Supabase Auth (only authenticated users can access)
 - API route filtering based on chat participation
 - Frontend logic showing only relevant chats
+
+**Business Units - Avoiding Circular Dependencies:**
+
+The `business_units` and `user_business_units` tables can create circular dependencies if not carefully designed.
+
+**Problem:** If `user_business_units` policy queries `business_units`, and `business_units` policy queries `user_business_units`, you get infinite recursion.
+
+**Solution (Migration 20251201130000):** Break the circle by having one policy use only role functions:
+
+```sql
+-- user_business_units: Uses ONLY role functions (no table queries except its own)
+CREATE POLICY "Users can view BU memberships"
+ON user_business_units
+USING (
+  user_id = auth.uid()
+  OR is_bu_admin()           -- Role function, not table query
+  OR is_organization_admin() -- Role function, not table query
+  OR is_super_admin()        -- Role function, not table query
+);
+
+-- business_units: Can now safely query user_business_units
+CREATE POLICY "Users can view business units"
+ON business_units
+USING (
+  is_super_admin()
+  OR id IN (SELECT business_unit_id FROM user_business_units WHERE user_id = auth.uid())
+);
+```

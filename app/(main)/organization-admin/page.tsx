@@ -37,7 +37,7 @@ async function checkOrgAdminRole(
 export default async function OrganizationAdminPage({
   searchParams,
 }: {
-  searchParams: { tab?: string };
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const supabase = await createClient();
 
@@ -103,10 +103,15 @@ export default async function OrganizationAdminPage({
     );
   }
 
-  const { organization_id, organizations: organization } = profile;
+  const { organization_id, organizations: organizationData } = profile;
+
+  // Handle organizations being returned as array or object
+  const organization = Array.isArray(organizationData)
+    ? organizationData[0]
+    : organizationData;
 
   // Fetch business units for the organization with head information
-  const { data: businessUnits, error: buError } = await supabase
+  const { data: businessUnits } = await supabase
     .from("business_units")
     .select(
       `
@@ -131,7 +136,7 @@ export default async function OrganizationAdminPage({
     })) || [];
 
   // Fetch users for the organization with their roles and business units
-  const { data: usersData, error: usersError } = await supabase
+  const { data: usersData } = await supabase
     .from("profiles")
     .select(
       `
@@ -170,7 +175,9 @@ export default async function OrganizationAdminPage({
     .select("id, first_name, last_name, email")
     .eq("organization_id", organization_id);
 
-  const defaultTab = searchParams.tab || "dashboard";
+  // Await searchParams (Next.js 15 requirement)
+  const params = await searchParams;
+  const defaultTab = params.tab || "dashboard";
 
   return (
     <div className="container mx-auto space-y-6 p-4 sm:p-6 lg:p-8">

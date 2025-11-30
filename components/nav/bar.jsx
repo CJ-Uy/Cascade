@@ -362,19 +362,26 @@ export function Navbar() {
             >
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {orgAdminItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={path.startsWith(item.url)}
-                      >
-                        <Link href={item.url}>
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {orgAdminItems.map((item) => {
+                    // For the dashboard, only match exact path (or with query params)
+                    const isActive = item.url === "/organization-admin"
+                      ? path === "/organization-admin" || path.startsWith("/organization-admin?")
+                      : path.startsWith(item.url);
+
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                        >
+                          <Link href={item.url}>
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </AnimatedSection>
