@@ -2,76 +2,62 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { ManageUserRolesDialog } from "./manage-user-roles-dialog";
 import { useRouter } from "next/navigation";
+import { DataTable } from "./data-table";
+import { createUsersColumns, UserWithRolesAndBUs } from "./users-columns";
+import { Plus, Users as UsersIcon } from "lucide-react";
 
-// Define the type for a single user
-interface User {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
+interface UsersTabNewProps {
+  users: UserWithRolesAndBUs[];
 }
 
-interface UsersTabProps {
-  users: User[];
-}
-
-export function UsersTab({ users }: UsersTabProps) {
+export function UsersTabNew({ users }: UsersTabNewProps) {
   const router = useRouter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserWithRolesAndBUs | null>(null);
 
-  const handleManageClick = (user: User) => {
+  const handleManageRoles = (user: UserWithRolesAndBUs) => {
     setSelectedUser(user);
     setIsDialogOpen(true);
   };
 
   const handleRolesUpdated = () => {
-    // Refresh the page to show the updated data
     router.refresh();
+    setIsDialogOpen(false);
   };
+
+  const columns = createUsersColumns(handleManageRoles);
 
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Manage Users</CardTitle>
-          <Button asChild>
-            <Link href="/organization-admin/users/invite">Invite User</Link>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <UsersIcon className="h-5 w-5 text-primary" />
+              <CardTitle>Users</CardTitle>
+            </div>
+            <CardDescription>
+              Manage users and their roles within your organization
+            </CardDescription>
+          </div>
+          <Button asChild className="gap-2">
+            <Link href="/organization-admin/users/invite">
+              <Plus className="h-4 w-4" />
+              Invite User
+            </Link>
           </Button>
         </CardHeader>
         <CardContent>
-          {users && users.length > 0 ? (
-            <ul className="space-y-2">
-              {users.map((user) => (
-                <li
-                  key={user.id}
-                  className="flex items-center justify-between rounded-md border p-2"
-                >
-                  <div>
-                    <p className="font-semibold">
-                      {user.first_name} {user.last_name}
-                    </p>
-                    <p className="text-muted-foreground text-sm">
-                      {user.email}
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleManageClick(user)}
-                  >
-                    Manage Roles
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No users found for this organization.</p>
-          )}
+          <DataTable
+            columns={columns}
+            data={users}
+            searchColumn="first_name"
+            searchPlaceholder="Search users by name..."
+          />
         </CardContent>
       </Card>
 
@@ -79,7 +65,12 @@ export function UsersTab({ users }: UsersTabProps) {
         <ManageUserRolesDialog
           isOpen={isDialogOpen}
           onOpenChange={setIsDialogOpen}
-          user={selectedUser}
+          user={{
+            id: selectedUser.id,
+            first_name: selectedUser.first_name,
+            last_name: selectedUser.last_name,
+            email: selectedUser.email,
+          }}
           onRolesUpdated={handleRolesUpdated}
         />
       )}

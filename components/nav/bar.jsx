@@ -130,9 +130,24 @@ const systemAdminItems = [
 
 const orgAdminItems = [
   {
-    title: "Org Dashboard",
+    title: "Dashboard",
     url: "/organization-admin",
-    icon: Building,
+    icon: Home,
+  },
+  {
+    title: "Business Units",
+    url: "/organization-admin/business-units",
+    icon: Building2,
+  },
+  {
+    title: "System Templates",
+    url: "/organization-admin/system-templates",
+    icon: FileText,
+  },
+  {
+    title: "System Workflows",
+    url: "/organization-admin/system-workflows",
+    icon: ClipboardEdit,
   },
 ];
 
@@ -231,24 +246,25 @@ export function Navbar() {
         {/* Group 1: Requisitions (Visible to almost everyone EXCEPT Super Admins) */}
         {!hasSystemRole("Super Admin") && (
           <SidebarGroup>
-            <SidebarGroupLabel>Requisitions</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {requisitionItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={path.startsWith(item.url)}
-                    >
-                      <Link href={`${item.url}/${selectedBuId}`}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
+            <AnimatedSection title="Requisitions">
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {requisitionItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={path.startsWith(item.url)}
+                      >
+                        <Link href={`${item.url}/${selectedBuId}`}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </AnimatedSection>
           </SidebarGroup>
         )}
 
