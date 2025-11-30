@@ -1,6 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
@@ -9,7 +15,10 @@ import { BusinessUnitsTabNew } from "./(components)/business-units-tab";
 import { UsersTabNew } from "./(components)/users-tab";
 import { Shield, Building } from "lucide-react";
 
-async function checkOrgAdminRole(supabase: any, userId: string): Promise<boolean> {
+async function checkOrgAdminRole(
+  supabase: any,
+  userId: string,
+): Promise<boolean> {
   const { data, error } = await supabase
     .from("user_role_assignments")
     .select("roles(name)")
@@ -20,7 +29,9 @@ async function checkOrgAdminRole(supabase: any, userId: string): Promise<boolean
     return false;
   }
 
-  return data.some((assignment: any) => assignment.roles.name === "Organization Admin");
+  return data.some(
+    (assignment: any) => assignment.roles.name === "Organization Admin",
+  );
 }
 
 export default async function OrganizationAdminPage({
@@ -46,11 +57,12 @@ export default async function OrganizationAdminPage({
         <Card className="max-w-md">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Shield className="h-6 w-6 text-destructive" />
+              <Shield className="text-destructive h-6 w-6" />
               <CardTitle className="text-destructive">Access Denied</CardTitle>
             </div>
             <CardDescription>
-              You do not have permission to view this page. Organization Admin access is required.
+              You do not have permission to view this page. Organization Admin
+              access is required.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -70,7 +82,12 @@ export default async function OrganizationAdminPage({
     .eq("id", user.id)
     .single();
 
-  if (profileError || !profile || !profile.organization_id || !profile.organizations) {
+  if (
+    profileError ||
+    !profile ||
+    !profile.organization_id ||
+    !profile.organizations
+  ) {
     console.error("Failed to fetch profile and organization:", profileError);
     return (
       <div className="flex min-h-[400px] items-center justify-center p-8">
@@ -103,14 +120,15 @@ export default async function OrganizationAdminPage({
     .eq("organization_id", organization_id);
 
   // Transform business units data
-  const businessUnitsWithHead = businessUnits?.map((bu: any) => ({
-    id: bu.id,
-    name: bu.name,
-    head_id: bu.head_id,
-    head_name: bu.head ? `${bu.head.first_name} ${bu.head.last_name}` : null,
-    head_email: bu.head?.email || null,
-    created_at: bu.created_at,
-  })) || [];
+  const businessUnitsWithHead =
+    businessUnits?.map((bu: any) => ({
+      id: bu.id,
+      name: bu.name,
+      head_id: bu.head_id,
+      head_name: bu.head ? `${bu.head.first_name} ${bu.head.last_name}` : null,
+      head_email: bu.head?.email || null,
+      created_at: bu.created_at,
+    })) || [];
 
   // Fetch users for the organization with their roles and business units
   const { data: usersData, error: usersError } = await supabase
@@ -129,19 +147,22 @@ export default async function OrganizationAdminPage({
     .eq("organization_id", organization_id);
 
   // Transform users data
-  const users = usersData?.map((user: any) => ({
-    id: user.id,
-    first_name: user.first_name,
-    last_name: user.last_name,
-    email: user.email,
-    created_at: user.created_at,
-    system_roles: user.user_role_assignments?.map((ura: any) => ura.roles.name) || [],
-    business_units: user.user_business_units?.map((ubu: any) => ({
-      name: ubu.business_units.name,
-      id: ubu.business_units.id,
-      membership_type: ubu.membership_type,
-    })) || [],
-  })) || [];
+  const users =
+    usersData?.map((user: any) => ({
+      id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      created_at: user.created_at,
+      system_roles:
+        user.user_role_assignments?.map((ura: any) => ura.roles.name) || [],
+      business_units:
+        user.user_business_units?.map((ubu: any) => ({
+          name: ubu.business_units.name,
+          id: ubu.business_units.id,
+          membership_type: ubu.membership_type,
+        })) || [],
+    })) || [];
 
   // Fetch simple users list for dropdowns
   const { data: simpleUsers } = await supabase
@@ -156,8 +177,10 @@ export default async function OrganizationAdminPage({
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Building className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight">{organization.name}</h1>
+            <Building className="text-primary h-8 w-8" />
+            <h1 className="text-3xl font-bold tracking-tight">
+              {organization.name}
+            </h1>
           </div>
           <p className="text-muted-foreground">
             Manage your organization's business units, users, and settings
@@ -177,30 +200,43 @@ export default async function OrganizationAdminPage({
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Business Units</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Total Business Units
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{businessUnitsWithHead.length}</div>
-                <p className="text-muted-foreground text-xs">across your organization</p>
+                <div className="text-2xl font-bold">
+                  {businessUnitsWithHead.length}
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  across your organization
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Total Users
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{users.length}</div>
-                <p className="text-muted-foreground text-xs">in your organization</p>
+                <p className="text-muted-foreground text-xs">
+                  in your organization
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Organization</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Organization
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{organization.name}</div>
                 <p className="text-muted-foreground text-xs">
-                  Created {new Date(organization.created_at).toLocaleDateString()}
+                  Created{" "}
+                  {new Date(organization.created_at).toLocaleDateString()}
                 </p>
               </CardContent>
             </Card>
@@ -210,34 +246,61 @@ export default async function OrganizationAdminPage({
             <Card>
               <CardHeader>
                 <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Common tasks for managing your organization</CardDescription>
+                <CardDescription>
+                  Common tasks for managing your organization
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button asChild className="w-full justify-start" variant="outline">
-                  <Link href="/organization-admin/business-units/new">Add Business Unit</Link>
+                <Button
+                  asChild
+                  className="w-full justify-start"
+                  variant="outline"
+                >
+                  <Link href="/organization-admin/business-units/new">
+                    Add Business Unit
+                  </Link>
                 </Button>
-                <Button asChild className="w-full justify-start" variant="outline">
-                  <Link href="/organization-admin/users/invite">Invite User</Link>
+                <Button
+                  asChild
+                  className="w-full justify-start"
+                  variant="outline"
+                >
+                  <Link href="/organization-admin/users/invite">
+                    Invite User
+                  </Link>
                 </Button>
-                <Button asChild className="w-full justify-start" variant="outline">
-                  <Link href="/organization-admin?tab=settings">Update Settings</Link>
+                <Button
+                  asChild
+                  className="w-full justify-start"
+                  variant="outline"
+                >
+                  <Link href="/organization-admin?tab=settings">
+                    Update Settings
+                  </Link>
                 </Button>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest changes in your organization</CardDescription>
+                <CardDescription>
+                  Latest changes in your organization
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground text-sm">No recent activity to display</p>
+                <p className="text-muted-foreground text-sm">
+                  No recent activity to display
+                </p>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
         <TabsContent value="business-units">
-          <BusinessUnitsTabNew businessUnits={businessUnitsWithHead} users={simpleUsers || []} />
+          <BusinessUnitsTabNew
+            businessUnits={businessUnitsWithHead}
+            users={simpleUsers || []}
+          />
         </TabsContent>
 
         <TabsContent value="users">

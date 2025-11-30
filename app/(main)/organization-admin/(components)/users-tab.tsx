@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import Link from "next/link";
 import { ManageUserRolesDialog } from "./manage-user-roles-dialog";
 import { useRouter } from "next/navigation";
@@ -17,7 +23,9 @@ interface UsersTabNewProps {
 export function UsersTabNew({ users }: UsersTabNewProps) {
   const router = useRouter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserWithRolesAndBUs | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserWithRolesAndBUs | null>(
+    null,
+  );
 
   const handleManageRoles = (user: UserWithRolesAndBUs) => {
     setSelectedUser(user);
@@ -37,7 +45,7 @@ export function UsersTabNew({ users }: UsersTabNewProps) {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <UsersIcon className="h-5 w-5 text-primary" />
+              <UsersIcon className="text-primary h-5 w-5" />
               <CardTitle>Users</CardTitle>
             </div>
             <CardDescription>

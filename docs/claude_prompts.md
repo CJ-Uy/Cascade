@@ -10,11 +10,13 @@ This document contains a series of prompts to guide an AI assistant in building 
 "Our current Supabase Row Level Security policies have a significant number of `PERMISSIVE SELECT true` rules, which is a major security vulnerability. Your first task is to generate the SQL `ALTER POLICY` statements to fix this.
 
 **High-Risk Tables to Fix Immediately:**
--   `requisitions`, `requisition_values`, `attachments`, `comments`, `chat_messages`, `chat_participants`, `user_business_units`, `user_role_assignments`.
+
+- `requisitions`, `requisition_values`, `attachments`, `comments`, `chat_messages`, `chat_participants`, `user_business_units`, `user_role_assignments`.
 
 **Action:** For each table, replace the overly permissive policies with secure ones that enforce data isolation by `organization_id` or `business_unit_id`. For example, a user should only be able to select a `requisition` if they belong to the same business unit.
 
 **Example of a good policy for the `requisitions` table:**
+
 ```sql
 CREATE OR REPLACE POLICY "Users can view requisitions from their own BU"
 ON public.requisitions
@@ -27,18 +29,19 @@ USING (
   )
 );
 ```
+
 Provide the SQL statements to fix the policies for all the high-risk tables."
 
 **Prompt 2: CRITICAL - Refactor Existing Application Code for RLS Compliance**
 "Now that the database RLS policies are secure, our existing application code will fail. Your task is to refactor all server-side queries to be RLS-compliant.
 
 1.  **Identify Files:** The following files contain direct `supabase.from` calls and must be refactored:
-    -   `app/api/approvals/actions/route.ts`
-    -   `app/(main)/organization-admin/actions.ts`
-    -   `app/(main)/management/forms/actions.ts`
-    -   `app/(main)/management/employees/actions.ts`
-    -   `app/(main)/management/business-units/actions.ts`
-    -   `app/(main)/admin/users/actions.ts`
+    - `app/api/approvals/actions/route.ts`
+    - `app/(main)/organization-admin/actions.ts`
+    - `app/(main)/management/forms/actions.ts`
+    - `app/(main)/management/employees/actions.ts`
+    - `app/(main)/management/business-units/actions.ts`
+    - `app/(main)/admin/users/actions.ts`
 2.  **Review and Refactor:** Go through each file. Most queries will need to be replaced. The best practice is to create and call Postgres functions via `supabase.rpc()`. These functions can securely query the data a user is allowed to see.
 3.  **Generate an example Postgres function:** As an example, create a function `get_business_units_for_admin()` that returns a list of business units for the currently authenticated BU admin, and show how you would call it using `.rpc()` in the `app/(main)/management/business-units/actions.ts` file."
 
@@ -48,13 +51,14 @@ Provide the SQL statements to fix the policies for all the high-risk tables."
 
 **Prompt 3: Finalize Database Schema for New Features**
 "Now that the existing code is secure, define the schema for our dynamic features. Propose the `CREATE TABLE` statements for:
--   `form_templates` (with `business_unit_id`, `is_locked`)
--   `form_fields`
--   `workflow_templates` (with `business_unit_id`, `is_locked`)
--   `workflow_steps`
--   `documents` (with `business_unit_id`, `organization_id`, and data as JSONB)
--   `document_history`
-Explain the relationships and provide secure RLS policy suggestions for each new table."
+
+- `form_templates` (with `business_unit_id`, `is_locked`)
+- `form_fields`
+- `workflow_templates` (with `business_unit_id`, `is_locked`)
+- `workflow_steps`
+- `documents` (with `business_unit_id`, `organization_id`, and data as JSONB)
+- `document_history`
+  Explain the relationships and provide secure RLS policy suggestions for each new table."
 
 **Prompt 4: Build Backend for Form Templates**
 "Create the backend API for managing form templates under `app/api/form-templates`. It should handle CRUD operations and respect the RLS policies (a user should only manage templates for their own BU)."
@@ -74,6 +78,7 @@ Explain the relationships and provide secure RLS policy suggestions for each new
 
 **Prompt 8: Implement the Notification System**
 "Build an in-app notification system:
+
 1.  **DB:** Create a `notifications` table (`recipient_id`, `message`, `read_status`, `link_url`) with RLS so users only see their own.
 2.  **Backend:** Create a server action to create notifications.
 3.  **Frontend:** Add a notification bell icon in the main layout to display unread notifications."
@@ -89,6 +94,7 @@ Explain the relationships and provide secure RLS policy suggestions for each new
 
 **Prompt 12: Implement Basic Dashboards & Data Queue**
 "Create the initial dashboard pages:
--   **Initiator:** A list of their in-progress/returned documents.
--   **Approver:** A data table of documents pending their approval.
--   **Data Processor:** A data table of 'fully_approved' documents, with a CSV export button."
+
+- **Initiator:** A list of their in-progress/returned documents.
+- **Approver:** A data table of documents pending their approval.
+- **Data Processor:** A data table of 'fully_approved' documents, with a CSV export button."

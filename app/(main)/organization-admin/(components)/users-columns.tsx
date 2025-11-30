@@ -83,7 +83,9 @@ export const createUsersColumns = (
     accessorKey: "email",
     header: "Email",
     cell: ({ row }) => {
-      return <div className="text-muted-foreground">{row.getValue("email")}</div>;
+      return (
+        <div className="text-muted-foreground">{row.getValue("email")}</div>
+      );
     },
   },
   {
@@ -111,9 +113,9 @@ export const createUsersColumns = (
     header: "Business Units & Roles",
     cell: ({ row }) => {
       const bus = row.original.business_units;
-      const buAdmins = bus.filter(bu => bu.membership_type === "BU_ADMIN");
-      const approvers = bus.filter(bu => bu.membership_type === "APPROVER");
-      const members = bus.filter(bu => bu.membership_type === "MEMBER");
+      const buAdmins = bus.filter((bu) => bu.membership_type === "BU_ADMIN");
+      const approvers = bus.filter((bu) => bu.membership_type === "APPROVER");
+      const members = bus.filter((bu) => bu.membership_type === "MEMBER");
 
       return (
         <div className="flex flex-col gap-1">

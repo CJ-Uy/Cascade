@@ -39,9 +39,10 @@ export async function getBusinessUnits() {
     id: bu.id,
     name: bu.name,
     createdAt: bu.created_at,
-    head: bu.head_first_name && bu.head_last_name
-      ? `${bu.head_first_name} ${bu.head_last_name}`
-      : "N/A",
+    head:
+      bu.head_first_name && bu.head_last_name
+        ? `${bu.head_first_name} ${bu.head_last_name}`
+        : "N/A",
     headEmail: bu.head_email || "N/A",
     organizationId: bu.organization_id,
   }));
@@ -92,7 +93,9 @@ export async function createBusinessUnit(formData: FormData) {
   const supabase = await createClient();
 
   // Get current user's organization
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     return { error: "Not authenticated" };
   }
@@ -139,7 +142,7 @@ export async function createBusinessUnit(formData: FormData) {
  */
 export async function updateBusinessUnit(
   id: string,
-  updates: { name?: string; head_id?: string }
+  updates: { name?: string; head_id?: string },
 ) {
   const supabase = await createClient();
 
@@ -165,10 +168,7 @@ export async function updateBusinessUnit(
 export async function deleteBusinessUnit(id: string) {
   const supabase = await createClient();
 
-  const { error } = await supabase
-    .from("business_units")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("business_units").delete().eq("id", id);
 
   if (error) {
     console.error("Error deleting business unit:", error);

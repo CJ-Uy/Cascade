@@ -64,6 +64,7 @@ The application uses a **4-tier hierarchical permission system**:
 **Session Context Hook:**
 
 The `useSession()` hook provides:
+
 - `authContext` - Full auth context from RPC
 - `selectedBuId` - Currently selected business unit
 - `setSelectedBuId` - Business unit selector function
@@ -133,6 +134,7 @@ app/
 ```
 
 **Route Parameters**:
+
 - `[bu_id]` - Business unit ID (requisition, approval, and management routes)
 - `[org_id]` - Organization ID (admin organization routes)
 - `[id]` - Generic ID (edit pages, chat routes)
@@ -150,9 +152,10 @@ Defined in [lib/types/requisition.ts](lib/types/requisition.ts):
 - **Action Types**: `SUBMIT`, `APPROVE`, `REQUEST_REVISION`, `REQUEST_CLARIFICATION`, `CLARIFY`, `RESUBMIT`, `COMMENT`, `CANCEL`
 
 **Key Files:**
-- Form filler: [app/(main)/requisitions/create/(components)/FormFiller.tsx](app/(main)/requisitions/create/(components)/FormFiller.tsx)
-- Create actions: [app/(main)/requisitions/create/actions.ts](app/(main)/requisitions/create/actions.ts)
-- Approval actions: [app/(main)/approvals/actions.ts](app/(main)/approvals/actions.ts)
+
+- Form filler: [app/(main)/requisitions/create/(components)/FormFiller.tsx](<app/(main)/requisitions/create/(components)/FormFiller.tsx>)
+- Create actions: [app/(main)/requisitions/create/actions.ts](<app/(main)/requisitions/create/actions.ts>)
+- Approval actions: [app/(main)/approvals/actions.ts](<app/(main)/approvals/actions.ts>)
 
 #### Form Templates
 
@@ -160,19 +163,21 @@ The system has **dual template management**:
 
 1. **Legacy BU-Specific Forms** (`/management/forms/[bu_id]`):
    - Business unit-level form management
-   - Form builder: [app/(main)/management/forms/[bu_id]/(components)/FormBuilder.tsx](app/(main)/management/forms/[bu_id]/(components)/FormBuilder.tsx)
-   - Actions: [app/(main)/management/forms/actions.ts](app/(main)/management/forms/actions.ts)
+   - Form builder: [app/(main)/management/forms/[bu_id]/(components)/FormBuilder.tsx](<app/(main)/management/forms/[bu_id]/(components)/FormBuilder.tsx>)
+   - Actions: [app/(main)/management/forms/actions.ts](<app/(main)/management/forms/actions.ts>)
 
 2. **System-Wide Templates** (`/management/form-templates/`):
    - Centralized template management (Super Admin only)
    - Global template library
    - Create/Edit pages with visual builder
-   - Actions: [app/(main)/management/form-templates/actions.ts](app/(main)/management/form-templates/actions.ts)
+   - Actions: [app/(main)/management/form-templates/actions.ts](<app/(main)/management/form-templates/actions.ts>)
 
 **Field Types Supported:**
+
 - `short-text`, `long-text`, `number`, `radio`, `checkbox`, `table`, `file-upload`
 
 **Features:**
+
 - Drag-and-drop form builder using `@dnd-kit`
 - Table fields with nested columns
 - Version control via `parent_template_id` and `version` fields
@@ -185,20 +190,22 @@ The system has **dual workflow management**:
 
 1. **Legacy Approval System** (`/management/approval-system/[bu_id]`):
    - BU-specific workflow configuration
-   - Actions: [app/(main)/management/approval-system/actions.ts](app/(main)/management/approval-system/actions.ts)
+   - Actions: [app/(main)/management/approval-system/actions.ts](<app/(main)/management/approval-system/actions.ts>)
 
 2. **System-Wide Workflows** (`/management/approval-workflows/`):
    - Centralized workflow management (Super Admin only)
    - Visual workflow builder with drag-and-drop
-   - Create: [app/(main)/management/approval-workflows/create/](app/(main)/management/approval-workflows/create/)
-   - Edit: [app/(main)/management/approval-workflows/edit/[id]/](app/(main)/management/approval-workflows/edit/[id]/)
-   - Actions: [app/(main)/management/approval-workflows/actions.ts](app/(main)/management/approval-workflows/actions.ts)
+   - Create: [app/(main)/management/approval-workflows/create/](<app/(main)/management/approval-workflows/create/>)
+   - Edit: [app/(main)/management/approval-workflows/edit/[id]/](<app/(main)/management/approval-workflows/edit/[id]/>)
+   - Actions: [app/(main)/management/approval-workflows/actions.ts](<app/(main)/management/approval-workflows/actions.ts>)
 
 **Database Tables:**
+
 - `approval_workflows` - Workflow definitions with versioning
 - `approval_step_definitions` - Workflow steps
 
 **Workflow Structure:**
+
 - Multi-step approval chains with roles
 - Each step has an `approver_role_id`
 - Step numbers define execution order
@@ -212,6 +219,7 @@ The system has **dual workflow management**:
 **Database Table:** `organization_invitations`
 
 **Invitation Flow:**
+
 1. Super Admin or Org Admin invites user via email
 2. Invitation created with status `pending`
 3. User receives email with invitation link
@@ -219,14 +227,16 @@ The system has **dual workflow management**:
 5. Status updates: `pending` → `accepted` / `declined` / `cancelled`
 
 **UI Components:**
-- Dashboard invitations card: [app/(main)/dashboard/(components)/invitations-card.tsx](app/(main)/dashboard/(components)/invitations-card.tsx)
-- Invite form: [app/(main)/organization-admin/users/invite/](app/(main)/organization-admin/users/invite/)
+
+- Dashboard invitations card: [app/(main)/dashboard/(components)/invitations-card.tsx](<app/(main)/dashboard/(components)/invitations-card.tsx>)
+- Invite form: [app/(main)/organization-admin/users/invite/](<app/(main)/organization-admin/users/invite/>)
 
 #### Chat System
 
 **Full-featured messaging system** with private and group chats.
 
 **Features:**
+
 - Private 1-on-1 chats
 - Group chats with multiple participants
 - Real-time messaging via Supabase subscriptions
@@ -235,12 +245,14 @@ The system has **dual workflow management**:
 - Last read tracking
 
 **Database Tables:**
+
 - `chats` - Chat instances (type: PRIVATE/GROUP)
 - `chat_participants` - Many-to-many user-chat relationship
 - `chat_messages` - Messages with sender and content
 - `attachments` - File attachments (linked to messages, comments, or requisitions)
 
 **Components** ([components/chat/](components/chat/)):
+
 - `ChatList.tsx` - Sidebar with chat list and search
 - `ChatWindow.tsx` - Main chat interface
 - `MessageList.tsx` - Scrollable message display with infinite scroll
@@ -249,6 +261,7 @@ The system has **dual workflow management**:
 - `ParticipantsModal.tsx` - View/manage chat participants
 
 **Custom Hooks** ([hooks/chat/](hooks/chat/)):
+
 - `use-chats.ts` - Chat list management
 - `use-messages.ts` - Message CRUD operations
 - `use-participants.ts` - Participant management
@@ -264,25 +277,30 @@ Navigation is **dynamically filtered** based on user permissions in [components/
 **Menu Structure:**
 
 **General (All Users):**
+
 - Dashboard
 - Chat
 - Settings (UI-only, not fully functional yet)
 
 **Requisitions (All except Super Admins):**
+
 - Create (`/requisitions/create/${selectedBuId}`)
 - Running (`/requisitions/running/${selectedBuId}`)
 - History (`/requisitions/history/${selectedBuId}`)
 
 **Approvals (Approvers, BU Admins):**
+
 - To Approve (`/approvals/to-approve/${selectedBuId}`)
 - Flagged (`/approvals/flagged/${selectedBuId}`)
 
 **Management (BU Admins):**
+
 - Employees (`/management/employees/${selectedBuId}`)
 - Approval System (`/management/approval-system/${selectedBuId}`)
 - Forms (`/management/forms/${selectedBuId}`)
 
 **System Admin (Super Admins Only):**
+
 - User Management (`/admin/users`)
 - Manage Organizations (`/admin/organizations`)
 - Business Units (`/management/business-units`)
@@ -290,6 +308,7 @@ Navigation is **dynamically filtered** based on user permissions in [components/
 - Approval Workflows (`/management/approval-workflows`)
 
 **Organization Admin (Organization Admins Only):**
+
 - Dashboard (`/organization-admin`) - Tabbed interface with:
   - Overview tab with statistics
   - Business Units tab with CRUD operations
@@ -299,6 +318,7 @@ Navigation is **dynamically filtered** based on user permissions in [components/
 - System Workflows (`/organization-admin/system-workflows`)
 
 **Permission Checks:**
+
 - Uses `useSession()` hook to get permissions
 - Checks `permissionLevel` (MEMBER, APPROVER, BU_ADMIN)
 - Checks `hasSystemRole("Super Admin")`
@@ -306,6 +326,7 @@ Navigation is **dynamically filtered** based on user permissions in [components/
 - Dynamically shows/hides menu sections
 
 **Legacy Files (Deprecated):**
+
 - [components/nav/menu-items.js](components/nav/menu-items.js) - Not actively used
 - [components/nav/permissions-helper.js](components/nav/permissions-helper.js) - Not actively used
 
@@ -316,6 +337,7 @@ These files are from an earlier implementation. Current navigation logic is in [
 #### shadcn/ui Component Library
 
 Uses **shadcn/ui** components configured in [components.json](components.json):
+
 - Style: "new-york"
 - RSC: Enabled
 - Icon Library: Lucide React
@@ -323,6 +345,7 @@ Uses **shadcn/ui** components configured in [components.json](components.json):
 - CSS Variables: Enabled
 
 **Full Component Library** ([components/ui/](components/ui/)):
+
 - accordion, alert-dialog, alert, aspect-ratio, avatar, badge
 - breadcrumb, button, calendar, card, carousel, chart
 - checkbox, collapsible, command, context-menu, dialog, drawer
@@ -336,36 +359,43 @@ Uses **shadcn/ui** components configured in [components.json](components.json):
 #### Custom Components
 
 **Navigation** ([components/nav/](components/nav/)):
+
 - `bar.jsx` - Main sidebar navigation with permission-based filtering
 - `animated-section.tsx` - Collapsible sidebar sections
 - `logout-button.tsx` - Sign out button
 - `theme-toggle.jsx` - Dark/light mode switcher
 
 **Chat Components** ([components/chat/](components/chat/)):
+
 - Full messaging interface (see Chat System section above)
 
 **Data Tables** ([components/dataTable/](components/dataTable/)):
+
 - `dataTableMultipleSelectDemo.jsx` - Multi-select table
 - `dataTableSingleOpenDemo.jsx` - Single-select table
 - Uses `@tanstack/react-table` for advanced features
 
 **Landing Page** ([components/landing/](components/landing/)):
+
 - `homeNav.jsx` - Landing page navigation
 - `hero-section.tsx` - Hero section with CTA
 - `about-section.tsx` - About/features section
 - `theme-switcher.tsx` - Theme toggle
 
 **Other Components:**
+
 - `dashboardHeader.jsx` - Page header component
 - `navigation-progress.tsx` - Loading progress bar
 
 #### Component Patterns
 
 **File Colocation:**
+
 - Route-specific components in `(components)` folders next to pages
 - Example: `app/(main)/dashboard/(components)/`
 
 **Naming Conventions:**
+
 - Data table columns: `*-columns.tsx`
 - Data tables: `*-data-table.tsx`
 - Actions/forms: `*-action.tsx`, `*-form.tsx`
@@ -376,20 +406,24 @@ Uses **shadcn/ui** components configured in [components.json](components.json):
 #### Server Actions
 
 **Convention:**
+
 - Server actions in `actions.ts` files next to routes
 - Named with `Action` suffix (e.g., `saveFormAction`, `createRequisitionAction`)
 - Use `"use server"` directive
 - Return structured responses with error handling
 
 **Standard Pattern:**
+
 ```typescript
-"use server"
+"use server";
 
 export async function updateOrganization(formData: FormData) {
   const supabase = await createClient();
 
   // Validate input
-  const data = { /* validated data */ };
+  const data = {
+    /* validated data */
+  };
 
   // Perform database operation
   const { error } = await supabase
@@ -411,11 +445,13 @@ export async function updateOrganization(formData: FormData) {
 #### Data Fetching (Server Components)
 
 **Pattern:**
+
 1. Create Supabase client: `const supabase = await createClient()`
 2. Fetch data with `.select()` and joins
 3. Pass data to client components as props
 
 **Example:**
+
 ```typescript
 const supabase = await createClient();
 const { data, error } = await supabase
@@ -427,6 +463,7 @@ const { data, error } = await supabase
 #### Client State Management
 
 **Approaches:**
+
 1. **React Context:**
    - `SessionProvider` for global auth state
    - `ThemeProvider` for dark/light mode
@@ -448,15 +485,20 @@ const { data, error } = await supabase
 #### Real-time Pattern (Chat)
 
 **Supabase Subscriptions:**
+
 ```typescript
 const channel = supabase
   .channel(`chat:${chatId}`)
-  .on('postgres_changes', {
-    event: 'INSERT',
-    schema: 'public',
-    table: 'chat_messages',
-    filter: `chat_id=eq.${chatId}`
-  }, handleNewMessage)
+  .on(
+    "postgres_changes",
+    {
+      event: "INSERT",
+      schema: "public",
+      table: "chat_messages",
+      filter: `chat_id=eq.${chatId}`,
+    },
+    handleNewMessage,
+  )
   .subscribe();
 
 return () => supabase.removeChannel(channel);
@@ -467,8 +509,11 @@ return () => supabase.removeChannel(channel);
 #### Form Handling
 
 **react-hook-form + zod:**
+
 ```typescript
-const schema = z.object({ /* validation schema */ });
+const schema = z.object({
+  /* validation schema */
+});
 const form = useForm({ resolver: zodResolver(schema) });
 
 const onSubmit = async (data) => {
@@ -488,6 +533,7 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 ### Key Tables
 
 **User & Organization Management:**
+
 - `profiles` - User profiles (extends auth.users)
 - `organizations` - Multi-tenant organizations
 - `organization_invitations` - Organization invitation system
@@ -497,6 +543,7 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 - `user_role_assignments` - User-role assignments
 
 **Form Templates & Workflows:**
+
 - `requisition_templates` - Form templates with versioning
 - `template_fields` - Form field definitions
 - `field_options` - Options for radio/checkbox fields
@@ -505,6 +552,7 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 - `approval_step_definitions` - Workflow steps
 
 **Requisitions:**
+
 - `requisitions` - Document requests
 - `requisition_values` - Form field values
 - `requisition_approvals` - Approval step instances
@@ -514,11 +562,13 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 - `tags` - Tag definitions
 
 **Chat System:**
+
 - `chats` - Chat instances (PRIVATE/GROUP)
 - `chat_participants` - Chat members
 - `chat_messages` - Messages
 
 **Other:**
+
 - `notifications` - User notifications
 
 ### Enums
@@ -548,22 +598,26 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 ### Row Level Security (RLS)
 
 **Organization-level:**
+
 - Super Admins can manage all organizations
 - Organization Admins can view/update their organization
 - All authenticated users can view organizations
 
 **Business Unit-level:**
+
 - Super Admins can manage all BUs
 - Organization Admins can manage BUs in their organization
 - Users can view BUs they're members of
 
 **Invitation-level:**
+
 - Super Admins can manage all invitations
 - Users can view/update their own invitations
 
 ### Database Types
 
 **File:** [lib/database.types.ts](lib/database.types.ts)
+
 - Supabase auto-generated types
 - Import types for all tables, inserts, updates, and enums
 
@@ -572,6 +626,7 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 ### Tailwind CSS 4
 
 **Configuration:** [app/globals.css](app/globals.css)
+
 - Uses Tailwind CSS 4 with `@import "tailwindcss"`
 - Custom CSS variables for theming (oklch color space)
 - Comprehensive light/dark theme definitions
@@ -579,6 +634,7 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 - Chart color palette (5 colors)
 
 **Utilities:**
+
 - `cn()` utility from [lib/utils.ts](lib/utils.ts) for conditional class merging
 - Uses `clsx` and `tailwind-merge`
 
@@ -598,7 +654,7 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 1. Add type to `FieldType` union in FormBuilder components
 2. Add display name to `fieldTypeDisplay` object
 3. Implement field editor in `FieldEditor` component
-4. Implement field renderer in [FormFiller.tsx](app/(main)/requisitions/create/(components)/FormFiller.tsx)
+4. Implement field renderer in [FormFiller.tsx](<app/(main)/requisitions/create/(components)/FormFiller.tsx>)
 
 ### Adding a New Route for a Business Unit
 
@@ -625,12 +681,14 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 ### Creating a New Admin Feature
 
 **For Super Admin:**
+
 1. Add route in `app/(main)/admin/[feature]/`
 2. Add menu item in [components/nav/bar.jsx](components/nav/bar.jsx) with `hasSystemRole("Super Admin")` check
 3. Create server actions in `actions.ts`
 4. Implement RLS policies for system admin access
 
 **For Organization Admin:**
+
 1. Add route in `app/(main)/organization-admin/[feature]/`
 2. Add menu item with `hasOrgAdminRole()` check
 3. Create server actions with organization scope

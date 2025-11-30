@@ -85,7 +85,9 @@ export const createBusinessUnitsColumns = (
       return headName ? (
         <div>
           <div className="font-medium">{headName}</div>
-          <div className="text-muted-foreground text-xs">{row.original.head_email}</div>
+          <div className="text-muted-foreground text-xs">
+            {row.original.head_email}
+          </div>
         </div>
       ) : (
         <Badge variant="secondary">No Head Assigned</Badge>
@@ -114,7 +116,13 @@ export const createBusinessUnitsColumns = (
     id: "actions",
     cell: ({ row }) => {
       const businessUnit = row.original;
-      return <ActionsColumn businessUnit={businessUnit} onEdit={onEdit} onDelete={onDelete} />;
+      return (
+        <ActionsColumn
+          businessUnit={businessUnit}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      );
     },
   },
 ];

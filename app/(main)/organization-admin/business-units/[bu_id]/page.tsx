@@ -1,10 +1,24 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
-import { Building2, ArrowLeft, Users, FileText, Workflow, Settings, Edit } from "lucide-react";
+import {
+  Building2,
+  ArrowLeft,
+  Users,
+  FileText,
+  Workflow,
+  Settings,
+  Edit,
+} from "lucide-react";
 import { getUserAuthContext } from "@/lib/supabase/auth";
 import { Badge } from "@/components/ui/badge";
 
@@ -38,13 +52,15 @@ export default async function BusinessUnitDetailPage({
   // Fetch business unit details
   const { data: bu } = await supabase
     .from("business_units")
-    .select(`
+    .select(
+      `
       id,
       name,
       created_at,
       organization_id,
       head:profiles!business_units_head_id_fkey(id, first_name, last_name, email)
-    `)
+    `,
+    )
     .eq("id", params.bu_id)
     .single();
 
@@ -55,12 +71,14 @@ export default async function BusinessUnitDetailPage({
   // Fetch members
   const { data: members } = await supabase
     .from("user_business_units")
-    .select(`
+    .select(
+      `
       user_id,
       membership_type,
       profiles(id, first_name, last_name, email),
       user_role_assignments(roles(name))
-    `)
+    `,
+    )
     .eq("business_unit_id", params.bu_id);
 
   // Fetch templates
@@ -93,12 +111,10 @@ export default async function BusinessUnitDetailPage({
             </Link>
           </Button>
           <div className="flex items-center gap-2">
-            <Building2 className="h-8 w-8 text-primary" />
+            <Building2 className="text-primary h-8 w-8" />
             <h1 className="text-3xl font-bold tracking-tight">{bu.name}</h1>
           </div>
-          <p className="text-muted-foreground">
-            Head: {headName}
-          </p>
+          <p className="text-muted-foreground">Head: {headName}</p>
         </div>
         <Button variant="outline" className="gap-2">
           <Edit className="h-4 w-4" />
@@ -111,7 +127,7 @@ export default async function BusinessUnitDetailPage({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{members?.length || 0}</div>
@@ -121,7 +137,7 @@ export default async function BusinessUnitDetailPage({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Templates</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <FileText className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{templates?.length || 0}</div>
@@ -131,7 +147,7 @@ export default async function BusinessUnitDetailPage({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Workflows</CardTitle>
-            <Workflow className="h-4 w-4 text-muted-foreground" />
+            <Workflow className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{workflows?.length || 0}</div>
@@ -170,7 +186,8 @@ export default async function BusinessUnitDetailPage({
                     >
                       <div>
                         <p className="font-medium">
-                          {member.profiles.first_name} {member.profiles.last_name}
+                          {member.profiles.first_name}{" "}
+                          {member.profiles.last_name}
                         </p>
                         <p className="text-muted-foreground text-sm">
                           {member.profiles.email}
@@ -187,7 +204,9 @@ export default async function BusinessUnitDetailPage({
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-center">No members in this BU</p>
+                <p className="text-muted-foreground text-center">
+                  No members in this BU
+                </p>
               )}
             </CardContent>
           </Card>
@@ -224,7 +243,9 @@ export default async function BusinessUnitDetailPage({
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-center">No templates for this BU</p>
+                <p className="text-muted-foreground text-center">
+                  No templates for this BU
+                </p>
               )}
             </CardContent>
           </Card>
@@ -256,14 +277,18 @@ export default async function BusinessUnitDetailPage({
                           {workflow.description || "No description"}
                         </p>
                       </div>
-                      <Badge variant={workflow.is_active ? "default" : "secondary"}>
+                      <Badge
+                        variant={workflow.is_active ? "default" : "secondary"}
+                      >
                         {workflow.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-center">No workflows for this BU</p>
+                <p className="text-muted-foreground text-center">
+                  No workflows for this BU
+                </p>
               )}
             </CardContent>
           </Card>

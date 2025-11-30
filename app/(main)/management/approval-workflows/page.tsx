@@ -1,52 +1,70 @@
-import React from "react";
-import Link from "next/link";
-import { getUserAuthContext } from "@/lib/supabase/auth";
-import { getApprovalWorkflows } from "./actions";
-import { columns } from "./(components)/workflow-columns";
-import { WorkflowDataTable } from "./(components)/workflow-data-table";
-import { Button } from "@/components/ui/button";
+// app/(main)/management/approval-workflows/page.tsx
+import { createClient } from "@/lib/supabase/server";
+import { WorkflowTemplatesClient } from "./client";
+import { columns } from "./columns";
 
-const ApprovalWorkflowsPage = async () => {
-  const authContext = await getUserAuthContext();
-
-  const isSuperAdmin = authContext?.system_roles?.includes("Super Admin");
-
-  if (!isSuperAdmin) {
-    return (
-      <div className="p-8">
-        <h1 className="text-destructive text-2xl font-bold">Access Denied</h1>
-        <p className="mt-2">You do not have permission to view this page.</p>
-      </div>
-    );
-  }
-
-  const data = await getApprovalWorkflows();
-
-  return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Approval Workflows
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Create and manage approval workflows for requisitions.
-          </p>
-        </div>
-        {isSuperAdmin && (
-          <Button asChild>
-            <Link href="/management/approval-workflows/create">
-              Create Workflow
-            </Link>
-          </Button>
-        )}
-      </div>
-
-      <div className="mt-8">
-        <WorkflowDataTable columns={columns} data={data} />
-      </div>
-    </div>
-  );
+export type WorkflowTemplate = {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  is_locked: boolean;
+  business_unit_id: string | null;
+  organization_id: string;
 };
 
-export default ApprovalWorkflowsPage;
+async function getTemplates(): Promise<WorkflowTemplate[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_workflow_templates_for_user");
+  if (error) {
+    console.error("Error fetching workflow templates:", error);
+    return [];
+  }
+  return data as WorkflowTemplate[];
+}
+
+async function getUserContext() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { isOrgAdmin: false, organizationId: null };
+
+  const { data: isOrgAdmin } = await supabase.rpc("is_organization_admin");
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("organization_id")
+    .eq("id", user.id)
+    .single();
+
+  return {
+    isOrgAdmin: !!isOrgAdmin,
+    organizationId: profile?.organization_id || null,
+  };
+}
+
+export default async function WorkflowTemplatesPage() {
+  const templates = await getTemplates();
+  const { isOrgAdmin, organizationId } = await getUserContext();
+
+  return (
+    <div className="hidden h-full flex-1 flex-col space-y-8 p-8 md:flex">
+      <div className="flex items-center justify-between space-y-2">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">
+            Approval Workflows
+          </h2>
+          <p className="text-muted-foreground">
+            Create and manage approval workflows for your organization.
+          </p>
+        </div>
+      </div>
+      <WorkflowTemplatesClient
+        columns={columns({ isOrgAdmin })}
+        data={templates}
+        isOrgAdmin={isOrgAdmin}
+        organizationId={organizationId}
+      />
+    </div>
+  );
+}

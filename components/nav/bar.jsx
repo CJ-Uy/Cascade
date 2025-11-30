@@ -56,7 +56,7 @@ import {
   LogOut,
 } from "lucide-react";
 
-import { getMiddleInitial } from "@/lib/utils";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { createClient } from "@/lib/supabase/client";
 import { AnimatedSection } from "@/components/nav/animated-section";
 
@@ -197,7 +197,7 @@ export function Navbar() {
   return (
     <Sidebar>
       {/* Header */}
-      <SidebarHeader className="flex items-center justify-center">
+      <SidebarHeader className="flex items-center justify-between p-2">
         <div className="mt-2 flex-shrink-0">
           <Link href="/" className="block">
             {" "}
@@ -221,6 +221,7 @@ export function Navbar() {
             />
           </Link>
         </div>
+        <NotificationBell />
       </SidebarHeader>
 
       <SidebarContent>

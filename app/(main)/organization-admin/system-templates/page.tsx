@@ -1,12 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { FileText, Plus, Lock, Unlock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-async function checkOrgAdminRole(supabase: any, userId: string): Promise<boolean> {
+async function checkOrgAdminRole(
+  supabase: any,
+  userId: string,
+): Promise<boolean> {
   const { data, error } = await supabase
     .from("user_role_assignments")
     .select("roles(name)")
@@ -17,7 +26,9 @@ async function checkOrgAdminRole(supabase: any, userId: string): Promise<boolean
     return false;
   }
 
-  return data.some((assignment: any) => assignment.roles.name === "Organization Admin");
+  return data.some(
+    (assignment: any) => assignment.roles.name === "Organization Admin",
+  );
 }
 
 export default async function SystemTemplatesPage() {
@@ -49,7 +60,8 @@ export default async function SystemTemplatesPage() {
   // Fetch organization-level templates (templates that can be used across all BUs)
   const { data: templates } = await supabase
     .from("requisition_templates")
-    .select(`
+    .select(
+      `
       id,
       name,
       description,
@@ -57,25 +69,29 @@ export default async function SystemTemplatesPage() {
       created_at,
       business_unit_id,
       business_units(name)
-    `)
+    `,
+    )
     .eq("organization_id", profile.organization_id)
     .eq("is_latest", true)
     .order("created_at", { ascending: false });
 
   // Group templates by whether they're system-wide or BU-specific
-  const systemTemplates = templates?.filter(t => !t.business_unit_id) || [];
-  const buTemplates = templates?.filter(t => t.business_unit_id) || [];
+  const systemTemplates = templates?.filter((t) => !t.business_unit_id) || [];
+  const buTemplates = templates?.filter((t) => t.business_unit_id) || [];
 
   return (
     <div className="container mx-auto space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <FileText className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight">System Templates</h1>
+            <FileText className="text-primary h-8 w-8" />
+            <h1 className="text-3xl font-bold tracking-tight">
+              System Templates
+            </h1>
           </div>
           <p className="text-muted-foreground">
-            Manage organization-wide form templates for {profile.organizations?.name}
+            Manage organization-wide form templates for{" "}
+            {profile.organizations?.name}
           </p>
         </div>
         <Button asChild className="gap-2">
@@ -90,11 +106,12 @@ export default async function SystemTemplatesPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Lock className="h-5 w-5 text-primary" />
+            <Lock className="text-primary h-5 w-5" />
             <CardTitle>Organization-Wide Templates</CardTitle>
           </div>
           <CardDescription>
-            These templates can be used by all business units and can be marked as required
+            These templates can be used by all business units and can be marked
+            as required
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -113,8 +130,9 @@ export default async function SystemTemplatesPage() {
                     <p className="text-muted-foreground text-sm">
                       {template.description || "No description"}
                     </p>
-                    <p className="text-muted-foreground text-xs mt-1">
-                      Created {new Date(template.created_at).toLocaleDateString()}
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Created{" "}
+                      {new Date(template.created_at).toLocaleDateString()}
                     </p>
                   </div>
                   <Button variant="outline" size="sm">
@@ -124,8 +142,8 @@ export default async function SystemTemplatesPage() {
               ))}
             </div>
           ) : (
-            <div className="text-muted-foreground text-center py-8">
-              <FileText className="mx-auto h-12 w-12 mb-2 opacity-50" />
+            <div className="text-muted-foreground py-8 text-center">
+              <FileText className="mx-auto mb-2 h-12 w-12 opacity-50" />
               <p>No system-wide templates yet</p>
               <p className="text-sm">Create templates that all BUs can use</p>
             </div>
@@ -138,7 +156,7 @@ export default async function SystemTemplatesPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Unlock className="h-5 w-5 text-muted-foreground" />
+              <Unlock className="text-muted-foreground h-5 w-5" />
               <CardTitle>Business Unit Templates</CardTitle>
             </div>
             <CardDescription>
@@ -164,7 +182,9 @@ export default async function SystemTemplatesPage() {
                     </p>
                   </div>
                   <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/management/forms/${template.business_unit_id}`}>
+                    <Link
+                      href={`/management/forms/${template.business_unit_id}`}
+                    >
                       View in BU
                     </Link>
                   </Button>

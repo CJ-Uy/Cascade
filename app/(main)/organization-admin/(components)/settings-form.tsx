@@ -18,7 +18,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Upload, X, Settings as SettingsIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
@@ -45,7 +51,9 @@ interface SettingsFormNewProps {
 }
 
 export function SettingsFormNew({ organization }: SettingsFormNewProps) {
-  const [logoPreview, setLogoPreview] = useState<string | null>(organization.logo_url);
+  const [logoPreview, setLogoPreview] = useState<string | null>(
+    organization.logo_url,
+  );
   const [isUploading, setIsUploading] = useState(false);
 
   const form = useForm<SettingsFormValues>({
@@ -64,7 +72,9 @@ export function SettingsFormNew({ organization }: SettingsFormNewProps) {
     setLogoPreview(organization.logo_url);
   }, [organization, form]);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -100,9 +110,9 @@ export function SettingsFormNew({ organization }: SettingsFormNewProps) {
       if (uploadError) throw uploadError;
 
       // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from("public")
-        .getPublicUrl(filePath);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("public").getPublicUrl(filePath);
 
       setLogoPreview(publicUrl);
       form.setValue("logo_url", publicUrl);
@@ -137,7 +147,7 @@ export function SettingsFormNew({ organization }: SettingsFormNewProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <SettingsIcon className="h-5 w-5 text-primary" />
+          <SettingsIcon className="text-primary h-5 w-5" />
           <CardTitle>Organization Settings</CardTitle>
         </div>
         <CardDescription>
@@ -146,10 +156,7 @@ export function SettingsFormNew({ organization }: SettingsFormNewProps) {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-6"
-          >
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
               name="name"
@@ -170,7 +177,8 @@ export function SettingsFormNew({ organization }: SettingsFormNewProps) {
             <div className="space-y-4">
               <Label>Organization Logo</Label>
               <FormDescription>
-                Upload a logo for your organization. Recommended size: 200x200px. Max file size: 2MB.
+                Upload a logo for your organization. Recommended size:
+                200x200px. Max file size: 2MB.
               </FormDescription>
 
               <div className="flex items-start gap-4">
@@ -185,7 +193,7 @@ export function SettingsFormNew({ organization }: SettingsFormNewProps) {
                       type="button"
                       variant="destructive"
                       size="icon"
-                      className="absolute -right-2 -top-2 h-6 w-6 rounded-full"
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
                       onClick={handleRemoveLogo}
                     >
                       <X className="h-4 w-4" />
@@ -193,7 +201,7 @@ export function SettingsFormNew({ organization }: SettingsFormNewProps) {
                   </div>
                 ) : (
                   <div className="flex h-32 w-32 items-center justify-center rounded-lg border border-dashed">
-                    <Upload className="h-8 w-8 text-muted-foreground" />
+                    <Upload className="text-muted-foreground h-8 w-8" />
                   </div>
                 )}
 
@@ -211,7 +219,9 @@ export function SettingsFormNew({ organization }: SettingsFormNewProps) {
                       type="button"
                       variant="outline"
                       disabled={isUploading}
-                      onClick={() => document.getElementById("logo-upload")?.click()}
+                      onClick={() =>
+                        document.getElementById("logo-upload")?.click()
+                      }
                       className="gap-2"
                     >
                       <Upload className="h-4 w-4" />
@@ -228,7 +238,10 @@ export function SettingsFormNew({ organization }: SettingsFormNewProps) {
                   <FormItem>
                     <FormLabel>Or enter logo URL</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="https://example.com/logo.png" />
+                      <Input
+                        {...field}
+                        placeholder="https://example.com/logo.png"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -237,7 +250,11 @@ export function SettingsFormNew({ organization }: SettingsFormNewProps) {
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit" disabled={form.formState.isSubmitting} className="gap-2">
+              <Button
+                type="submit"
+                disabled={form.formState.isSubmitting}
+                className="gap-2"
+              >
                 {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
               </Button>
             </div>

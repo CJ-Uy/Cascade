@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import Link from "next/link";
 import { EditBuDialog } from "./edit-bu-dialog";
 import { useRouter } from "next/navigation";
@@ -36,9 +42,13 @@ export function BusinessUnitsTabNew({
 }: BusinessUnitsTabNewProps) {
   const router = useRouter();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedBu, setSelectedBu] = useState<BusinessUnitWithHead | null>(null);
+  const [selectedBu, setSelectedBu] = useState<BusinessUnitWithHead | null>(
+    null,
+  );
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [buToDelete, setBuToDelete] = useState<BusinessUnitWithHead | null>(null);
+  const [buToDelete, setBuToDelete] = useState<BusinessUnitWithHead | null>(
+    null,
+  );
 
   const handleEdit = (bu: BusinessUnitWithHead) => {
     setSelectedBu(bu);
@@ -55,7 +65,9 @@ export function BusinessUnitsTabNew({
 
     const result = await deleteBusinessUnitAction(buToDelete.id);
     if (result.error) {
-      toast.error("Failed to delete business unit", { description: result.error });
+      toast.error("Failed to delete business unit", {
+        description: result.error,
+      });
     } else {
       toast.success("Business unit deleted successfully");
       router.refresh();
@@ -77,7 +89,7 @@ export function BusinessUnitsTabNew({
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" />
+              <Building2 className="text-primary h-5 w-5" />
               <CardTitle>Business Units</CardTitle>
             </div>
             <CardDescription>
@@ -115,13 +127,16 @@ export function BusinessUnitsTabNew({
         />
       )}
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the business unit "{buToDelete?.name}".
-              This action cannot be undone.
+              This will permanently delete the business unit "{buToDelete?.name}
+              ". This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

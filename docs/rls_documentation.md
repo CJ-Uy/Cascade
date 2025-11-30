@@ -22,6 +22,7 @@ This document summarizes the critical security fixes applied to the Cascade data
 **Problem:** Tables had overly permissive RLS policies with `USING (true)` that allowed any authenticated user to access all data.
 
 **Fixed Tables:**
+
 - ✅ `requisitions` - Now scoped to user's business units
 - ✅ `requisition_values` - Scoped via parent requisition
 - ✅ `comments` - Scoped to requisitions in user's BUs
@@ -39,6 +40,7 @@ This document summarizes the critical security fixes applied to the Cascade data
 **Problem:** Chat tables had RLS policies defined but RLS was not enabled on the tables, making the policies completely ineffective.
 
 **Fixed Tables:**
+
 - ✅ `chat_messages` - RLS now enabled
 - ✅ `chat_participants` - RLS now enabled
 - ✅ `chats` - RLS now enabled
@@ -46,6 +48,7 @@ This document summarizes the critical security fixes applied to the Cascade data
 ## Security Improvements
 
 ### Business Unit Isolation
+
 Users can now only access requisition-related data from business units they belong to:
 
 ```sql
@@ -59,6 +62,7 @@ EXISTS (
 ```
 
 ### Organization Isolation
+
 User and role data is scoped to the same organization:
 
 ```sql
@@ -75,6 +79,7 @@ EXISTS (
 ```
 
 ### Chat Participation Scoping
+
 Chat data requires active participation:
 
 ```sql
@@ -88,6 +93,7 @@ EXISTS (
 ```
 
 ### Creator/Owner Validation
+
 INSERT policies verify the user is the creator/initiator:
 
 ```sql
@@ -104,48 +110,55 @@ AND initiator_id = auth.uid()
 ## Verification
 
 ### All Tables Now Have RLS Enabled
+
 ```
 ✅ 24/24 tables in public schema have RLS enabled
 ```
 
 ### No Insecure Policies Remain
+
 ```
 ✅ 0 tables with USING (true) policies on critical data
 ```
 
 ### Policy Coverage
-| Table | Policies | Status |
-|-------|----------|--------|
-| requisitions | 3 (SELECT, INSERT, UPDATE) | ✅ Secure |
-| requisition_values | 3 (SELECT, INSERT, UPDATE) | ✅ Secure |
-| comments | 2 (SELECT, INSERT) | ✅ Secure |
-| attachments | 2 (SELECT, INSERT) | ✅ Secure |
-| chat_messages | 2 (SELECT, INSERT) | ✅ Secure |
-| chat_participants | 3 (SELECT, INSERT, DELETE) | ✅ Secure |
-| chats | 2 (SELECT, INSERT) | ✅ Secure |
-| user_business_units | 2 (SELECT + BU Admin) | ✅ Secure |
+
+| Table                 | Policies                    | Status    |
+| --------------------- | --------------------------- | --------- |
+| requisitions          | 3 (SELECT, INSERT, UPDATE)  | ✅ Secure |
+| requisition_values    | 3 (SELECT, INSERT, UPDATE)  | ✅ Secure |
+| comments              | 2 (SELECT, INSERT)          | ✅ Secure |
+| attachments           | 2 (SELECT, INSERT)          | ✅ Secure |
+| chat_messages         | 2 (SELECT, INSERT)          | ✅ Secure |
+| chat_participants     | 3 (SELECT, INSERT, DELETE)  | ✅ Secure |
+| chats                 | 2 (SELECT, INSERT)          | ✅ Secure |
+| user_business_units   | 2 (SELECT + BU Admin)       | ✅ Secure |
 | user_role_assignments | 6 (SELECT + Admin policies) | ✅ Secure |
 
 ## Testing Recommendations
 
 ### 1. Test Business Unit Isolation
+
 - Create a user in BU A
 - Create a user in BU B
 - Verify BU A user cannot see BU B's requisitions
 - Verify BU B user cannot see BU A's requisitions
 
 ### 2. Test Organization Isolation
+
 - Create users in Org A
 - Create users in Org B
 - Verify Org A users cannot see Org B's users/roles
 - Verify Org B users cannot see Org A's users/roles
 
 ### 3. Test Chat Participation
+
 - Create a chat with User A and User B
 - Verify User C cannot see the chat or its messages
 - Verify User A and User B can both see messages
 
 ### 4. Test Creator/Owner Validation
+
 - Try to create a requisition with initiator_id set to another user
 - Should fail due to WITH CHECK constraint
 
@@ -154,24 +167,29 @@ AND initiator_id = auth.uid()
 ### Run These Queries Periodically
 
 **Check for insecure policies:**
+
 ```sql
 SELECT tablename, policyname
 FROM pg_policies
 WHERE (qual = 'true' OR with_check = 'true')
 AND schemaname = 'public';
 ```
+
 Expected: 0 rows
 
 **Check for tables without RLS:**
+
 ```sql
 SELECT tablename
 FROM pg_tables
 WHERE schemaname = 'public'
 AND rowsecurity = false;
 ```
+
 Expected: 0 rows
 
 **Check for tables with policies but no RLS:**
+
 ```sql
 SELECT t.tablename, COUNT(p.policyname) as policy_count
 FROM pg_tables t
@@ -181,6 +199,7 @@ AND t.rowsecurity = false
 GROUP BY t.tablename
 HAVING COUNT(p.policyname) > 0;
 ```
+
 Expected: 0 rows
 
 ## Files Created
@@ -221,12 +240,11 @@ Now that Row Level Security (RLS) policies are properly configured, we need to r
 
 ```typescript
 // This query bypasses RLS or may fail if RLS denies access
-const { data } = await supabase
-  .from("business_units")
-  .select("*");
+const { data } = await supabase.from("business_units").select("*");
 ```
 
 **Issues:**
+
 - May return data the user shouldn't see
 - May fail with permission denied errors
 - Doesn't respect role-based access control
@@ -240,6 +258,7 @@ const { data } = await supabase.rpc("get_business_units_for_user");
 ```
 
 **Benefits:**
+
 - ✅ Centralized access control logic
 - ✅ Respects user roles and permissions
 - ✅ Consistent across the application
@@ -249,15 +268,18 @@ const { data } = await supabase.rpc("get_business_units_for_user");
 ## Migration Files
 
 ### 1. RPC Functions Migration
+
 **File:** `supabase/migrations/20251130230000_create_rls_compliant_rpc_functions.sql`
 
 This migration creates:
+
 - Helper functions for role checking
 - RPC functions for common queries
 - Proper security definer functions
 - Grant statements for authenticated users
 
 ### 2. Example Refactored Actions
+
 **File:** `app/(main)/management/business-units/actions_rls_compliant.ts`
 
 This shows the complete refactored approach for business units management.
@@ -266,43 +288,43 @@ This shows the complete refactored approach for business units management.
 
 ### Helper Functions
 
-| Function | Purpose |
-|----------|---------|
+| Function                      | Purpose                                   |
+| ----------------------------- | ----------------------------------------- |
 | `is_bu_admin_for_unit(bu_id)` | Check if user is BU Admin for specific BU |
-| `is_organization_admin()` | Check if user has Organization Admin role |
-| `is_super_admin()` | Check if user has Super Admin role |
-| `get_user_organization_id()` | Get current user's organization ID |
+| `is_organization_admin()`     | Check if user has Organization Admin role |
+| `is_super_admin()`            | Check if user has Super Admin role        |
+| `get_user_organization_id()`  | Get current user's organization ID        |
 
 ### Business Units
 
-| Function | Returns | Access Control |
-|----------|---------|----------------|
-| `get_business_units_for_user()` | All BUs user can access | Role-based filtering |
-| `get_business_unit_options()` | BU id/name for dropdowns | Role-based filtering |
+| Function                        | Returns                  | Access Control       |
+| ------------------------------- | ------------------------ | -------------------- |
+| `get_business_units_for_user()` | All BUs user can access  | Role-based filtering |
+| `get_business_unit_options()`   | BU id/name for dropdowns | Role-based filtering |
 
 ### Users
 
-| Function | Returns | Access Control |
-|----------|---------|----------------|
+| Function                      | Returns             | Access Control      |
+| ----------------------------- | ------------------- | ------------------- |
 | `get_users_in_organization()` | Users in user's org | Organization-scoped |
 
 ### Organization Admin
 
-| Function | Returns | Access Control |
-|----------|---------|----------------|
+| Function                         | Returns              | Access Control |
+| -------------------------------- | -------------------- | -------------- |
 | `get_org_admin_business_units()` | BUs with user counts | Org Admin only |
-| `get_org_admin_users()` | Users with roles/BUs | Org Admin only |
+| `get_org_admin_users()`          | Users with roles/BUs | Org Admin only |
 
 ### Requisitions
 
-| Function | Returns | Access Control |
-|----------|---------|----------------|
+| Function                         | Returns               | Access Control         |
+| -------------------------------- | --------------------- | ---------------------- |
 | `get_requisitions_for_bu(bu_id)` | Requisitions for a BU | BU membership required |
 
 ### Form Templates
 
-| Function | Returns | Access Control |
-|----------|---------|----------------|
+| Function                      | Returns            | Access Control         |
+| ----------------------------- | ------------------ | ---------------------- |
 | `get_templates_for_bu(bu_id)` | Templates for a BU | BU membership required |
 
 ## Refactoring Steps for Each File
@@ -310,6 +332,7 @@ This shows the complete refactored approach for business units management.
 ### Step 1: Identify Direct Queries
 
 Search for patterns like:
+
 ```typescript
 await supabase.from("table_name").select(...)
 await supabase.from("table_name").insert(...)
@@ -320,12 +343,14 @@ await supabase.from("table_name").delete(...)
 ### Step 2: Determine if RPC is Needed
 
 **Use RPC for:**
+
 - ✅ SELECT queries (reads)
 - ✅ Complex queries with joins
 - ✅ Queries that need role-based filtering
 - ✅ Queries used in multiple places
 
 **Direct queries OK for:**
+
 - ✅ INSERT operations (RLS WITH CHECK handles this)
 - ✅ UPDATE operations (RLS USING/WITH CHECK handles this)
 - ✅ DELETE operations (RLS USING handles this)
@@ -446,9 +471,10 @@ export async function getBusinessUnits() {
     id: bu.id,
     name: bu.name,
     createdAt: bu.created_at,
-    head: bu.head_first_name && bu.head_last_name
-      ? `${bu.head_first_name} ${bu.head_last_name}`
-      : "N/A",
+    head:
+      bu.head_first_name && bu.head_last_name
+        ? `${bu.head_first_name} ${bu.head_last_name}`
+        : "N/A",
     headEmail: bu.head_email || "N/A",
     organizationId: bu.organization_id,
   }));
@@ -519,7 +545,7 @@ For mutations (INSERT, UPDATE, DELETE), RLS policies can handle the access contr
 export async function createBusinessUnit(data: any) {
   const { data, error } = await supabase
     .from("business_units")
-    .insert([data])  // RLS WITH CHECK validates this
+    .insert([data]) // RLS WITH CHECK validates this
     .select();
 
   // ...
@@ -528,7 +554,7 @@ export async function createBusinessUnit(data: any) {
 export async function updateBusinessUnit(id: string, updates: any) {
   const { data, error } = await supabase
     .from("business_units")
-    .update(updates)  // RLS USING + WITH CHECK validates this
+    .update(updates) // RLS USING + WITH CHECK validates this
     .eq("id", id)
     .select();
 
@@ -538,7 +564,7 @@ export async function updateBusinessUnit(id: string, updates: any) {
 export async function deleteBusinessUnit(id: string) {
   const { error } = await supabase
     .from("business_units")
-    .delete()  // RLS USING validates this
+    .delete() // RLS USING validates this
     .eq("id", id);
 
   // ...
@@ -594,11 +620,13 @@ GRANT EXECUTE ON FUNCTION function_name() TO authenticated;
 ## Common Patterns
 
 ### Pattern 1: Organization-Scoped Query
+
 ```sql
 WHERE table.organization_id = get_user_organization_id()
 ```
 
 ### Pattern 2: Business Unit-Scoped Query
+
 ```sql
 WHERE EXISTS (
   SELECT 1
@@ -609,6 +637,7 @@ WHERE EXISTS (
 ```
 
 ### Pattern 3: Role-Based Access
+
 ```sql
 IF is_super_admin() THEN
   -- Return all data
@@ -641,6 +670,7 @@ END IF;
 ---
 
 **Status Legend:**
+
 - ✅ Complete
 - ⏳ In Progress
 - ❌ Not Started
@@ -655,9 +685,11 @@ END IF;
 ### Business Units
 
 #### `get_business_units_for_user()`
+
 Returns business units based on user's role.
 
 **TypeScript Usage:**
+
 ```typescript
 const { data, error } = await supabase.rpc("get_business_units_for_user");
 
@@ -675,6 +707,7 @@ const { data, error } = await supabase.rpc("get_business_units_for_user");
 ```
 
 **Access Control:**
+
 - Super Admin: All business units
 - Organization Admin: All BUs in their organization
 - Regular users: BUs they belong to
@@ -682,9 +715,11 @@ const { data, error } = await supabase.rpc("get_business_units_for_user");
 ---
 
 #### `get_business_unit_options()`
+
 Returns id/name pairs for dropdowns.
 
 **TypeScript Usage:**
+
 ```typescript
 const { data, error } = await supabase.rpc("get_business_unit_options");
 
@@ -700,9 +735,11 @@ const { data, error } = await supabase.rpc("get_business_unit_options");
 ### Users
 
 #### `get_users_in_organization()`
+
 Returns users in the current user's organization.
 
 **TypeScript Usage:**
+
 ```typescript
 const { data, error } = await supabase.rpc("get_users_in_organization");
 
@@ -717,6 +754,7 @@ const { data, error } = await supabase.rpc("get_users_in_organization");
 ```
 
 **Access Control:**
+
 - Super Admin: All users
 - Others: Users in their organization only
 
@@ -725,12 +763,14 @@ const { data, error } = await supabase.rpc("get_users_in_organization");
 ### Requisitions
 
 #### `get_requisitions_for_bu(bu_id)`
+
 Returns requisitions for a specific business unit.
 
 **TypeScript Usage:**
+
 ```typescript
 const { data, error } = await supabase.rpc("get_requisitions_for_bu", {
-  bu_id: "uuid-here"
+  bu_id: "uuid-here",
 });
 
 // Returns:
@@ -745,6 +785,7 @@ const { data, error } = await supabase.rpc("get_requisitions_for_bu", {
 ```
 
 **Access Control:**
+
 - Throws exception if user doesn't have access to the BU
 
 ---
@@ -752,9 +793,11 @@ const { data, error } = await supabase.rpc("get_requisitions_for_bu", {
 ### Organization Admin
 
 #### `get_org_admin_business_units()`
+
 Returns business units with user counts for org admin dashboard.
 
 **TypeScript Usage:**
+
 ```typescript
 const { data, error } = await supabase.rpc("get_org_admin_business_units");
 
@@ -771,15 +814,18 @@ const { data, error } = await supabase.rpc("get_org_admin_business_units");
 ```
 
 **Access Control:**
+
 - Organization Admin and Super Admin only
 - Throws exception for others
 
 ---
 
 #### `get_org_admin_users()`
+
 Returns users with their roles and business units.
 
 **TypeScript Usage:**
+
 ```typescript
 const { data, error } = await supabase.rpc("get_org_admin_users");
 
@@ -800,6 +846,7 @@ const { data, error } = await supabase.rpc("get_org_admin_users");
 ```
 
 **Access Control:**
+
 - Organization Admin and Super Admin only
 
 ---
@@ -807,12 +854,14 @@ const { data, error } = await supabase.rpc("get_org_admin_users");
 ### Form Templates
 
 #### `get_templates_for_bu(bu_id)`
+
 Returns form templates for a business unit.
 
 **TypeScript Usage:**
+
 ```typescript
 const { data, error } = await supabase.rpc("get_templates_for_bu", {
-  bu_id: "uuid-here"
+  bu_id: "uuid-here",
 });
 
 // Returns:
@@ -827,6 +876,7 @@ const { data, error } = await supabase.rpc("get_templates_for_bu", {
 ```
 
 **Access Control:**
+
 - Throws exception if user doesn't have access to the BU
 
 ---
@@ -834,12 +884,14 @@ const { data, error } = await supabase.rpc("get_templates_for_bu", {
 ### Helper Functions
 
 #### `is_bu_admin_for_unit(bu_id)`
+
 Check if user is BU Admin for a specific business unit.
 
 **TypeScript Usage:**
+
 ```typescript
 const { data, error } = await supabase.rpc("is_bu_admin_for_unit", {
-  bu_id: "uuid-here"
+  bu_id: "uuid-here",
 });
 
 // Returns: boolean
@@ -848,9 +900,11 @@ const { data, error } = await supabase.rpc("is_bu_admin_for_unit", {
 ---
 
 #### `is_organization_admin()`
+
 Check if user has Organization Admin role.
 
 **TypeScript Usage:**
+
 ```typescript
 const { data, error } = await supabase.rpc("is_organization_admin");
 
@@ -860,9 +914,11 @@ const { data, error } = await supabase.rpc("is_organization_admin");
 ---
 
 #### `is_super_admin()`
+
 Check if user has Super Admin role.
 
 **TypeScript Usage:**
+
 ```typescript
 const { data, error } = await supabase.rpc("is_super_admin");
 
@@ -872,9 +928,11 @@ const { data, error } = await supabase.rpc("is_super_admin");
 ---
 
 #### `get_user_organization_id()`
+
 Get current user's organization ID.
 
 **TypeScript Usage:**
+
 ```typescript
 const { data, error } = await supabase.rpc("get_user_organization_id");
 

@@ -1,12 +1,28 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Building2, Plus, ArrowRight, Users, FileText, Workflow } from "lucide-react";
+import {
+  Building2,
+  Plus,
+  ArrowRight,
+  Users,
+  FileText,
+  Workflow,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-async function checkOrgAdminRole(supabase: any, userId: string): Promise<boolean> {
+async function checkOrgAdminRole(
+  supabase: any,
+  userId: string,
+): Promise<boolean> {
   const { data, error } = await supabase
     .from("user_role_assignments")
     .select("roles(name)")
@@ -17,7 +33,9 @@ async function checkOrgAdminRole(supabase: any, userId: string): Promise<boolean
     return false;
   }
 
-  return data.some((assignment: any) => assignment.roles.name === "Organization Admin");
+  return data.some(
+    (assignment: any) => assignment.roles.name === "Organization Admin",
+  );
 }
 
 export default async function BusinessUnitsPage() {
@@ -49,7 +67,8 @@ export default async function BusinessUnitsPage() {
   // Fetch business units with detailed information
   const { data: businessUnits } = await supabase
     .from("business_units")
-    .select(`
+    .select(
+      `
       id,
       name,
       created_at,
@@ -57,7 +76,8 @@ export default async function BusinessUnitsPage() {
       user_business_units(count),
       requisition_templates(count),
       approval_workflows(count)
-    `)
+    `,
+    )
     .eq("organization_id", profile.organization_id);
 
   return (
@@ -65,8 +85,10 @@ export default async function BusinessUnitsPage() {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Building2 className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight">Business Units</h1>
+            <Building2 className="text-primary h-8 w-8" />
+            <h1 className="text-3xl font-bold tracking-tight">
+              Business Units
+            </h1>
           </div>
           <p className="text-muted-foreground">
             Manage all business units in {profile.organizations?.name}
@@ -100,44 +122,51 @@ export default async function BusinessUnitsPage() {
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                        <CardTitle className="group-hover:text-primary text-xl transition-colors">
                           {bu.name}
                         </CardTitle>
                         <CardDescription className="mt-1.5">
                           {headName ? (
                             <div className="flex items-center gap-1">
-                              <span className="font-medium">Head:</span> {headName}
+                              <span className="font-medium">Head:</span>{" "}
+                              {headName}
                             </div>
                           ) : (
                             <Badge variant="secondary">No Head Assigned</Badge>
                           )}
                         </CardDescription>
                       </div>
-                      <ArrowRight className="h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-1" />
+                      <ArrowRight className="text-muted-foreground h-5 w-5 transition-transform group-hover:translate-x-1" />
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-3 gap-2 text-sm">
                       <div className="flex flex-col">
-                        <div className="flex items-center gap-1 text-muted-foreground">
+                        <div className="text-muted-foreground flex items-center gap-1">
                           <Users className="h-3 w-3" />
                           <span className="text-xs">Members</span>
                         </div>
-                        <span className="text-lg font-semibold">{memberCount}</span>
+                        <span className="text-lg font-semibold">
+                          {memberCount}
+                        </span>
                       </div>
                       <div className="flex flex-col">
-                        <div className="flex items-center gap-1 text-muted-foreground">
+                        <div className="text-muted-foreground flex items-center gap-1">
                           <FileText className="h-3 w-3" />
                           <span className="text-xs">Templates</span>
                         </div>
-                        <span className="text-lg font-semibold">{templateCount}</span>
+                        <span className="text-lg font-semibold">
+                          {templateCount}
+                        </span>
                       </div>
                       <div className="flex flex-col">
-                        <div className="flex items-center gap-1 text-muted-foreground">
+                        <div className="text-muted-foreground flex items-center gap-1">
                           <Workflow className="h-3 w-3" />
                           <span className="text-xs">Workflows</span>
                         </div>
-                        <span className="text-lg font-semibold">{workflowCount}</span>
+                        <span className="text-lg font-semibold">
+                          {workflowCount}
+                        </span>
                       </div>
                     </div>
                     <div className="text-muted-foreground text-xs">
@@ -152,11 +181,12 @@ export default async function BusinessUnitsPage() {
       ) : (
         <Card>
           <CardContent className="flex min-h-[300px] flex-col items-center justify-center gap-4 py-12">
-            <Building2 className="h-16 w-16 text-muted-foreground/50" />
+            <Building2 className="text-muted-foreground/50 h-16 w-16" />
             <div className="space-y-2 text-center">
               <h3 className="text-lg font-semibold">No business units yet</h3>
               <p className="text-muted-foreground max-w-sm">
-                Get started by creating your first business unit to organize your organization
+                Get started by creating your first business unit to organize
+                your organization
               </p>
             </div>
             <Button asChild className="gap-2">

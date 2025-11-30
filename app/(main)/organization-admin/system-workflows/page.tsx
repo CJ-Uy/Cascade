@@ -1,12 +1,28 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Workflow, Plus, Lock, Unlock, CheckCircle, XCircle } from "lucide-react";
+import {
+  Workflow,
+  Plus,
+  Lock,
+  Unlock,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-async function checkOrgAdminRole(supabase: any, userId: string): Promise<boolean> {
+async function checkOrgAdminRole(
+  supabase: any,
+  userId: string,
+): Promise<boolean> {
   const { data, error } = await supabase
     .from("user_role_assignments")
     .select("roles(name)")
@@ -17,7 +33,9 @@ async function checkOrgAdminRole(supabase: any, userId: string): Promise<boolean
     return false;
   }
 
-  return data.some((assignment: any) => assignment.roles.name === "Organization Admin");
+  return data.some(
+    (assignment: any) => assignment.roles.name === "Organization Admin",
+  );
 }
 
 export default async function SystemWorkflowsPage() {
@@ -49,7 +67,8 @@ export default async function SystemWorkflowsPage() {
   // Fetch organization-level workflows
   const { data: workflows } = await supabase
     .from("approval_workflows")
-    .select(`
+    .select(
+      `
       id,
       name,
       description,
@@ -57,24 +76,28 @@ export default async function SystemWorkflowsPage() {
       created_at,
       business_unit_id,
       business_units(name)
-    `)
+    `,
+    )
     .eq("organization_id", profile.organization_id)
     .order("created_at", { ascending: false });
 
   // Group workflows by whether they're system-wide or BU-specific
-  const systemWorkflows = workflows?.filter(w => !w.business_unit_id) || [];
-  const buWorkflows = workflows?.filter(w => w.business_unit_id) || [];
+  const systemWorkflows = workflows?.filter((w) => !w.business_unit_id) || [];
+  const buWorkflows = workflows?.filter((w) => w.business_unit_id) || [];
 
   return (
     <div className="container mx-auto space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Workflow className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight">System Workflows</h1>
+            <Workflow className="text-primary h-8 w-8" />
+            <h1 className="text-3xl font-bold tracking-tight">
+              System Workflows
+            </h1>
           </div>
           <p className="text-muted-foreground">
-            Manage organization-wide approval workflows for {profile.organizations?.name}
+            Manage organization-wide approval workflows for{" "}
+            {profile.organizations?.name}
           </p>
         </div>
         <Button asChild className="gap-2">
@@ -88,8 +111,10 @@ export default async function SystemWorkflowsPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">System Workflows</CardTitle>
-            <Lock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">
+              System Workflows
+            </CardTitle>
+            <Lock className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{systemWorkflows.length}</div>
@@ -99,11 +124,13 @@ export default async function SystemWorkflowsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">BU Workflows</CardTitle>
-            <Unlock className="h-4 w-4 text-muted-foreground" />
+            <Unlock className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{buWorkflows.length}</div>
-            <p className="text-muted-foreground text-xs">business unit specific</p>
+            <p className="text-muted-foreground text-xs">
+              business unit specific
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -112,11 +139,12 @@ export default async function SystemWorkflowsPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Lock className="h-5 w-5 text-primary" />
+            <Lock className="text-primary h-5 w-5" />
             <CardTitle>Organization-Wide Workflows</CardTitle>
           </div>
           <CardDescription>
-            These workflows can be mandated for all business units or suggested as best practices
+            These workflows can be mandated for all business units or suggested
+            as best practices
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -146,8 +174,9 @@ export default async function SystemWorkflowsPage() {
                     <p className="text-muted-foreground text-sm">
                       {workflow.description || "No description"}
                     </p>
-                    <p className="text-muted-foreground text-xs mt-1">
-                      Created {new Date(workflow.created_at).toLocaleDateString()}
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Created{" "}
+                      {new Date(workflow.created_at).toLocaleDateString()}
                     </p>
                   </div>
                   <Button variant="outline" size="sm">
@@ -157,10 +186,12 @@ export default async function SystemWorkflowsPage() {
               ))}
             </div>
           ) : (
-            <div className="text-muted-foreground text-center py-8">
-              <Workflow className="mx-auto h-12 w-12 mb-2 opacity-50" />
+            <div className="text-muted-foreground py-8 text-center">
+              <Workflow className="mx-auto mb-2 h-12 w-12 opacity-50" />
               <p>No system-wide workflows yet</p>
-              <p className="text-sm">Create workflows that can be used across all BUs</p>
+              <p className="text-sm">
+                Create workflows that can be used across all BUs
+              </p>
             </div>
           )}
         </CardContent>
@@ -171,7 +202,7 @@ export default async function SystemWorkflowsPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Unlock className="h-5 w-5 text-muted-foreground" />
+              <Unlock className="text-muted-foreground h-5 w-5" />
               <CardTitle>Business Unit Workflows</CardTitle>
             </div>
             <CardDescription>
@@ -208,7 +239,9 @@ export default async function SystemWorkflowsPage() {
                     </p>
                   </div>
                   <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/management/approval-workflows/${workflow.business_unit_id}`}>
+                    <Link
+                      href={`/management/approval-workflows/${workflow.business_unit_id}`}
+                    >
                       View in BU
                     </Link>
                   </Button>
