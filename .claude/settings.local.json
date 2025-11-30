@@ -5,7 +5,11 @@
       "Bash(npx supabase gen types:*)",
       "Bash(lib/database.types.ts)",
       "Bash(cat:*)",
-      "Bash(npx supabase --help)"
+      "Bash(npx supabase --help)",
+      "Bash(npx supabase db remote list-policies:*)",
+      "Bash(npx supabase:*)",
+      "Bash(findstr:*)",
+      "Bash(psql:*)"
     ],
     "deny": [],
     "ask": []
