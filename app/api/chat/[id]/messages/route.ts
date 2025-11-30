@@ -64,15 +64,6 @@ export async function GET(
           ? message.profiles[0]
           : message.profiles;
 
-        // Debug logging
-        console.log("Message profile data:", {
-          messageId: message.id,
-          senderId: message.sender_id,
-          profile: profile,
-          profileType: typeof profile,
-          isArray: Array.isArray(message.profiles),
-        });
-
         return {
           id: message.id,
           content: message.content,

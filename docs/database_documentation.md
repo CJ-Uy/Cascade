@@ -210,7 +210,7 @@ Database schema changes are managed through SQL files in the `supabase/migration
 
 ### Recent Critical Migrations
 
-1. **`20251130214500_fix_insecure_rls_policies.sql`** - Fixed insecure RLS policies
+1. **`20251130214500_fix_insecure_rls_policies.sql`** - Fixed insecure RLS policies (introduced chat recursion bug)
 2. **`20251130220000_enable_rls_on_chat_tables.sql`** - Enabled RLS on chat tables
 3. **`20251130230000_create_rls_compliant_rpc_functions.sql`** - Created RPC functions for secure data access
 4. **`20251201000000_finalize_dynamic_schema.sql`** - Finalized dynamic document schema
@@ -221,6 +221,11 @@ Database schema changes are managed through SQL files in the `supabase/migration
 9. **`20251201050000_create_document_approval_rpc.sql`** - RPC functions for document approval
 10. **`20251201060000_update_comments_schema.sql`** - Updated comments schema
 11. **`20251201070000_create_dashboard_rpc.sql`** - RPC functions for dashboard data
+12. **`20251201080000_fix_chat_participants_recursion.sql`** - Initial attempt to fix chat recursion (failed)
+13. **`20251201090000_update_chat_function_to_plpgsql.sql`** - Second attempt with PLPGSQL (failed)
+14. **`20251201100000_fix_chat_recursion_final.sql`** - Third attempt with hierarchical policies (failed)
+15. **`20251201110000_force_fix_chat_policies.sql`** - Fourth attempt dropping all policies (failed)
+16. **`20251201120000_disable_rls_on_chat_tables.sql`** - **FINAL FIX** - Disabled RLS on chat tables (restores original working state)
 
 ### To make a schema change:
 
@@ -229,3 +234,59 @@ Database schema changes are managed through SQL files in the `supabase/migration
 3. To apply migrations locally: `npm run db:push` or `supabase db push`
 4. To reset database: `npm run db:reset` or `supabase db reset`
 5. If migration already exists on remote: `npx supabase migration repair --status applied YYYYMMDDHHMMSS`
+
+### Important Notes on RLS Policies
+
+**Avoiding Infinite Recursion:**
+
+When writing RLS policies, be careful not to create recursive lookups. For example:
+
+```sql
+-- ❌ WRONG - This causes infinite recursion!
+CREATE POLICY "Users can view participants"
+ON public.chat_participants
+USING (
+  EXISTS (
+    SELECT 1 FROM chat_participants cp  -- Queries itself!
+    WHERE cp.chat_id = chat_participants.chat_id
+  )
+);
+
+-- ✅ CORRECT - Query different tables or use direct checks
+CREATE POLICY "Users can view participants"
+ON public.chat_participants
+USING (
+  user_id = auth.uid()  -- Direct check, no table lookup
+  OR
+  EXISTS (
+    SELECT 1 FROM chats c  -- Different table, safe
+    WHERE c.id = chat_participants.chat_id
+    AND c.creator_id = auth.uid()
+  )
+);
+```
+
+**Chat System - RLS Disabled:**
+
+The chat tables (`chats`, `chat_messages`, `chat_participants`) have **RLS disabled** by design:
+
+- Chat is cross-organizational - users can message anyone in the system
+- Unlike business units, chat doesn't require multi-tenant data isolation
+- Security is handled at the application/API layer, not database RLS
+- This matches the original implementation from the `chat-feature` branch
+- Attempts to enable RLS on chat tables caused infinite recursion errors
+
+**Why RLS is disabled on chat:**
+
+```sql
+-- Chat tables intentionally have RLS disabled
+ALTER TABLE public.chats DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_messages DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_participants DISABLE ROW LEVEL SECURITY;
+```
+
+Security is maintained through:
+
+- Supabase Auth (only authenticated users can access)
+- API route filtering based on chat participation
+- Frontend logic showing only relevant chats

@@ -72,8 +72,6 @@ export async function GET(
       );
     }
 
-    console.log("Raw participants data:", participants);
-
     // Transform participants
     const transformedParticipants =
       participants?.map((participant) => ({

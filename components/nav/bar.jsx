@@ -174,6 +174,12 @@ export function Navbar() {
   // A 'MEMBER' is a user in a BU but with no specific role assigned.
   const permissionLevel = currentBuPermission?.permission_level || "MEMBER";
 
+  // Helper function to get middle initial
+  const getMiddleInitial = (middleName) => {
+    if (!middleName) return null;
+    return middleName.charAt(0).toUpperCase() + ".";
+  };
+
   // 3. Construct the full name robustly
   const fullName = [
     profile.first_name,

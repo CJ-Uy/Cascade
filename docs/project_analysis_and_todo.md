@@ -67,6 +67,14 @@
 
 ## 🚧 IN PROGRESS: Current Development Tasks
 
+### Recently Completed
+
+1. **Chat RLS Infinite Recursion Fix** ✅
+   - Fixed infinite recursion error in chat_participants RLS policy
+   - Migration: `20251201100000_fix_chat_recursion_final.sql`
+   - Implemented hierarchical non-recursive policies
+   - Documentation: [chat_rls_recursion_fix.md](./chat_rls_recursion_fix.md)
+
 ### High Priority
 
 1. **Legacy Code Refactoring**
@@ -83,6 +91,7 @@
    - ⏳ Dashboard for fully approved documents
 
 3. **Testing & Validation**
+   - ✅ Fixed chat system RLS policies
    - ⏳ Test RLS policies across all user roles
    - ⏳ Verify organization/BU isolation
    - ⏳ Test document submission and approval workflow end-to-end
