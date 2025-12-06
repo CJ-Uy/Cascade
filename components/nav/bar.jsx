@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useSession } from "@/app/contexts/SessionProvider";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { useState } from "react";
 import {
   Sidebar,
   SidebarHeader,
@@ -59,6 +60,9 @@ import {
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { createClient } from "@/lib/supabase/client";
 import { AnimatedSection } from "@/components/nav/animated-section";
+import { BuSelector } from "@/components/nav/bu-selector";
+import { OrgSelector } from "@/components/nav/org-selector";
+import { AdminBuSelector } from "@/components/nav/admin-bu-selector";
 
 const generalItems = [
   {
@@ -163,6 +167,10 @@ export function Navbar() {
     selectedBuId,
   } = useSession();
 
+  // State for Super Admin organization and BU selection
+  const [adminSelectedOrgId, setAdminSelectedOrgId] = useState(null);
+  const [adminSelectedBuId, setAdminSelectedBuId] = useState(null);
+
   if (!authContext) {
     // User is logged out, show a minimal state or nothing
     return null;
@@ -173,6 +181,9 @@ export function Navbar() {
   // 2. Determine the user's permission level for the currently selected BU
   // A 'MEMBER' is a user in a BU but with no specific role assigned.
   const permissionLevel = currentBuPermission?.permission_level || "MEMBER";
+
+  // Get all BUs the user has access to (for Super Admins and Org Admins, show all their BUs)
+  const accessibleBUs = authContext?.bu_permissions || [];
 
   // Helper function to get middle initial
   const getMiddleInitial = (middleName) => {
@@ -227,105 +238,181 @@ export function Navbar() {
             />
           </Link>
         </div>
-        <NotificationBell />
       </SidebarHeader>
 
       <SidebarContent>
-        {/* General */}
+        {/* 1. General Section */}
         <SidebarGroup>
           <SidebarGroupLabel>General</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {generalItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={path === item.url}>
-                    <a href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {/* Dashboard */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={path === "/dashboard"}>
+                  <a href="/dashboard">
+                    <Home className="h-4 w-4" />
+                    <span>Dashboard</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Notifications - Custom component */}
+              <SidebarMenuItem>
+                <NotificationBell />
+              </SidebarMenuItem>
+
+              {/* Chat */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={path === "/chat"}>
+                  <a href="/chat">
+                    <MessagesSquare className="h-4 w-4" />
+                    <span>Chat</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Settings */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={path === "/settings"}>
+                  <a href="/settings">
+                    <Settings className="h-4 w-4" />
+                    <span>Settings</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Group 1: Requisitions (Visible to almost everyone EXCEPT Super Admins) */}
-        {!hasSystemRole("Super Admin") && (
+        {/* 2. Organization Admin Section */}
+        {hasOrgAdminRole() && (
           <SidebarGroup>
-            <AnimatedSection title="Requisitions">
+            <AnimatedSection
+              title="Organization Admin"
+              titleClassName="text-primary"
+            >
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {requisitionItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={path.startsWith(item.url)}
-                      >
-                        <Link href={`${item.url}/${selectedBuId}`}>
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {orgAdminItems.map((item) => {
+                    const isActive =
+                      item.url === "/organization-admin"
+                        ? path === "/organization-admin" ||
+                          path.startsWith("/organization-admin?")
+                        : path.startsWith(item.url);
+
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild isActive={isActive}>
+                          <Link href={item.url}>
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </AnimatedSection>
           </SidebarGroup>
         )}
 
-        {/* Group 2: Approvals (Visible to Approvers, BU Admins, and System Admins) */}
-        {(permissionLevel === "APPROVER" ||
-          permissionLevel === "BU_ADMIN" ||
-          hasSystemRole("SYSTEM_ADMIN")) && (
+        {/* 3. Business Unit Specific Sections - For non-Super Admin users */}
+        {!hasSystemRole("Super Admin") &&
+        ((selectedBuId && currentBuPermission) || hasOrgAdminRole()) ? (
           <SidebarGroup>
-            <SidebarGroupLabel>Approvals</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {approvalItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={path.startsWith(item.url)}
-                    >
-                      <Link href={`${item.url}/${selectedBuId}`}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+            <AnimatedSection
+              title={
+                currentBuPermission?.business_unit_name || "Business Units"
+              }
+              titleClassName="text-blue-600 dark:text-blue-400 font-semibold"
+            >
+              <SidebarGroupContent>
+                {/* BU Selector - Inside BU category */}
+                <div className="mb-3">
+                  <BuSelector />
+                </div>
+                <SidebarMenu>
+                  {/* Requisitions Dropdown - Visible to Members, Approvers, BU Admins, Org Admins */}
+                  {(permissionLevel === "MEMBER" ||
+                    permissionLevel === "APPROVER" ||
+                    permissionLevel === "BU_ADMIN" ||
+                    hasOrgAdminRole()) && (
+                    <SidebarMenuItem>
+                      <AnimatedSection title="Requisitions" isNested>
+                        <SidebarMenuSub>
+                          {requisitionItems.map((item) => (
+                            <SidebarMenuSubItem key={item.title}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={path.startsWith(item.url)}
+                              >
+                                <Link href={`${item.url}/${selectedBuId}`}>
+                                  <item.icon className="h-4 w-4" />
+                                  <span>{item.title}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </AnimatedSection>
+                    </SidebarMenuItem>
+                  )}
 
-        {/* Group 3: Management (Visible to BU Admins and System Admins) */}
-        {(permissionLevel === "BU_ADMIN" || hasSystemRole("SYSTEM_ADMIN")) && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Management</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {adminItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={path.startsWith(item.url)}
-                    >
-                      <Link href={`${item.url}/${selectedBuId}`}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+                  {/* Approvals Dropdown - Visible to Approvers, BU Admins, Org Admins */}
+                  {(permissionLevel === "APPROVER" ||
+                    permissionLevel === "BU_ADMIN" ||
+                    hasOrgAdminRole()) && (
+                    <SidebarMenuItem>
+                      <AnimatedSection title="Approvals" isNested>
+                        <SidebarMenuSub>
+                          {approvalItems.map((item) => (
+                            <SidebarMenuSubItem key={item.title}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={path.startsWith(item.url)}
+                              >
+                                <Link href={`${item.url}/${selectedBuId}`}>
+                                  <item.icon className="h-4 w-4" />
+                                  <span>{item.title}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </AnimatedSection>
+                    </SidebarMenuItem>
+                  )}
 
-        {/* Group 4: System Administration (Visible ONLY to System Admins) */}
+                  {/* Management Dropdown - Visible to BU Admins and Org Admins */}
+                  {(permissionLevel === "BU_ADMIN" || hasOrgAdminRole()) && (
+                    <SidebarMenuItem>
+                      <AnimatedSection title="Management" isNested>
+                        <SidebarMenuSub>
+                          {adminItems.map((item) => (
+                            <SidebarMenuSubItem key={item.title}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={path.startsWith(item.url)}
+                              >
+                                <Link href={`${item.url}/${selectedBuId}`}>
+                                  <item.icon className="h-4 w-4" />
+                                  <span>{item.title}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </AnimatedSection>
+                    </SidebarMenuItem>
+                  )}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </AnimatedSection>
+          </SidebarGroup>
+        ) : null}
+
+        {/* 4. System Administration (Visible ONLY to System Admins) */}
         {hasSystemRole("Super Admin") && (
           <SidebarGroup>
             <AnimatedSection
@@ -353,35 +440,100 @@ export function Navbar() {
           </SidebarGroup>
         )}
 
-        {/* Group 5: Organization Administration (Visible ONLY to Organization Admins) */}
-        {hasOrgAdminRole() && (
+        {/* 5. Business Units Section for Super Admins */}
+        {hasSystemRole("Super Admin") && (
           <SidebarGroup>
             <AnimatedSection
-              title="Organization Admin"
-              titleClassName="text-primary"
+              title="Business Units"
+              titleClassName="text-blue-600 dark:text-blue-400 font-semibold"
             >
               <SidebarGroupContent>
-                <SidebarMenu>
-                  {orgAdminItems.map((item) => {
-                    // For the dashboard, only match exact path (or with query params)
-                    const isActive =
-                      item.url === "/organization-admin"
-                        ? path === "/organization-admin" ||
-                          path.startsWith("/organization-admin?")
-                        : path.startsWith(item.url);
+                {/* Organization Selector for Super Admin */}
+                <div className="mb-3">
+                  <OrgSelector
+                    selectedOrgId={adminSelectedOrgId}
+                    onOrgChange={setAdminSelectedOrgId}
+                  />
+                </div>
 
-                    return (
-                      <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild isActive={isActive}>
-                          <Link href={item.url}>
-                            <item.icon className="h-4 w-4" />
-                            <span>{item.title}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
+                {/* BU Selector for selected organization */}
+                {adminSelectedOrgId && (
+                  <div className="mb-3">
+                    <AdminBuSelector
+                      organizationId={adminSelectedOrgId}
+                      selectedBuId={adminSelectedBuId}
+                      onBuChange={setAdminSelectedBuId}
+                    />
+                  </div>
+                )}
+
+                {/* Show BU-specific options when a BU is selected */}
+                {adminSelectedBuId && (
+                  <SidebarMenu>
+                    {/* Requisitions Dropdown */}
+                    <SidebarMenuItem>
+                      <AnimatedSection title="Requisitions" isNested>
+                        <SidebarMenuSub>
+                          {requisitionItems.map((item) => (
+                            <SidebarMenuSubItem key={item.title}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={path.startsWith(item.url)}
+                              >
+                                <Link href={`${item.url}/${adminSelectedBuId}`}>
+                                  <item.icon className="h-4 w-4" />
+                                  <span>{item.title}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </AnimatedSection>
+                    </SidebarMenuItem>
+
+                    {/* Approvals Dropdown */}
+                    <SidebarMenuItem>
+                      <AnimatedSection title="Approvals" isNested>
+                        <SidebarMenuSub>
+                          {approvalItems.map((item) => (
+                            <SidebarMenuSubItem key={item.title}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={path.startsWith(item.url)}
+                              >
+                                <Link href={`${item.url}/${adminSelectedBuId}`}>
+                                  <item.icon className="h-4 w-4" />
+                                  <span>{item.title}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </AnimatedSection>
+                    </SidebarMenuItem>
+
+                    {/* Management Dropdown */}
+                    <SidebarMenuItem>
+                      <AnimatedSection title="Management" isNested>
+                        <SidebarMenuSub>
+                          {adminItems.map((item) => (
+                            <SidebarMenuSubItem key={item.title}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={path.startsWith(item.url)}
+                              >
+                                <Link href={`${item.url}/${adminSelectedBuId}`}>
+                                  <item.icon className="h-4 w-4" />
+                                  <span>{item.title}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </AnimatedSection>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                )}
               </SidebarGroupContent>
             </AnimatedSection>
           </SidebarGroup>

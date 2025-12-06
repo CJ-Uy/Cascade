@@ -229,29 +229,46 @@
   }
 }
 
+/* Scrollbar styles for light mode - More discreet */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: oklch(0.15 0.01 166);
+  background: transparent; /* Transparent track for minimal appearance */
 }
 
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.35 0.05 166);
-  border-radius: 6px;
-  border: 2px solid oklch(0.15 0.01 166);
+  background: oklch(0.8 0.02 166 / 0.4); /* Very light gray with low opacity */
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.45 0.08 166);
+  background: oklch(0.7 0.03 166 / 0.6); /* Slightly more visible on hover */
 }
 
-/* Firefox scrollbar */
+/* Firefox scrollbar for light mode */
 * {
   scrollbar-width: thin;
-  scrollbar-color: oklch(0.35 0.05 166) oklch(0.15 0.01 166);
+  scrollbar-color: oklch(0.8 0.02 166 / 0.4) transparent;
+}
+
+/* Scrollbar styles for dark mode - More discreet */
+.dark ::-webkit-scrollbar-track {
+  background: transparent; /* Transparent track */
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: oklch(0.3 0.02 166 / 0.4); /* Dark gray with low opacity */
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.4 0.03 166 / 0.6); /* Slightly more visible on hover */
+}
+
+.dark * {
+  scrollbar-color: oklch(0.3 0.02 166 / 0.4) transparent;
 }
 
 /* Accordion animations using grid for smoother transitions */

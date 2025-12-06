@@ -9,7 +9,8 @@
       "Bash(npx supabase db remote list-policies:*)",
       "Bash(npx supabase:*)",
       "Bash(findstr:*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []
