@@ -17,8 +17,10 @@ import {
   Circle,
   CheckSquare,
   Table,
+  ArrowRightLeft,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
@@ -29,8 +31,31 @@ export type FieldType =
   | "number"
   | "radio"
   | "checkbox"
-  | "table"
+  | "repeater"
+  | "grid-table"
   | "file-upload";
+
+export type GridCellType =
+  | "short-text"
+  | "long-text"
+  | "number"
+  | "radio"
+  | "checkbox"
+  | "file-upload"
+  | "repeater";
+
+export interface GridCellConfig {
+  type: GridCellType;
+  options?: string[]; // For radio/checkbox
+  columns?: FormField[]; // For repeater within cells
+}
+
+export interface GridTableConfig {
+  rows: string[]; // Row labels (e.g., ["9:00 AM", "10:00 AM"])
+  columns: string[]; // Column labels (e.g., ["Monday", "Tuesday"])
+  cellConfig: GridCellConfig; // Configuration for each cell
+}
+
 export interface FormField {
   id: string;
   type: FieldType;
@@ -38,8 +63,10 @@ export interface FormField {
   required: boolean;
   placeholder?: string;
   options?: string[];
-  columns?: FormField[];
+  columns?: FormField[]; // For repeater fields
+  gridConfig?: GridTableConfig; // For grid-table fields
 }
+
 export interface Form {
   id: string;
   name: string;
@@ -50,6 +77,7 @@ export interface Form {
   icon: string;
   workflowSteps?: string[]; // Added workflow steps
 }
+
 interface FormBuilderProps {
   fields: FormField[];
   setFields: (fields: FormField[]) => void;
@@ -61,7 +89,8 @@ const fieldTypeDisplay: Record<FieldType, string> = {
   number: "Number",
   radio: "Radio Options",
   checkbox: "Checkboxes",
-  table: "Table / Repeater",
+  repeater: "Repeater",
+  "grid-table": "Grid Table",
   "file-upload": "File Upload",
 };
 
@@ -105,7 +134,16 @@ export function FormBuilder({ fields, setFields }: FormBuilderProps) {
     };
     if (type === "radio" || type === "checkbox")
       newField.options = ["Option 1"];
-    if (type === "table") newField.columns = [];
+    if (type === "repeater") newField.columns = [];
+    if (type === "grid-table") {
+      newField.gridConfig = {
+        rows: ["Row 1"],
+        columns: ["Column 1"],
+        cellConfig: {
+          type: "short-text",
+        },
+      };
+    }
     // File upload fields don't need options or columns
 
     if (parentId) {
@@ -323,13 +361,13 @@ function SortableFieldCard({
           </div>
         );
 
-      case "table":
+      case "repeater":
         return (
           <div className="border-primary/30 bg-primary/5 mt-4 space-y-3 rounded-lg border-2 border-dashed p-4">
             <div className="text-primary flex items-center gap-2">
               <Table className="h-5 w-5" />
 
-              <h3 className="text-base font-semibold">Table / Repeater</h3>
+              <h3 className="text-base font-semibold">Repeater</h3>
             </div>
 
             <p className="text-primary/90 text-sm">
@@ -370,6 +408,564 @@ function SortableFieldCard({
                 ))}
               </div>
             </div>
+          </div>
+        );
+
+      case "grid-table":
+        const gridConfig = field.gridConfig || {
+          rows: [],
+          columns: [],
+          cellConfig: { type: "short-text" as GridCellType },
+        };
+
+        const updateGridRow = (index: number, value: string) => {
+          const newRows = [...gridConfig.rows];
+          newRows[index] = value;
+          onUpdate(field.id, { gridConfig: { ...gridConfig, rows: newRows } });
+        };
+
+        const addGridRow = () => {
+          const newRows = [
+            ...gridConfig.rows,
+            `Row ${gridConfig.rows.length + 1}`,
+          ];
+          onUpdate(field.id, { gridConfig: { ...gridConfig, rows: newRows } });
+        };
+
+        const removeGridRow = (index: number) => {
+          const newRows = [...gridConfig.rows];
+          newRows.splice(index, 1);
+          onUpdate(field.id, { gridConfig: { ...gridConfig, rows: newRows } });
+        };
+
+        const updateGridColumn = (index: number, value: string) => {
+          const newColumns = [...gridConfig.columns];
+          newColumns[index] = value;
+          onUpdate(field.id, {
+            gridConfig: { ...gridConfig, columns: newColumns },
+          });
+        };
+
+        const addGridColumn = () => {
+          const newColumns = [
+            ...gridConfig.columns,
+            `Column ${gridConfig.columns.length + 1}`,
+          ];
+          onUpdate(field.id, {
+            gridConfig: { ...gridConfig, columns: newColumns },
+          });
+        };
+
+        const removeGridColumn = (index: number) => {
+          const newColumns = [...gridConfig.columns];
+          newColumns.splice(index, 1);
+          onUpdate(field.id, {
+            gridConfig: { ...gridConfig, columns: newColumns },
+          });
+        };
+
+        const swapRowsAndColumns = () => {
+          onUpdate(field.id, {
+            gridConfig: {
+              ...gridConfig,
+              rows: gridConfig.columns,
+              columns: gridConfig.rows,
+            },
+          });
+        };
+
+        return (
+          <div className="mt-4 space-y-4 rounded-lg border-2 border-dashed border-purple-300 bg-purple-50 p-4">
+            <div className="flex items-center justify-between text-purple-700">
+              <div className="flex items-center gap-2">
+                <Table className="h-5 w-5" />
+                <h3 className="text-base font-semibold">Grid Table</h3>
+              </div>
+            </div>
+
+            <p className="text-sm text-purple-600">
+              Define rows and columns for a grid. Users will fill in each cell.
+            </p>
+
+            {/* Cell configuration */}
+            <div className="space-y-4 rounded-md border-2 border-purple-200 bg-purple-100/50 p-4">
+              <Label className="text-sm font-semibold text-purple-700">
+                Cell Input Type
+              </Label>
+              <select
+                value={gridConfig.cellConfig.type}
+                onChange={(e) => {
+                  const newType = e.target.value as GridCellType;
+                  const newCellConfig: GridCellConfig = { type: newType };
+
+                  // Initialize options for radio/checkbox
+                  if (newType === "radio" || newType === "checkbox") {
+                    newCellConfig.options = ["Option 1"];
+                  }
+
+                  // Initialize columns for repeater
+                  if (newType === "repeater") {
+                    newCellConfig.columns = [];
+                  }
+
+                  onUpdate(field.id, {
+                    gridConfig: {
+                      ...gridConfig,
+                      cellConfig: newCellConfig,
+                    },
+                  });
+                }}
+                className="border-input w-full rounded-md border bg-white px-3 py-2 text-sm"
+              >
+                <option value="short-text">Short Text</option>
+                <option value="long-text">Long Text (Textarea)</option>
+                <option value="number">Number</option>
+                <option value="radio">Radio Buttons</option>
+                <option value="checkbox">Checkboxes</option>
+                <option value="file-upload">File Upload</option>
+                <option value="repeater">Repeater (Multi-row)</option>
+              </select>
+
+              {/* Options editor for radio/checkbox */}
+              {(gridConfig.cellConfig.type === "radio" ||
+                gridConfig.cellConfig.type === "checkbox") && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-purple-600">
+                    Options
+                  </Label>
+                  {(gridConfig.cellConfig.options || []).map((opt, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input
+                        value={opt}
+                        onChange={(e) => {
+                          const newOptions = [
+                            ...(gridConfig.cellConfig.options || []),
+                          ];
+                          newOptions[index] = e.target.value;
+                          onUpdate(field.id, {
+                            gridConfig: {
+                              ...gridConfig,
+                              cellConfig: {
+                                ...gridConfig.cellConfig,
+                                options: newOptions,
+                              },
+                            },
+                          });
+                        }}
+                        placeholder={`Option ${index + 1}`}
+                        className="flex-grow bg-white text-sm"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          const newOptions = [
+                            ...(gridConfig.cellConfig.options || []),
+                          ];
+                          newOptions.splice(index, 1);
+                          onUpdate(field.id, {
+                            gridConfig: {
+                              ...gridConfig,
+                              cellConfig: {
+                                ...gridConfig.cellConfig,
+                                options: newOptions,
+                              },
+                            },
+                          });
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3 text-red-400" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newOptions = [
+                        ...(gridConfig.cellConfig.options || []),
+                        `Option ${(gridConfig.cellConfig.options || []).length + 1}`,
+                      ];
+                      onUpdate(field.id, {
+                        gridConfig: {
+                          ...gridConfig,
+                          cellConfig: {
+                            ...gridConfig.cellConfig,
+                            options: newOptions,
+                          },
+                        },
+                      });
+                    }}
+                    className="bg-white text-xs"
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Add Option
+                  </Button>
+                </div>
+              )}
+
+              {/* Column editor for repeater */}
+              {gridConfig.cellConfig.type === "repeater" && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-purple-600">
+                    Repeater Columns
+                  </Label>
+                  <p className="text-xs text-purple-500">
+                    Define the columns that will appear in each cell&apos;s
+                    repeater
+                  </p>
+                  {(gridConfig.cellConfig.columns || []).map(
+                    (col, colIndex) => (
+                      <div
+                        key={col.id}
+                        className="space-y-2 rounded border border-purple-200 bg-white p-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={col.label}
+                            onChange={(e) => {
+                              const newColumns = [
+                                ...(gridConfig.cellConfig.columns || []),
+                              ];
+                              newColumns[colIndex] = {
+                                ...col,
+                                label: e.target.value,
+                              };
+                              onUpdate(field.id, {
+                                gridConfig: {
+                                  ...gridConfig,
+                                  cellConfig: {
+                                    ...gridConfig.cellConfig,
+                                    columns: newColumns,
+                                  },
+                                },
+                              });
+                            }}
+                            placeholder="Column label"
+                            className="flex-grow text-sm"
+                          />
+                          <select
+                            value={col.type}
+                            onChange={(e) => {
+                              const newColumns = [
+                                ...(gridConfig.cellConfig.columns || []),
+                              ];
+                              newColumns[colIndex] = {
+                                ...col,
+                                type: e.target.value as FieldType,
+                              };
+                              onUpdate(field.id, {
+                                gridConfig: {
+                                  ...gridConfig,
+                                  cellConfig: {
+                                    ...gridConfig.cellConfig,
+                                    columns: newColumns,
+                                  },
+                                },
+                              });
+                            }}
+                            className="rounded border px-2 py-1 text-xs"
+                          >
+                            <option value="short-text">Text</option>
+                            <option value="number">Number</option>
+                            <option value="file-upload">File</option>
+                          </select>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              const newColumns = [
+                                ...(gridConfig.cellConfig.columns || []),
+                              ];
+                              newColumns.splice(colIndex, 1);
+                              onUpdate(field.id, {
+                                gridConfig: {
+                                  ...gridConfig,
+                                  cellConfig: {
+                                    ...gridConfig.cellConfig,
+                                    columns: newColumns,
+                                  },
+                                },
+                              });
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3 text-red-400" />
+                          </Button>
+                        </div>
+                      </div>
+                    ),
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newColumns = [
+                        ...(gridConfig.cellConfig.columns || []),
+                        {
+                          id: `col_${Date.now()}`,
+                          type: "short-text" as FieldType,
+                          label: `Column ${(gridConfig.cellConfig.columns || []).length + 1}`,
+                          required: false,
+                        },
+                      ];
+                      onUpdate(field.id, {
+                        gridConfig: {
+                          ...gridConfig,
+                          cellConfig: {
+                            ...gridConfig.cellConfig,
+                            columns: newColumns,
+                          },
+                        },
+                      });
+                    }}
+                    className="bg-white text-xs"
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Add Column
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={swapRowsAndColumns}
+              className="bg-white text-purple-600 hover:bg-purple-100"
+              title="Swap rows and columns"
+            >
+              Columns
+              <ArrowRightLeft className="mr-1 h-4 w-4" />
+              Rows
+            </Button>
+
+            {/* Row labels editor */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-purple-700">
+                Row Labels
+              </h4>
+              {gridConfig.rows.map((row, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    value={row}
+                    onChange={(e) => updateGridRow(index, e.target.value)}
+                    placeholder={`Row ${index + 1}`}
+                    className="flex-grow bg-white"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeGridRow(index)}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={addGridRow}
+                className="bg-white"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Row
+              </Button>
+            </div>
+
+            {/* Column labels editor */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-purple-700">
+                Column Labels
+              </h4>
+              {gridConfig.columns.map((column, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    value={column}
+                    onChange={(e) => updateGridColumn(index, e.target.value)}
+                    placeholder={`Column ${index + 1}`}
+                    className="flex-grow bg-white"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeGridColumn(index)}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={addGridColumn}
+                className="bg-white"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Column
+              </Button>
+            </div>
+
+            {/* Preview of grid */}
+            {gridConfig.rows.length > 0 && gridConfig.columns.length > 0 && (
+              <div className="mt-4">
+                <h4 className="mb-2 text-sm font-semibold text-purple-700">
+                  Preview
+                </h4>
+                <div className="mb-2 rounded bg-purple-50 px-3 py-2">
+                  <span className="text-xs font-medium text-purple-600">
+                    Cell Type:{" "}
+                    {gridConfig.cellConfig.type === "short-text" &&
+                      "Short Text"}
+                    {gridConfig.cellConfig.type === "long-text" && "Long Text"}
+                    {gridConfig.cellConfig.type === "number" && "Number"}
+                    {gridConfig.cellConfig.type === "radio" && "Radio Buttons"}
+                    {gridConfig.cellConfig.type === "checkbox" && "Checkboxes"}
+                    {gridConfig.cellConfig.type === "file-upload" &&
+                      "File Upload"}
+                    {gridConfig.cellConfig.type === "repeater" && "Repeater"}
+                  </span>
+                  {(gridConfig.cellConfig.type === "radio" ||
+                    gridConfig.cellConfig.type === "checkbox") &&
+                    gridConfig.cellConfig.options && (
+                      <span className="ml-3 text-xs text-purple-500">
+                        ({gridConfig.cellConfig.options.length} options)
+                      </span>
+                    )}
+                  {gridConfig.cellConfig.type === "repeater" &&
+                    gridConfig.cellConfig.columns && (
+                      <span className="ml-3 text-xs text-purple-500">
+                        ({gridConfig.cellConfig.columns.length} columns per
+                        entry)
+                      </span>
+                    )}
+                </div>
+                <div className="overflow-x-auto rounded border bg-white">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted">
+                        <th className="border px-2 py-1"></th>
+                        {gridConfig.columns.map((col, i) => (
+                          <th
+                            key={i}
+                            className="border px-2 py-1 font-semibold"
+                          >
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gridConfig.rows.map((row, i) => (
+                        <tr key={i}>
+                          <td className="bg-muted border px-2 py-1 font-semibold">
+                            {row}
+                          </td>
+                          {gridConfig.columns.map((_, j) => (
+                            <td key={j} className="border px-2 py-1">
+                              {gridConfig.cellConfig.type === "short-text" && (
+                                <Input
+                                  disabled
+                                  className="h-6 text-xs"
+                                  placeholder="text"
+                                />
+                              )}
+                              {gridConfig.cellConfig.type === "long-text" && (
+                                <Textarea
+                                  disabled
+                                  className="h-12 text-xs"
+                                  placeholder="textarea"
+                                />
+                              )}
+                              {gridConfig.cellConfig.type === "number" && (
+                                <Input
+                                  disabled
+                                  type="number"
+                                  className="h-6 text-xs"
+                                  placeholder="0"
+                                />
+                              )}
+                              {gridConfig.cellConfig.type === "radio" && (
+                                <div className="space-y-1 text-left">
+                                  {(gridConfig.cellConfig.options || [])
+                                    .slice(0, 3)
+                                    .map((opt, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center gap-1"
+                                      >
+                                        <Circle className="h-3 w-3 text-gray-400" />
+                                        <span className="text-xs text-gray-600">
+                                          {opt}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  {(gridConfig.cellConfig.options || [])
+                                    .length > 3 && (
+                                    <span className="text-xs text-gray-400 italic">
+                                      +
+                                      {(gridConfig.cellConfig.options || [])
+                                        .length - 3}{" "}
+                                      more
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {gridConfig.cellConfig.type === "checkbox" && (
+                                <div className="space-y-1 text-left">
+                                  {(gridConfig.cellConfig.options || [])
+                                    .slice(0, 3)
+                                    .map((opt, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center gap-1"
+                                      >
+                                        <CheckSquare className="h-3 w-3 text-gray-400" />
+                                        <span className="text-xs text-gray-600">
+                                          {opt}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  {(gridConfig.cellConfig.options || [])
+                                    .length > 3 && (
+                                    <span className="text-xs text-gray-400 italic">
+                                      +
+                                      {(gridConfig.cellConfig.options || [])
+                                        .length - 3}{" "}
+                                      more
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {gridConfig.cellConfig.type === "file-upload" && (
+                                <Input
+                                  disabled
+                                  type="file"
+                                  className="h-6 text-xs"
+                                />
+                              )}
+                              {gridConfig.cellConfig.type === "repeater" && (
+                                <div className="space-y-1">
+                                  <div className="rounded border border-dashed border-gray-300 bg-gray-50 p-1">
+                                    <span className="text-xs text-gray-500 italic">
+                                      Repeater (
+                                      {
+                                        (gridConfig.cellConfig.columns || [])
+                                          .length
+                                      }{" "}
+                                      cols)
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         );
 

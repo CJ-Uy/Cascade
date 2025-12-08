@@ -110,10 +110,19 @@ export function FormPreview({
           </div>,
         );
       case "table":
+      case "repeater":
         return (
           <RepeaterPreview
             field={field}
             value={formData[field.id] || []}
+            onChange={(value) => handleValueChange(field.id, value)}
+          />
+        );
+      case "grid-table":
+        return (
+          <GridTablePreview
+            field={field}
+            value={formData[field.id] || {}}
             onChange={(value) => handleValueChange(field.id, value)}
           />
         );
@@ -339,4 +348,266 @@ function ColumnPreview({
         </p>,
       );
   }
+}
+
+function GridTablePreview({
+  field,
+  value,
+  onChange,
+}: {
+  field: FormField;
+  value: Record<string, any>;
+  onChange: (value: Record<string, any>) => void;
+}) {
+  const rows = field.gridConfig?.rows || [];
+  const columns = field.gridConfig?.columns || [];
+  const cellConfig = field.gridConfig?.cellConfig || { type: "short-text" };
+
+  const handleCellChange = (
+    rowIndex: number,
+    colIndex: number,
+    cellValue: any,
+  ) => {
+    const cellKey = `${rowIndex}-${colIndex}`;
+    const newValue = { ...value, [cellKey]: cellValue };
+    onChange(newValue);
+  };
+
+  const renderCellInput = (rowIndex: number, colIndex: number) => {
+    const cellKey = `${rowIndex}-${colIndex}`;
+    const cellValue = value[cellKey];
+
+    switch (cellConfig.type) {
+      case "short-text":
+        return (
+          <Input
+            value={cellValue || ""}
+            onChange={(e) =>
+              handleCellChange(rowIndex, colIndex, e.target.value)
+            }
+            className="border-0 focus-visible:ring-1"
+            placeholder=""
+          />
+        );
+      case "long-text":
+        return (
+          <Textarea
+            value={cellValue || ""}
+            onChange={(e) =>
+              handleCellChange(rowIndex, colIndex, e.target.value)
+            }
+            className="min-h-[60px] border-0 focus-visible:ring-1"
+            placeholder=""
+          />
+        );
+      case "number":
+        return (
+          <Input
+            type="number"
+            value={cellValue || ""}
+            onChange={(e) =>
+              handleCellChange(rowIndex, colIndex, e.target.value)
+            }
+            className="border-0 focus-visible:ring-1"
+            placeholder=""
+          />
+        );
+      case "radio":
+        return (
+          <RadioGroup
+            value={cellValue || ""}
+            onValueChange={(val) => handleCellChange(rowIndex, colIndex, val)}
+          >
+            {(cellConfig.options || []).map((opt) => (
+              <div key={opt} className="flex items-center space-x-2">
+                <RadioGroupItem value={opt} id={`${cellKey}-${opt}`} />
+                <Label htmlFor={`${cellKey}-${opt}`} className="text-sm">
+                  {opt}
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
+        );
+      case "checkbox":
+        return (
+          <div>
+            {(cellConfig.options || []).map((opt) => (
+              <div key={opt} className="mb-2 flex items-center space-x-2">
+                <Checkbox
+                  id={`${cellKey}-${opt}`}
+                  checked={cellValue?.[opt] || false}
+                  onCheckedChange={(checked) => {
+                    const current = cellValue || {};
+                    const updated = { ...current, [opt]: checked };
+                    handleCellChange(rowIndex, colIndex, updated);
+                  }}
+                />
+                <Label htmlFor={`${cellKey}-${opt}`} className="text-sm">
+                  {opt}
+                </Label>
+              </div>
+            ))}
+          </div>
+        );
+      case "file-upload":
+        const fileName = cellValue ? cellValue.name : "No file chosen";
+        return (
+          <div className="flex flex-col gap-1">
+            <Input
+              type="file"
+              onChange={(e) =>
+                handleCellChange(
+                  rowIndex,
+                  colIndex,
+                  e.target.files ? e.target.files[0] : null,
+                )
+              }
+              className="border-0 text-xs focus-visible:ring-1"
+            />
+            {cellValue && (
+              <span className="text-muted-foreground text-xs">{fileName}</span>
+            )}
+          </div>
+        );
+      case "repeater":
+        const repeaterRows = cellValue || [];
+        return (
+          <div className="min-w-[300px] space-y-2">
+            {repeaterRows.map((row: any, rowIdx: number) => (
+              <div
+                key={rowIdx}
+                className="relative space-y-2 rounded border bg-white p-2"
+              >
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute -top-2 -right-2 h-6 w-6"
+                  onClick={() => {
+                    const newRows = [...repeaterRows];
+                    newRows.splice(rowIdx, 1);
+                    handleCellChange(rowIndex, colIndex, newRows);
+                  }}
+                >
+                  <Trash2 className="h-3 w-3 text-red-500" />
+                </Button>
+                {(cellConfig.columns || []).map((col) => (
+                  <div key={col.id} className="space-y-1">
+                    <Label className="text-xs">{col.label}</Label>
+                    {col.type === "short-text" && (
+                      <Input
+                        value={row[col.id] || ""}
+                        onChange={(e) => {
+                          const newRows = [...repeaterRows];
+                          newRows[rowIdx] = {
+                            ...newRows[rowIdx],
+                            [col.id]: e.target.value,
+                          };
+                          handleCellChange(rowIndex, colIndex, newRows);
+                        }}
+                        className="text-xs"
+                      />
+                    )}
+                    {col.type === "number" && (
+                      <Input
+                        type="number"
+                        value={row[col.id] || ""}
+                        onChange={(e) => {
+                          const newRows = [...repeaterRows];
+                          newRows[rowIdx] = {
+                            ...newRows[rowIdx],
+                            [col.id]: e.target.value,
+                          };
+                          handleCellChange(rowIndex, colIndex, newRows);
+                        }}
+                        className="text-xs"
+                      />
+                    )}
+                    {col.type === "file-upload" && (
+                      <Input
+                        type="file"
+                        onChange={(e) => {
+                          const newRows = [...repeaterRows];
+                          newRows[rowIdx] = {
+                            ...newRows[rowIdx],
+                            [col.id]: e.target.files ? e.target.files[0] : null,
+                          };
+                          handleCellChange(rowIndex, colIndex, newRows);
+                        }}
+                        className="text-xs"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const newRows = [...repeaterRows, {}];
+                handleCellChange(rowIndex, colIndex, newRows);
+              }}
+              className="w-full text-xs"
+            >
+              <Plus className="mr-1 h-3 w-3" />
+              Add Row
+            </Button>
+          </div>
+        );
+      default:
+        return (
+          <Input
+            value={cellValue || ""}
+            onChange={(e) =>
+              handleCellChange(rowIndex, colIndex, e.target.value)
+            }
+            className="border-0 focus-visible:ring-1"
+            placeholder=""
+          />
+        );
+    }
+  };
+
+  return (
+    <div className="mb-6 rounded-lg border-2 border-dashed border-purple-300 bg-purple-50/50 p-4">
+      <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-purple-800">
+        <Table className="h-5 w-5" />
+        {field.label}
+        {field.required && (
+          <span className="ml-1 text-sm font-normal text-red-500">*</span>
+        )}
+      </h3>
+      <div className="overflow-x-auto rounded-md border bg-white shadow-sm">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              <th className="border-border bg-muted/50 border p-2"></th>
+              {columns.map((col, colIndex) => (
+                <th
+                  key={colIndex}
+                  className="border-border bg-muted/50 border p-2 text-center font-semibold"
+                >
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                <td className="border-border bg-muted/50 border p-2 font-semibold">
+                  {row}
+                </td>
+                {columns.map((_, colIndex) => (
+                  <td key={colIndex} className="border-border border p-1">
+                    {renderCellInput(rowIndex, colIndex)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
