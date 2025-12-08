@@ -62,6 +62,15 @@ export interface AvailableTargetWorkflow {
   workflow_id: string;
   workflow_name: string;
   workflow_description: string | null;
+  workflow_status: string;
+  form_id: string | null;
+  form_name: string | null;
+  initiator_roles: Array<{ id: string; name: string }> | null;
+  approval_steps: Array<{
+    step_number: number;
+    role_id: string;
+    role_name: string;
+  }> | null;
   would_create_circular: boolean;
 }
 
@@ -72,6 +81,7 @@ export interface TransitionTemplate {
   template_id: string;
   template_name: string;
   template_description: string | null;
+  template_icon: string | null;
   has_workflow: boolean;
 }
 

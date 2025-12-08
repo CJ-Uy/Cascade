@@ -29,6 +29,7 @@ interface WorkflowSingleSelectTableProps {
   availableWorkflows: AvailableTargetWorkflow[];
   selectedWorkflowId: string;
   onSelectionChange: (workflowId: string) => void;
+  onImportWorkflowData?: (workflow: AvailableTargetWorkflow) => void;
   title?: string;
 }
 
@@ -36,6 +37,7 @@ export function WorkflowSingleSelectTable({
   availableWorkflows,
   selectedWorkflowId,
   onSelectionChange,
+  onImportWorkflowData,
   title = "Select Workflow",
 }: WorkflowSingleSelectTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -74,6 +76,11 @@ export function WorkflowSingleSelectTable({
                 <span className="font-medium">
                   {row.getValue("workflow_name")}
                 </span>
+                {row.original.workflow_status === "draft" && (
+                  <Badge variant="secondary" className="text-xs">
+                    Draft
+                  </Badge>
+                )}
                 {row.original.would_create_circular && (
                   <Badge variant="destructive" className="text-xs">
                     <AlertTriangle className="mr-1 h-3 w-3" />
@@ -90,8 +97,33 @@ export function WorkflowSingleSelectTable({
           );
         },
       },
+      ...(onImportWorkflowData
+        ? [
+            {
+              id: "actions",
+              header: "",
+              cell: ({ row }: { row: any }) => {
+                return (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onImportWorkflowData(row.original);
+                    }}
+                    className="text-xs"
+                  >
+                    Import Settings
+                  </Button>
+                );
+              },
+              enableSorting: false,
+              size: 120,
+            } as ColumnDef<AvailableTargetWorkflow>,
+          ]
+        : []),
     ],
-    [selectedWorkflowId],
+    [selectedWorkflowId, onImportWorkflowData],
   );
 
   const table = useReactTable({

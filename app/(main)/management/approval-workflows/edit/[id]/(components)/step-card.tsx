@@ -21,9 +21,16 @@ interface StepCardProps {
   roles: { id: string; name: string; scope: string }[];
   onUpdate: (id: string, newRoleId: string, newRoleName: string) => void;
   onRemove: (id: string) => void;
+  isLoadingRoles: boolean;
 }
 
-export function StepCard({ step, roles, onUpdate, onRemove }: StepCardProps) {
+export function StepCard({
+  step,
+  roles,
+  onUpdate,
+  onRemove,
+  isLoadingRoles,
+}: StepCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id: step.id,
@@ -55,16 +62,31 @@ export function StepCard({ step, roles, onUpdate, onRemove }: StepCardProps) {
                   onUpdate(step.id, value, selectedRole.name);
                 }
               }}
+              disabled={isLoadingRoles}
             >
               <SelectTrigger id={`role-${step.id}`}>
                 <SelectValue placeholder="Select an approver role" />
               </SelectTrigger>
               <SelectContent>
-                {roles.map((role) => (
-                  <SelectItem key={role.id} value={role.id}>
-                    {role.name} ({role.scope})
-                  </SelectItem>
-                ))}
+                {isLoadingRoles ? (
+                  <div className="flex items-center justify-center p-4">
+                    <p className="text-muted-foreground text-sm">
+                      Loading roles...
+                    </p>
+                  </div>
+                ) : roles.length > 0 ? (
+                  roles.map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.name} ({role.scope})
+                    </SelectItem>
+                  ))
+                ) : (
+                  <div className="flex items-center justify-center p-4">
+                    <p className="text-muted-foreground text-sm">
+                      No roles found.
+                    </p>
+                  </div>
+                )}
               </SelectContent>
             </Select>
           </div>

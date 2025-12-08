@@ -28,21 +28,32 @@ import { WorkflowSingleSelectTable } from "./WorkflowSingleSelectTable";
 import { RoleSingleSelectTable } from "./RoleSingleSelectTable";
 import { TemplateSingleSelectTable } from "./TemplateSingleSelectTable";
 import type { Role } from "./RoleSingleSelectTable";
+import { ApprovalChainBuilder } from "./ApprovalChainBuilder";
+import { FormSingleSelectTable } from "./FormSingleSelectTable";
+import { Input } from "@/components/ui/input";
+import { saveWorkflowAction } from "../../actions";
 
 interface AddWorkflowTransitionSectionProps {
   availableWorkflows: AvailableTargetWorkflow[];
   availableTemplates: TransitionTemplate[];
   availableRoles: Role[];
+  availableForms: Array<{ id: string; name: string; icon?: string }>;
+  businessUnitId: string;
   onAdd: (transition: WorkflowTransitionFormData) => void;
+  onWorkflowCreated?: (workflowId: string) => void;
 }
 
 export function AddWorkflowTransitionSection({
   availableWorkflows,
   availableTemplates,
   availableRoles,
+  availableForms,
+  businessUnitId,
   onAdd,
+  onWorkflowCreated,
 }: AddWorkflowTransitionSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isCreatingWorkflow, setIsCreatingWorkflow] = useState(false);
   const [formData, setFormData] = useState<WorkflowTransitionFormData>({
     target_workflow_id: "",
     target_template_id: null,
@@ -51,6 +62,18 @@ export function AddWorkflowTransitionSection({
     auto_trigger: true,
     description: "",
   });
+
+  // Quick workflow creation state
+  const [newWorkflowName, setNewWorkflowName] = useState("");
+  const [newWorkflowDescription, setNewWorkflowDescription] = useState("");
+  const [newWorkflowFormId, setNewWorkflowFormId] = useState<
+    string | undefined
+  >(undefined);
+  const [newWorkflowInitiators, setNewWorkflowInitiators] = useState<string[]>(
+    [],
+  );
+  const [newWorkflowSteps, setNewWorkflowSteps] = useState<string[]>([]);
+  const [isSavingWorkflow, setIsSavingWorkflow] = useState(false);
 
   const handleAdd = () => {
     if (!formData.target_workflow_id) {
@@ -79,6 +102,79 @@ export function AddWorkflowTransitionSection({
       description: "",
     });
     setIsOpen(false);
+  };
+
+  const handleCreateQuickWorkflow = async () => {
+    // Validation
+    if (!newWorkflowName.trim()) {
+      toast.error("Please enter a workflow name");
+      return;
+    }
+    if (!newWorkflowFormId) {
+      toast.error("Please select a form");
+      return;
+    }
+    if (newWorkflowInitiators.length === 0) {
+      toast.error("Please select at least one initiator");
+      return;
+    }
+    if (newWorkflowSteps.length === 0) {
+      toast.error("Please add at least one approval step");
+      return;
+    }
+
+    setIsSavingWorkflow(true);
+    try {
+      // Convert role IDs to role names
+      const stepRoleNames = newWorkflowSteps
+        .map((roleId) => availableRoles.find((r) => r.id === roleId)?.name)
+        .filter((name): name is string => name !== undefined);
+
+      const initiatorRoleNames = newWorkflowInitiators
+        .map((roleId) => availableRoles.find((r) => r.id === roleId)?.name)
+        .filter((name): name is string => name !== undefined);
+
+      const result = await saveWorkflowAction(
+        {
+          name: newWorkflowName,
+          description: newWorkflowDescription,
+          formId: newWorkflowFormId,
+          initiators: initiatorRoleNames,
+          steps: stepRoleNames,
+          version: 1,
+          is_latest: true,
+          status: "draft",
+        },
+        businessUnitId,
+      );
+
+      if (result.success && result.workflowId) {
+        toast.success("Workflow created successfully!");
+
+        // Select the newly created workflow
+        setFormData({ ...formData, target_workflow_id: result.workflowId });
+
+        // Reset quick creation form
+        setNewWorkflowName("");
+        setNewWorkflowDescription("");
+        setNewWorkflowFormId(undefined);
+        setNewWorkflowInitiators([]);
+        setNewWorkflowSteps([]);
+        setIsCreatingWorkflow(false);
+
+        // Notify parent to refresh workflows list
+        if (onWorkflowCreated) {
+          onWorkflowCreated(result.workflowId);
+        }
+      } else {
+        toast.error(result.error || "Failed to create workflow");
+      }
+    } catch (error) {
+      console.error("Error creating workflow:", error);
+      toast.error("Failed to create workflow");
+    } finally {
+      setIsSavingWorkflow(false);
+    }
   };
 
   const handleCancel = () => {
@@ -146,14 +242,176 @@ export function AddWorkflowTransitionSection({
               No workflows available
             </div>
           ) : (
-            <WorkflowSingleSelectTable
-              availableWorkflows={availableWorkflows}
-              selectedWorkflowId={formData.target_workflow_id}
-              onSelectionChange={(workflowId) =>
-                setFormData({ ...formData, target_workflow_id: workflowId })
-              }
-              title="Available Workflows"
-            />
+            <>
+              {!isCreatingWorkflow ? (
+                <>
+                  <WorkflowSingleSelectTable
+                    availableWorkflows={availableWorkflows}
+                    selectedWorkflowId={formData.target_workflow_id}
+                    onSelectionChange={(workflowId) =>
+                      setFormData({
+                        ...formData,
+                        target_workflow_id: workflowId,
+                      })
+                    }
+                    title="Available Workflows"
+                  />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCreatingWorkflow(true)}
+                    className="w-full"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create New Workflow
+                  </Button>
+                </>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between text-sm">
+                      <span>Create New Workflow</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsCreatingWorkflow(false);
+                          setNewWorkflowName("");
+                          setNewWorkflowDescription("");
+                          setNewWorkflowFormId(undefined);
+                          setNewWorkflowInitiators([]);
+                          setNewWorkflowSteps([]);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Workflow Name *</Label>
+                      <Input
+                        placeholder="Enter workflow name..."
+                        value={newWorkflowName}
+                        onChange={(e) => setNewWorkflowName(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Textarea
+                        placeholder="Enter workflow description..."
+                        value={newWorkflowDescription}
+                        onChange={(e) =>
+                          setNewWorkflowDescription(e.target.value)
+                        }
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Select Form *</Label>
+                      <FormSingleSelectTable
+                        availableForms={availableForms}
+                        selectedFormId={newWorkflowFormId}
+                        onSelectionChange={setNewWorkflowFormId}
+                        title="Available Forms"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Who can initiate? *</Label>
+                      <ApprovalChainBuilder
+                        availableRoles={availableRoles}
+                        selectedRoles={newWorkflowInitiators}
+                        onChange={setNewWorkflowInitiators}
+                        label="Initiator Roles"
+                        emptyMessage="Select at least one initiator role"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Approval Steps *</Label>
+                      <ApprovalChainBuilder
+                        availableRoles={availableRoles}
+                        selectedRoles={newWorkflowSteps}
+                        onChange={setNewWorkflowSteps}
+                        label="Approval Chain"
+                        emptyMessage="Add at least one approval step"
+                      />
+                    </div>
+
+                    <Button
+                      onClick={handleCreateQuickWorkflow}
+                      disabled={isSavingWorkflow}
+                      className="w-full"
+                    >
+                      {isSavingWorkflow ? "Creating..." : "Create Workflow"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Show selected workflow details */}
+              {formData.target_workflow_id &&
+                (() => {
+                  const selectedWorkflow = availableWorkflows.find(
+                    (w) => w.workflow_id === formData.target_workflow_id,
+                  );
+                  if (!selectedWorkflow) return null;
+
+                  return (
+                    <Card className="mt-4">
+                      <CardHeader>
+                        <CardTitle className="text-sm">
+                          Selected Workflow Configuration
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-sm">
+                        {selectedWorkflow.form_name && (
+                          <div>
+                            <p className="text-muted-foreground font-medium">
+                              Form:
+                            </p>
+                            <p>{selectedWorkflow.form_name}</p>
+                          </div>
+                        )}
+                        {selectedWorkflow.initiator_roles &&
+                          selectedWorkflow.initiator_roles.length > 0 && (
+                            <div>
+                              <p className="text-muted-foreground font-medium">
+                                Initiators:
+                              </p>
+                              <p>
+                                {selectedWorkflow.initiator_roles
+                                  .map((r) => r.name)
+                                  .join(", ")}
+                              </p>
+                            </div>
+                          )}
+                        {selectedWorkflow.approval_steps &&
+                          selectedWorkflow.approval_steps.length > 0 && (
+                            <div>
+                              <p className="text-muted-foreground font-medium">
+                                Approval Steps:
+                              </p>
+                              <ol className="list-inside list-decimal">
+                                {selectedWorkflow.approval_steps.map((step) => (
+                                  <li key={step.step_number}>
+                                    {step.role_name}
+                                  </li>
+                                ))}
+                              </ol>
+                            </div>
+                          )}
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
+            </>
           )}
         </div>
 

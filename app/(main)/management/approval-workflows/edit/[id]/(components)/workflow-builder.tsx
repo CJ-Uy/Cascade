@@ -11,7 +11,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { StepCard } from "./step-card";
 
 export interface WorkflowStep {
@@ -40,12 +40,15 @@ export function WorkflowBuilder({ initialWorkflow }: WorkflowBuilderProps) {
   const [roles, setRoles] = useState<
     { id: string; name: string; scope: string }[]
   >([]);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     const fetchRoles = async () => {
+      setIsLoadingRoles(true);
       const fetchedRoles = await getRoles();
       setRoles(fetchedRoles);
+      setIsLoadingRoles(false);
     };
     fetchRoles();
 
@@ -62,6 +65,22 @@ export function WorkflowBuilder({ initialWorkflow }: WorkflowBuilderProps) {
   }, [initialWorkflow]);
 
   const handleSave = () => {
+    // Validation check
+    if (steps.length === 0) {
+      toast.error("Cannot save an empty workflow.", {
+        description: "Please add at least one approval step.",
+      });
+      return;
+    }
+
+    const isAllStepsValid = steps.every((step) => step.approver_role_id);
+    if (!isAllStepsValid) {
+      toast.error("Incomplete steps found.", {
+        description: "Please ensure every step has an approver role selected.",
+      });
+      return;
+    }
+
     startTransition(async () => {
       const stepsToSave = steps.map((step) => ({
         approver_role_id: step.approver_role_id,
@@ -146,6 +165,7 @@ export function WorkflowBuilder({ initialWorkflow }: WorkflowBuilderProps) {
                     roles={roles}
                     onUpdate={updateStep}
                     onRemove={removeStep}
+                    isLoadingRoles={isLoadingRoles}
                   />
                 ))
               ) : (
@@ -158,8 +178,21 @@ export function WorkflowBuilder({ initialWorkflow }: WorkflowBuilderProps) {
             </div>
           </SortableContext>
         </DndContext>
-        <Button onClick={addStep} variant="outline" className="mt-4 w-full">
-          <Plus className="mr-2 h-4 w-4" /> Add Step
+        <Button
+          onClick={addStep}
+          variant="outline"
+          className="mt-4 w-full"
+          disabled={isLoadingRoles}
+        >
+          {isLoadingRoles ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading Roles...
+            </>
+          ) : (
+            <>
+              <Plus className="mr-2 h-4 w-4" /> Add Step
+            </>
+          )}
         </Button>
       </div>
     </div>

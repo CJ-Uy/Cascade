@@ -421,19 +421,23 @@ export async function deleteWorkflowAction(
     );
   }
 
-  // Check if there are any requisitions using this workflow
-  const { data: requisitions, error: reqError } = await supabase
-    .from("requisitions")
-    .select("id")
-    .eq("workflow_id", workflowId)
+  // Check if there are any requisition_approvals using this workflow
+  // We need to check via approval_step_definitions since requisition_approvals
+  // links to step_definition_id, not directly to workflow_id
+  const { data: approvals, error: approvalsError } = await supabase
+    .from("requisition_approvals")
+    .select(
+      "id, step_definition_id, approval_step_definitions!inner(workflow_id)",
+    )
+    .eq("approval_step_definitions.workflow_id", workflowId)
     .limit(1);
 
-  if (reqError) {
-    console.error("Error checking requisitions:", reqError);
+  if (approvalsError) {
+    console.error("Error checking requisition approvals:", approvalsError);
     throw new Error("Failed to check if workflow is in use.");
   }
 
-  if (requisitions && requisitions.length > 0) {
+  if (approvals && approvals.length > 0) {
     throw new Error(
       "This workflow cannot be deleted because it has been used for requisitions. Please archive it instead.",
     );

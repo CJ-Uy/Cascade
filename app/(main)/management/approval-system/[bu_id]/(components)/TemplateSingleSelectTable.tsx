@@ -69,10 +69,29 @@ export function TemplateSingleSelectTable({
           </Button>
         ),
         cell: ({ row }) => {
+          const icon = row.original.template_icon;
           return (
             <div className="flex items-center gap-2">
-              <FileText className="text-muted-foreground h-4 w-4" />
+              {icon ? (
+                <span className="text-lg">{icon}</span>
+              ) : (
+                <FileText className="text-muted-foreground h-4 w-4" />
+              )}
               <span>{row.getValue("template_name")}</span>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "template_description",
+        header: "Description",
+        cell: ({ row }) => {
+          const description = row.getValue("template_description") as
+            | string
+            | undefined;
+          return (
+            <div className="text-muted-foreground max-w-[300px] truncate text-sm">
+              {description || ""}
             </div>
           );
         },

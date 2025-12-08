@@ -13,7 +13,8 @@
       "Bash(npm run dev:*)",
       "Bash(grep:*)",
       "Bash(taskkill:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(npm run db:push:*)"
     ],
     "deny": [],
     "ask": []

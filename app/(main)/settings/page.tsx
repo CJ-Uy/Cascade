@@ -144,7 +144,7 @@ export default function Settings() {
                     id="lastName"
                     type="text"
                     value={lastName}
-                    onChange={(e) => setLastName(e.target..value)}
+                    onChange={(e) => setLastName(e.target.value)}
                   />
                 </div>
               </div>
