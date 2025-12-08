@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 
 export type CreateNotificationArgs = {
   recipientId: string;
@@ -17,7 +18,7 @@ export type CreateNotificationArgs = {
 export async function createNotification(args: CreateNotificationArgs) {
   // This server action uses the logged-in user's context to call the RPC function.
   // The RPC function itself is SECURITY DEFINER, ensuring it has the necessary permissions to insert.
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { error } = await supabase.rpc("create_notification", {
     p_recipient_id: args.recipientId,
@@ -32,4 +33,44 @@ export async function createNotification(args: CreateNotificationArgs) {
   }
 
   return { data: "Notification created successfully." };
+}
+
+/**
+ * Marks a notification as read
+ */
+export async function markNotificationAsRead(notificationId: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("id", notificationId);
+
+  if (error) {
+    console.error("Error marking notification as read:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath("/notifications");
+  return { success: true };
+}
+
+/**
+ * Deletes a notification
+ */
+export async function deleteNotification(notificationId: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("notifications")
+    .delete()
+    .eq("id", notificationId);
+
+  if (error) {
+    console.error("Error deleting notification:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath("/notifications");
+  return { success: true };
 }

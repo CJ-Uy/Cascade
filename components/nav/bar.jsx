@@ -55,6 +55,7 @@ import {
   Sun,
   Moon,
   LogOut,
+  Bell,
 } from "lucide-react";
 
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -256,9 +257,14 @@ export function Navbar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Notifications - Custom component */}
+              {/* Notifications */}
               <SidebarMenuItem>
-                <NotificationBell />
+                <SidebarMenuButton asChild isActive={path === "/notifications"}>
+                  <a href="/notifications">
+                    <Bell className="h-4 w-4" />
+                    <span>Notifications</span>
+                  </a>
+                </SidebarMenuButton>
               </SidebarMenuItem>
 
               {/* Chat */}
