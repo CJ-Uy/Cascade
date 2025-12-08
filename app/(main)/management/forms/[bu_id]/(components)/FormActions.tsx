@@ -17,7 +17,8 @@ import {
   ArchiveRestore,
   History,
   Loader2,
-  CheckCircle, // Import CheckCircle icon
+  CheckCircle,
+  Trash2,
 } from "lucide-react";
 import {
   type Form,
@@ -26,7 +27,8 @@ import {
 import {
   archiveFormAction,
   unarchiveTemplateFamilyAction,
-  activateFormAction, // Import activateFormAction
+  activateFormAction,
+  deleteFormAction,
 } from "@/app/(main)/management/forms/actions";
 import { toast } from "sonner";
 import { VersionHistoryDialog } from "./VersionHistoryDialog";
@@ -63,6 +65,12 @@ export function FormActions({
           options: field.field_options?.map((opt: any) => opt.label) || [],
           columns: field.columns ? transformFields(field.columns) : [],
         };
+
+        // Add gridConfig for grid-table fields
+        if (field.field_type === "grid-table" && field.field_config) {
+          transformedField.gridConfig = field.field_config;
+        }
+
         return transformedField;
       });
     };
@@ -116,6 +124,27 @@ export function FormActions({
       onArchive(); // Re-triggers fetch, as status changes
     } catch (error: any) {
       toast.error(error.message || "Failed to activate form.");
+    }
+    setIsWorking(false);
+  };
+
+  const handleDelete = async () => {
+    // Confirm deletion
+    if (
+      !window.confirm(
+        "Are you sure you want to permanently delete this draft form? This action cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    setIsWorking(true);
+    try {
+      await deleteFormAction(form.id, pathname);
+      toast.success("Form deleted successfully!");
+      onArchive(); // Re-triggers fetch
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete form.");
     }
     setIsWorking(false);
   };
@@ -189,17 +218,31 @@ export function FormActions({
                   <span>Activate</span>
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleArchive();
-                }}
-                disabled={isWorking}
-                className="text-red-600 focus:text-red-500"
-              >
-                <Archive className="mr-2 h-4 w-4" />
-                <span>Archive</span>
-              </DropdownMenuItem>
+              {form.status === "draft" && !isArchivedView ? (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete();
+                  }}
+                  disabled={isWorking}
+                  className="text-red-600 focus:text-red-500"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  <span>Delete</span>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleArchive();
+                  }}
+                  disabled={isWorking}
+                  className="text-red-600 focus:text-red-500"
+                >
+                  <Archive className="mr-2 h-4 w-4" />
+                  <span>Archive</span>
+                </DropdownMenuItem>
+              )}
             </>
           )}
           <DropdownMenuSeparator />

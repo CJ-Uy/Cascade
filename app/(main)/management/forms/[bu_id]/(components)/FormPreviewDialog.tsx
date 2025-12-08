@@ -35,6 +35,11 @@ const transformDbFormToPreviewForm = (dbForm: any) => {
       newField.columns = field.columns.map(mapField);
     }
 
+    // Map gridConfig for grid-table fields
+    if (field.field_type === "grid-table" && field.field_config) {
+      newField.gridConfig = field.field_config;
+    }
+
     return newField;
   };
 

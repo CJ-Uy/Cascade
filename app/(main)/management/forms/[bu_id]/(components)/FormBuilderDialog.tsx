@@ -84,32 +84,7 @@ export function FormBuilderDialog({
         return;
       }
 
-      const labels = new Set<string>();
-      let hasDuplicates = false;
-
-      const checkLabels = (fieldsToCheck: FormField[]) => {
-        for (const field of fieldsToCheck) {
-          if (labels.has(field.label)) {
-            hasDuplicates = true;
-            return; // Exit early
-          }
-          labels.add(field.label);
-          if (field.columns) {
-            checkLabels(field.columns);
-            if (hasDuplicates) return; // Exit early
-          }
-        }
-      };
-
-      checkLabels(fields);
-
-      if (hasDuplicates) {
-        setValidationError(
-          "All question labels must be unique within the form.",
-        );
-      } else {
-        setValidationError(null);
-      }
+      setValidationError(null);
     };
 
     validate();

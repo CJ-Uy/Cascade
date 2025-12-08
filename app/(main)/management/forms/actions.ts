@@ -63,11 +63,6 @@ export async function saveFormAction(
 
     if (newVersionError) {
       console.error("Error creating new version:", newVersionError);
-      if (newVersionError.code === "23505") {
-        throw new Error(
-          `A form with the name "${form.name}" already exists. Please choose a different name.`,
-        );
-      }
       throw new Error("Failed to create the new version.");
     }
     templateId = newTemplate.id;
@@ -180,7 +175,7 @@ async function upsertField(
   order: number,
   parentId: string | null,
 ) {
-  const fieldData = {
+  const fieldData: any = {
     id: field.id.startsWith("field_") ? undefined : field.id,
     template_id: templateId,
     label: field.label,
@@ -190,6 +185,11 @@ async function upsertField(
     order: order,
     parent_list_field_id: parentId,
   };
+
+  // Store gridConfig for grid-table fields
+  if (field.type === "grid-table" && field.gridConfig) {
+    fieldData.field_config = field.gridConfig;
+  }
 
   const { data: dbField, error: fieldError } = await supabase
     .from("template_fields")
@@ -228,7 +228,8 @@ async function upsertField(
     }
   }
 
-  if (field.type === "table" && field.columns) {
+  // Handle nested columns for table and repeater fields
+  if ((field.type === "table" || field.type === "repeater") && field.columns) {
     const existingColumns = await supabase
       .from("template_fields")
       .select("id")
@@ -280,6 +281,81 @@ export async function archiveFormAction(formId: string, pathname: string) {
   if (archiveError) {
     console.error("Error archiving template family:", archiveError);
     throw new Error("Failed to archive template family.");
+  }
+
+  revalidatePath(pathname);
+}
+
+export async function deleteFormAction(formId: string, pathname: string) {
+  const supabase = await createClient();
+
+  // Check if the form is a draft and has never been used
+  const { data: template, error: fetchError } = await supabase
+    .from("requisition_templates")
+    .select("status, parent_template_id")
+    .eq("id", formId)
+    .single();
+
+  if (fetchError || !template) {
+    console.error("Error fetching template to delete:", fetchError);
+    throw new Error("Could not find the template to delete.");
+  }
+
+  // Only allow deletion if the form is a draft
+  if (template.status !== "draft") {
+    throw new Error(
+      "Only draft forms can be deleted. Active or archived forms must be archived instead.",
+    );
+  }
+
+  // Check if there are any requisitions using this template
+  const { data: requisitions, error: reqError } = await supabase
+    .from("requisitions")
+    .select("id")
+    .eq("template_id", formId)
+    .limit(1);
+
+  if (reqError) {
+    console.error("Error checking requisitions:", reqError);
+    throw new Error("Failed to check if form is in use.");
+  }
+
+  if (requisitions && requisitions.length > 0) {
+    throw new Error(
+      "This form cannot be deleted because it has been used for requisitions. Please archive it instead.",
+    );
+  }
+
+  // Delete the template and all related data
+  // First delete field options
+  const { data: fieldIds } = await supabase
+    .from("template_fields")
+    .select("id")
+    .eq("template_id", formId);
+
+  if (fieldIds && fieldIds.length > 0) {
+    const ids = fieldIds.map((f) => f.id);
+    await supabase.from("field_options").delete().in("field_id", ids);
+  }
+
+  // Delete template fields
+  await supabase.from("template_fields").delete().eq("template_id", formId);
+
+  // Delete template initiator access
+  await supabase
+    .from("template_initiator_access")
+    .delete()
+    .eq("template_id", formId);
+
+  // Finally, delete the template itself
+  const { error: deleteError } = await supabase
+    .from("requisition_templates")
+    .delete()
+    .eq("id", formId);
+
+  if (deleteError) {
+    console.error("Error deleting template:", deleteError);
+    throw new Error("Failed to delete form.");
   }
 
   revalidatePath(pathname);
