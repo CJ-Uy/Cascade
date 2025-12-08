@@ -9,20 +9,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import {
+  RolesSelectionTable,
+  Role,
+} from "@/components/shared/roles-selection-table";
 
 interface User {
   id: string;
   first_name: string | null;
   last_name: string | null;
-}
-
-interface Role {
-  id: string;
-  name: string;
+  email?: string;
 }
 
 interface ManageUserRolesDialogProps {
@@ -39,7 +38,7 @@ export function ManageUserRolesDialog({
   onRolesUpdated,
 }: ManageUserRolesDialogProps) {
   const supabase = createClient();
-  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
   const [allRoles, setAllRoles] = useState<Role[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -47,29 +46,46 @@ export function ManageUserRolesDialog({
     if (!isOpen) return;
 
     async function fetchRoles() {
-      // Fetch all assignable roles (Org and BU scoped)
+      // Fetch all assignable roles (Org and BU scoped) with business unit info
       const { data: allRolesData } = await supabase
         .from("roles")
-        .select("id, name")
-        .in("scope", ["ORGANIZATION", "BU"]);
-      if (allRolesData) setAllRoles(allRolesData);
+        .select(
+          `
+          id,
+          name,
+          scope,
+          is_bu_admin,
+          business_unit_id,
+          business_units (name)
+        `,
+        )
+        .in("scope", ["ORGANIZATION", "BU"])
+        .order("scope", { ascending: true })
+        .order("name", { ascending: true });
+
+      if (allRolesData) {
+        const rolesWithBuName = allRolesData.map((role: any) => ({
+          id: role.id,
+          name: role.name,
+          scope: role.scope,
+          is_bu_admin: role.is_bu_admin,
+          business_unit_name: role.business_units?.name || null,
+        }));
+        setAllRoles(rolesWithBuName);
+      }
 
       // Fetch the user's current roles
       const { data: userRolesData } = await supabase
         .from("user_role_assignments")
         .select("role_id")
         .eq("user_id", user.id);
-      if (userRolesData) setUserRoles(userRolesData.map((r) => r.role_id));
+      if (userRolesData) {
+        setSelectedRoleIds(userRolesData.map((r) => r.role_id));
+      }
     }
 
     fetchRoles();
   }, [isOpen, user.id, supabase]);
-
-  const handleRoleChange = (roleId: string, checked: boolean) => {
-    setUserRoles((prev) =>
-      checked ? [...prev, roleId] : prev.filter((id) => id !== roleId),
-    );
-  };
 
   const handleSaveChanges = async () => {
     setIsSubmitting(true);
@@ -81,60 +97,67 @@ export function ManageUserRolesDialog({
       .eq("user_id", user.id);
 
     if (deleteError) {
-      toast.error("Failed to update roles:", {
+      toast.error("Failed to update roles", {
         description: deleteError.message,
       });
       setIsSubmitting(false);
       return;
     }
 
-    // Then, insert the new role assignments
-    const newAssignments = userRoles.map((roleId) => ({
-      user_id: user.id,
-      role_id: roleId,
-    }));
-    const { error: insertError } = await supabase
-      .from("user_role_assignments")
-      .insert(newAssignments);
+    // Then, insert the new role assignments (only if there are selected roles)
+    if (selectedRoleIds.length > 0) {
+      const newAssignments = selectedRoleIds.map((roleId) => ({
+        user_id: user.id,
+        role_id: roleId,
+      }));
+      const { error: insertError } = await supabase
+        .from("user_role_assignments")
+        .insert(newAssignments);
 
-    if (insertError) {
-      toast.error("Failed to update roles:", {
-        description: insertError.message,
-      });
-    } else {
-      toast.success("User roles updated successfully.");
-      onRolesUpdated();
-      onOpenChange(false);
+      if (insertError) {
+        toast.error("Failed to update roles", {
+          description: insertError.message,
+        });
+        setIsSubmitting(false);
+        return;
+      }
     }
+
+    toast.success("User roles updated successfully");
+    onRolesUpdated();
+    onOpenChange(false);
     setIsSubmitting(false);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>
             Manage Roles for {user.first_name} {user.last_name}
           </DialogTitle>
+          <DialogDescription>
+            {user.email && (
+              <span className="text-muted-foreground">{user.email}</span>
+            )}
+          </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          <h4 className="font-medium">Assignable Roles</h4>
-          <div className="space-y-2">
-            {allRoles.map((role) => (
-              <div key={role.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={role.id}
-                  checked={userRoles.includes(role.id)}
-                  onCheckedChange={(checked) =>
-                    handleRoleChange(role.id, !!checked)
-                  }
-                />
-                <Label htmlFor={role.id}>{role.name}</Label>
-              </div>
-            ))}
-          </div>
+        <div className="py-4">
+          <RolesSelectionTable
+            roles={allRoles}
+            selectedRoleIds={selectedRoleIds}
+            onSelectionChange={setSelectedRoleIds}
+            title="Assignable Roles"
+            searchPlaceholder="Search roles by name, scope, or business unit..."
+            showAdminBadge={true}
+            showScope={true}
+            showBusinessUnit={true}
+          />
         </div>
         <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={handleSaveChanges} disabled={isSubmitting}>
             {isSubmitting ? "Saving..." : "Save Changes"}
           </Button>

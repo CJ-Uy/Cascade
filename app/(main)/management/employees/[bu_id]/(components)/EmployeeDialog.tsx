@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Save, Trash2, ArrowUpDown, ShieldCheck } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { Employee } from "./EmployeeTable";
 import {
   AlertDialog,
@@ -25,33 +24,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { getRoles } from "../../actions";
 import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  SortingState,
-  useReactTable,
-} from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
-
-interface Role {
-  id: string;
-  name: string;
-  is_bu_admin: boolean;
-}
+  RolesSelectionTable,
+  Role,
+} from "@/components/shared/roles-selection-table";
 
 interface EmployeeDialogProps {
   isOpen: boolean;
@@ -72,112 +49,48 @@ export function EmployeeDialog({
 }: EmployeeDialogProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
+  const [selectedRoleNames, setSelectedRoleNames] = useState<string[]>([]);
   const [allAvailableRoles, setAllAvailableRoles] = useState<Role[]>([]);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
-
-  const handleRoleToggle = (roleName: string) => {
-    setSelectedRoles((prev) =>
-      prev.includes(roleName)
-        ? prev.filter((r) => r !== roleName)
-        : [...prev, roleName],
-    );
-  };
-
-  const columns: ColumnDef<Role>[] = [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected()}
-          onCheckedChange={(value) => {
-            table.toggleAllPageRowsSelected(!!value);
-            const allRoleNames = table
-              .getFilteredRowModel()
-              .rows.map((row) => row.original.name);
-            if (value) {
-              setSelectedRoles((prev) => [
-                ...new Set([...prev, ...allRoleNames]),
-              ]);
-            } else {
-              setSelectedRoles((prev) =>
-                prev.filter((roleName) => !allRoleNames.includes(roleName)),
-              );
-            }
-          }}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={selectedRoles.includes(row.original.name)}
-          onCheckedChange={() => handleRoleToggle(row.original.name)}
-          aria-label="Select row"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
-    {
-      accessorKey: "name",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Role
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-    },
-    {
-      accessorKey: "is_bu_admin",
-      header: "Admin",
-      cell: ({ row }) => {
-        return row.getValue("is_bu_admin") ? (
-          <ShieldCheck className="text-primary h-5 w-5" />
-        ) : null;
-      },
-    },
-  ];
-
-  const table = useReactTable({
-    data: allAvailableRoles,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
-    onGlobalFilterChange: setGlobalFilter,
-    getFilteredRowModel: getFilteredRowModel(),
-    state: {
-      sorting,
-      globalFilter,
-    },
-  });
 
   useEffect(() => {
     if (isOpen) {
       const fetchRoles = async () => {
         const roles = await getRoles(businessUnitId);
         setAllAvailableRoles(roles);
+
+        // If editing employee, convert role names to IDs
+        if (employee && employee.roles.length > 0) {
+          const roleIds = roles
+            .filter((r) => employee.roles.includes(r.name))
+            .map((r) => r.id);
+          setSelectedRoleIds(roleIds);
+        }
       };
       fetchRoles();
 
       if (employee) {
         setName(employee.name);
         setEmail(employee.email);
-        setSelectedRoles(employee.roles);
+        setSelectedRoleNames(employee.roles);
       } else {
         setName("");
         setEmail("");
-        setSelectedRoles([]);
+        setSelectedRoleNames([]);
+        setSelectedRoleIds([]);
       }
     }
   }, [isOpen, employee, businessUnitId]);
+
+  // Keep role names in sync with IDs for backwards compatibility
+  useEffect(() => {
+    const roleNames = allAvailableRoles
+      .filter((r) => selectedRoleIds.includes(r.id))
+      .map((r) => r.name);
+    setSelectedRoleNames(roleNames);
+  }, [selectedRoleIds, allAvailableRoles]);
 
   const handleSave = () => {
     if (!name || !email) {
@@ -192,7 +105,7 @@ export function EmployeeDialog({
       id: employee?.id || `emp_${Date.now()}`,
       name,
       email,
-      roles: selectedRoles,
+      roles: selectedRoleNames,
     };
     onSave(employeeToSave);
     setShowSaveConfirm(false);
@@ -249,100 +162,16 @@ export function EmployeeDialog({
                 disabled={!!employee}
               />
             </div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Roles</CardTitle>
-                <Input
-                  placeholder="Search roles..."
-                  value={globalFilter ?? ""}
-                  onChange={(event) => setGlobalFilter(event.target.value)}
-                  className="max-w-sm"
-                />
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                          <TableHead key={header.id}>
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext(),
-                                )}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {table.getRowModel().rows?.length ? (
-                      table.getRowModel().rows.map((row) => (
-                        <TableRow
-                          key={row.id}
-                          data-state={row.getIsSelected() && "selected"}
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext(),
-                              )}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={columns.length}
-                          className="h-24 text-center"
-                        >
-                          No roles found.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-            <div className="flex items-center justify-end space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                &lt;
-              </Button>
-              {Array.from(
-                { length: table.getPageCount() },
-                (_, i) => i + 1,
-              ).map((page) => (
-                <Button
-                  key={page}
-                  variant={
-                    table.getState().pagination.pageIndex + 1 === page
-                      ? "solid"
-                      : "outline"
-                  }
-                  size="sm"
-                  onClick={() => table.setPageIndex(page - 1)}
-                >
-                  {page}
-                </Button>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                &gt;
-              </Button>
-            </div>
+            <RolesSelectionTable
+              roles={allAvailableRoles}
+              selectedRoleIds={selectedRoleIds}
+              onSelectionChange={setSelectedRoleIds}
+              title="Roles"
+              searchPlaceholder="Search roles..."
+              showAdminBadge={true}
+              showScope={false}
+              showBusinessUnit={false}
+            />
           </div>
           <DialogFooter className="justify-between">
             <div>
