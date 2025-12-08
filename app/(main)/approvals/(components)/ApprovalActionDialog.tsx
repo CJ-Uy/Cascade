@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 interface ApprovalActionDialogProps {
   isOpen: boolean;
@@ -65,7 +67,7 @@ export function ApprovalActionDialog({
 
   const handleConfirm = () => {
     if (isRejectOrClarify && !comment.trim()) {
-      alert("A comment is required to reject or request clarification.");
+      toast.error("A comment is required to reject or request clarification.");
       return;
     }
     onConfirm(comment);
@@ -73,6 +75,7 @@ export function ApprovalActionDialog({
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
+      <Toaster />
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useState, useRef } from "react";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 export default function Settings() {
   const [firstName, setFirstName] = useState("");
@@ -35,7 +37,7 @@ export default function Settings() {
     // Simulate an async operation
     setTimeout(() => {
       setIsLoading(false);
-      alert("Profile update (UI only) successful!");
+      toast.success("Profile update (UI only) successful!");
       if (profilePicture) {
         setAvatarUrl(URL.createObjectURL(profilePicture));
       }
@@ -47,7 +49,7 @@ export default function Settings() {
     setIsLoadingPassword(true);
 
     if (newPassword !== confirmPassword) {
-      alert("Passwords do not match!");
+      toast.error("Passwords do not match!");
       setIsLoadingPassword(false);
       return;
     }
@@ -55,7 +57,7 @@ export default function Settings() {
     // Simulate an async operation
     setTimeout(() => {
       setIsLoadingPassword(false);
-      alert("Password update (UI only) successful!");
+      toast.success("Password update (UI only) successful!");
       setNewPassword("");
       setConfirmPassword("");
     }, 1500);
@@ -74,6 +76,7 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col items-center justify-center">
+      <Toaster />
       <DashboardHeader title="Settings" />
 
       <div className="flex w-full max-w-3xl flex-col space-y-6 p-4">
@@ -141,7 +144,7 @@ export default function Settings() {
                     id="lastName"
                     type="text"
                     value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                    onChange={(e) => setLastName(e.target..value)}
                   />
                 </div>
               </div>

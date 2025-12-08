@@ -26,6 +26,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -92,6 +102,9 @@ export function RequisitionTable({
     React.useState<Requisition | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = React.useState(false);
   const [comment, setComment] = React.useState("");
+  const [dialogAction, setDialogAction] = React.useState<
+    "delete" | "return" | null
+  >(null);
 
   const processedData = React.useMemo(() => transformData(rawData), [rawData]);
 
@@ -137,36 +150,37 @@ export function RequisitionTable({
 
   const handleDelete = () => {
     if (!selectedRequisition) return;
-    console.log(
-      "Delete clicked for:",
-      selectedRequisition.id,
-      "Comment:",
-      comment,
-    );
-    if (
-      window.confirm(
-        `Are you sure you want to delete requisition ${selectedRequisition.id}?`,
-      )
-    ) {
-      alert(
-        `Requisition ${selectedRequisition.id} deleted with comment: ${comment}`,
-      );
-      handleCloseModal();
-    }
+    setDialogAction("delete");
   };
 
   const handleReturnForRevision = () => {
     if (!selectedRequisition) return;
-    console.log(
-      "Return for Revision clicked for:",
-      selectedRequisition.id,
-      "Comment:",
-      comment,
-    );
-    alert(
-      `Requisition ${selectedRequisition.id} returned for revision with comment: ${comment}`,
-    );
+    setDialogAction("return");
+  };
+
+  const handleConfirmAction = () => {
+    if (!selectedRequisition || !dialogAction) return;
+
+    if (dialogAction === "delete") {
+      console.log(
+        "Delete clicked for:",
+        selectedRequisition.id,
+        "Comment:",
+        comment,
+      );
+      // Actual deletion logic would go here
+    } else if (dialogAction === "return") {
+      console.log(
+        "Return for Revision clicked for:",
+        selectedRequisition.id,
+        "Comment:",
+        comment,
+      );
+      // Actual return for revision logic would go here
+    }
+
     handleCloseModal();
+    setDialogAction(null);
   };
 
   return (
@@ -277,6 +291,28 @@ export function RequisitionTable({
           </DialogContent>
         </Dialog>
       )}
+
+      <AlertDialog
+        open={!!dialogAction}
+        onOpenChange={() => setDialogAction(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {dialogAction === "delete"
+                ? `Are you sure you want to delete requisition ${selectedRequisition?.id}?`
+                : `Are you sure you want to return requisition ${selectedRequisition?.id} for revision?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAction}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

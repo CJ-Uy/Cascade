@@ -35,6 +35,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 // Dummy component if Timeline doesn't exist
 const DummyTimeline = ({ children }: { children: React.ReactNode }) => (
@@ -113,9 +115,9 @@ export default function DocumentApprovalPage() {
     });
 
     if (error) {
-      alert(`Action failed: ${error.message}`);
+      toast.error(`Action failed: ${error.message}`);
     } else {
-      alert("Action completed successfully!");
+      toast.success("Action completed successfully!");
       setIsDialogOpen(false);
       router.refresh();
     }
@@ -131,7 +133,7 @@ export default function DocumentApprovalPage() {
     });
 
     if (error) {
-      alert(`Failed to add comment: ${error.message}`);
+      toast.error(`Failed to add comment: ${error.message}`);
     } else {
       setNewComment("");
       // Refresh comments after adding
@@ -154,6 +156,7 @@ export default function DocumentApprovalPage() {
 
   return (
     <div className="container mx-auto grid gap-8 py-10 md:grid-cols-3">
+      <Toaster />
       {/* Main Content */}
       <div className="space-y-6 md:col-span-2">
         <Card>
@@ -222,14 +225,14 @@ export default function DocumentApprovalPage() {
             <Button
               size="lg"
               variant="destructive"
-              onClick={() => alert("Implement Reject")}
+              onClick={() => toast.info("Implement Reject")}
             >
               <X className="mr-2 h-4 w-4" /> Reject
             </Button>
             <Button
               size="lg"
               variant="outline"
-              onClick={() => alert("Implement Revision Request")}
+              onClick={() => toast.info("Implement Revision Request")}
             >
               <Send className="mr-2 h-4 w-4" /> Request Revision
             </Button>

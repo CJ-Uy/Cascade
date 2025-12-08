@@ -29,6 +29,8 @@ import {
   RolesSelectionTable,
   Role,
 } from "@/components/shared/roles-selection-table";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 interface EmployeeDialogProps {
   isOpen: boolean;
@@ -94,7 +96,7 @@ export function EmployeeDialog({
 
   const handleSave = () => {
     if (!name || !email) {
-      alert("Name and Email are required.");
+      toast.error("Name and Email are required.");
       return;
     }
     setShowSaveConfirm(true);
@@ -124,6 +126,7 @@ export function EmployeeDialog({
 
   return (
     <>
+      <Toaster />
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>

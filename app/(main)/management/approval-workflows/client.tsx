@@ -32,6 +32,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { WorkflowTemplate } from "./page";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 interface WorkflowTemplatesClientProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -64,7 +66,7 @@ export function WorkflowTemplatesClient<
 
   const handleCreateTemplate = async () => {
     if (!name || !organizationId) {
-      alert("Workflow name is required.");
+      toast.error("Workflow name is required.");
       return;
     }
 
@@ -87,12 +89,13 @@ export function WorkflowTemplatesClient<
       router.refresh(); // Refresh server-side props
     } else {
       const error = await response.json();
-      alert(`Failed to create workflow: ${error.error}`);
+      toast.error(`Failed to create workflow: ${error.error}`);
     }
   };
 
   return (
     <div>
+      <Toaster />
       <div className="mb-4 flex justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>

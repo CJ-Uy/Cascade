@@ -6,6 +6,8 @@ import { DataTable } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Download } from "lucide-react";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 // This is a generic type based on the public.documents table.
 // It should be replaced with a proper type from a central types file if one exists.
@@ -127,10 +129,11 @@ export const PendingApprovalsTable = ({
 
 export const ApprovedDocsTable = ({ data }: { data: DashboardDocument[] }) => (
   <div>
+    <Toaster />
     <div className="mb-4 flex justify-end">
       <Button
         variant="outline"
-        onClick={() => alert("CSV Export not implemented yet.")}
+        onClick={() => toast.info("CSV Export not implemented yet.")}
       >
         <Download className="mr-2 h-4 w-4" />
         Export as CSV

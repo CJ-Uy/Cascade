@@ -32,6 +32,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormTemplate } from "./page";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 interface FormTemplatesClientProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -61,7 +63,7 @@ export function FormTemplatesClient<TData extends FormTemplate, TValue>({
 
   const handleCreateTemplate = async () => {
     if (!name || !organizationId) {
-      alert("Template name is required.");
+      toast.error("Template name is required.");
       return;
     }
 
@@ -84,12 +86,13 @@ export function FormTemplatesClient<TData extends FormTemplate, TValue>({
       router.refresh(); // Refresh server-side props
     } else {
       const error = await response.json();
-      alert(`Failed to create template: ${error.error}`);
+      toast.error(`Failed to create template: ${error.error}`);
     }
   };
 
   return (
     <div>
+      <Toaster />
       <div className="mb-4 flex justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>

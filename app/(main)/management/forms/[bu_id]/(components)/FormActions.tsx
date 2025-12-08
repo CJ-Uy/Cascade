@@ -32,6 +32,16 @@ import {
 } from "@/app/(main)/management/forms/actions";
 import { toast } from "sonner";
 import { VersionHistoryDialog } from "./VersionHistoryDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface FormActionsProps {
   form: any;
@@ -50,6 +60,7 @@ export function FormActions({
 }: FormActionsProps) {
   const [isWorking, setIsWorking] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const pathname = usePathname();
 
   const handleEdit = (isNewVersion: boolean) => {
@@ -129,15 +140,10 @@ export function FormActions({
   };
 
   const handleDelete = async () => {
-    // Confirm deletion
-    if (
-      !window.confirm(
-        "Are you sure you want to permanently delete this draft form? This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
+    setShowDeleteConfirm(true);
+  };
 
+  const handleConfirmDelete = async () => {
     setIsWorking(true);
     try {
       await deleteFormAction(form.id, pathname);
@@ -147,6 +153,7 @@ export function FormActions({
       toast.error(error.message || "Failed to delete form.");
     }
     setIsWorking(false);
+    setShowDeleteConfirm(false);
   };
 
   return (
@@ -268,6 +275,39 @@ export function FormActions({
           onRestore={onRestore} // Pass onRestore to VersionHistoryDialog
         />
       )}
+
+      <AlertDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete this draft form? This
+              action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.stopPropagation();
+                handleConfirmDelete();
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Confirm Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

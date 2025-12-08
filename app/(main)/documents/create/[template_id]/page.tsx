@@ -23,6 +23,8 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 // Define types to match the expected RPC response
 type FormField = {
@@ -100,10 +102,10 @@ export default function DynamicFormPage() {
 
     if (error) {
       console.error("Error submitting document:", error);
-      alert(`Submission failed: ${error.message}`);
+      toast.error(`Submission failed: ${error.message}`);
       setIsSubmitting(false);
     } else {
-      alert("Document submitted successfully!");
+      toast.success("Document submitted successfully!");
       router.push("/dashboard"); // Redirect to a relevant page after submission
     }
   };
@@ -192,6 +194,7 @@ export default function DynamicFormPage() {
 
   return (
     <div className="container mx-auto py-10">
+      <Toaster />
       <Card className="mx-auto max-w-4xl">
         <form onSubmit={handleSubmit}>
           <CardHeader>
