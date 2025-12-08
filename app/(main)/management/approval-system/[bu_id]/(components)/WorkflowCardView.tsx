@@ -149,6 +149,7 @@ export function WorkflowCardView({
                   onArchive={onArchive}
                   onRestore={onRestore}
                   isArchivedView={showArchived}
+                  businessUnitId={businessUnitId}
                 />
               </div>
               <CardDescription className="line-clamp-2">

@@ -196,6 +196,7 @@ export function WorkflowList({
             onArchive={onArchive}
             onRestore={onRestore}
             isArchivedView={showArchived}
+            businessUnitId={businessUnitId}
           />
         </div>
       ),

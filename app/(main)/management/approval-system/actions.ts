@@ -396,6 +396,93 @@ export async function unarchiveWorkflowAction(
   revalidatePath(pathname);
 }
 
+export async function deleteWorkflowAction(
+  workflowId: string,
+  pathname: string,
+) {
+  const supabase = await createClient();
+
+  // Check if the workflow is a draft
+  const { data: workflow, error: fetchError } = await supabase
+    .from("approval_workflows")
+    .select("status, parent_workflow_id")
+    .eq("id", workflowId)
+    .single();
+
+  if (fetchError || !workflow) {
+    console.error("Error fetching workflow to delete:", fetchError);
+    throw new Error("Could not find the workflow to delete.");
+  }
+
+  // Only allow deletion if the workflow is a draft
+  if (workflow.status !== "draft") {
+    throw new Error(
+      "Only draft workflows can be deleted. Active or archived workflows must be archived instead.",
+    );
+  }
+
+  // Check if there are any requisitions using this workflow
+  const { data: requisitions, error: reqError } = await supabase
+    .from("requisitions")
+    .select("id")
+    .eq("workflow_id", workflowId)
+    .limit(1);
+
+  if (reqError) {
+    console.error("Error checking requisitions:", reqError);
+    throw new Error("Failed to check if workflow is in use.");
+  }
+
+  if (requisitions && requisitions.length > 0) {
+    throw new Error(
+      "This workflow cannot be deleted because it has been used for requisitions. Please archive it instead.",
+    );
+  }
+
+  // Check if there are any workflow transitions pointing to this workflow
+  const { data: transitionsTo, error: transitionsToError } = await supabase
+    .from("workflow_transitions")
+    .select("id")
+    .eq("target_workflow_id", workflowId)
+    .limit(1);
+
+  if (transitionsToError) {
+    console.error("Error checking workflow transitions:", transitionsToError);
+    throw new Error("Failed to check if workflow is connected.");
+  }
+
+  if (transitionsTo && transitionsTo.length > 0) {
+    throw new Error(
+      "This workflow cannot be deleted because other workflows are connected to it. Please archive it instead.",
+    );
+  }
+
+  // Delete workflow transitions from this workflow
+  await supabase
+    .from("workflow_transitions")
+    .delete()
+    .eq("source_workflow_id", workflowId);
+
+  // Delete approval step definitions
+  await supabase
+    .from("approval_step_definitions")
+    .delete()
+    .eq("workflow_id", workflowId);
+
+  // Delete the workflow
+  const { error: deleteError } = await supabase
+    .from("approval_workflows")
+    .delete()
+    .eq("id", workflowId);
+
+  if (deleteError) {
+    console.error("Error deleting workflow:", deleteError);
+    throw new Error("Failed to delete workflow.");
+  }
+
+  revalidatePath(pathname);
+}
+
 export async function activateWorkflowAction(
   workflowId: string,
   pathname: string,
@@ -482,7 +569,7 @@ export async function getRequisitionTemplates(businessUnitId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("requisition_templates")
-    .select("id, name, icon")
+    .select("id, name, icon, description")
     .eq("business_unit_id", businessUnitId)
     .eq("is_latest", true)
     .eq("status", "active");
@@ -506,4 +593,19 @@ export async function getRoles(businessUnitId: string) {
     return [];
   }
   return data.map((r) => r.name);
+}
+
+export async function getRolesWithDetails(businessUnitId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("roles")
+    .select("id, name, is_bu_admin, scope, business_unit_id")
+    .eq("business_unit_id", businessUnitId)
+    .order("name");
+
+  if (error) {
+    console.error("Error fetching roles with details:", error);
+    return [];
+  }
+  return data || [];
 }

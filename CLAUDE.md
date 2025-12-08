@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Quick Reference
+
+For detailed technical reference including security patterns, workflow chaining, database schema, and component patterns, see [docs/REFERENCE.md](docs/REFERENCE.md).
+
 ## Project Overview
 
 Cascade is a **Digital Mass Document Approval and Review System** built with Next.js 15, React 19, Supabase, and TypeScript. It's a multi-tenant workflow management system that handles requisitions (document requests) through configurable approval workflows across multiple organizations and business units.
@@ -758,7 +762,61 @@ All tables now have proper RLS policies enforcing data isolation. See [docs/rls_
 - Super Admins can manage all invitations
 - Users can view/update their own invitations
 
-**⚠️ IMPORTANT:** Never use direct `supabase.from()` queries for SELECT operations. Always use RPC functions to ensure proper access control. See [docs/rls_documentation.md](docs/rls_documentation.md) for refactoring guidelines.
+**⚠️ IMPORTANT:** Never use direct `supabase.from()` queries for SELECT operations. Always use RPC functions to ensure proper access control. See [docs/REFERENCE.md](docs/REFERENCE.md) for quick reference.
+
+### Workflow Chaining
+
+**Overview:** Connect multiple workflows together to create complex multi-stage business processes.
+
+**Database Tables:**
+
+- `workflow_transitions` - Stores connections between workflows
+- Fields: `source_workflow_id`, `target_workflow_id`, `trigger_condition`, `initiator_role_id`, `target_template_id`, `auto_trigger`, `description`
+
+**Trigger Conditions:**
+
+- `WHEN_APPROVED` - Trigger when workflow fully approved
+- `WHEN_REJECTED` - Trigger when workflow rejected
+- `WHEN_COMPLETED` - Trigger regardless of outcome
+- `WHEN_FLAGGED` - Trigger when flagged for review
+- `WHEN_CLARIFICATION_REQUESTED` - Trigger when clarification needed
+
+**Initiator Options:**
+
+- `null` (Last Approver) - Person who completed last step becomes initiator
+- `role_id` - Specific role becomes initiator
+
+**Auto-Trigger:**
+
+- `true` - Automatically creates next requisition when condition met
+- `false` - Sends notification, requires manual action
+
+**Circular Chain Detection:**
+System prevents loops by detecting if target workflow chains back to source.
+
+**UI Components** ([app/(main)/management/approval-system/[bu_id]/(components)/](<app/(main)/management/approval-system/[bu_id]/(components)/>)):
+
+- `WorkflowSingleSelectTable.tsx` - Workflow selection with circular detection warnings
+- `RoleSingleSelectTable.tsx` - Role selection with admin badges
+- `TemplateSingleSelectTable.tsx` - Form template selection with "None" option
+- `FormSingleSelectTable.tsx` - Form selection with icons, descriptions, pagination
+- `WorkflowChainTimeline.tsx` - Visual timeline of workflow chains
+- `AddWorkflowTransitionSection.tsx` - UI for adding transitions
+
+**All selection components use searchable, paginated data tables** with:
+
+- Search/filter functionality
+- Sortable columns
+- Pagination (5 items per page)
+- Visual indicators (badges, icons, check marks)
+- Empty states
+- Memoized columns and handlers
+
+**Migrations:**
+
+- `20251208120000_fix_workflow_transitions_function.sql`
+- `20251210000000_add_workflow_chaining.sql`
+- `20251210000001_workflow_chain_rpc_functions.sql`
 
 ### Database Types
 
