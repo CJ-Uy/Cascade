@@ -421,43 +421,35 @@ export async function deleteWorkflowAction(
     );
   }
 
-  // Check if there are any requisition_approvals using this workflow
-  // We need to check via approval_step_definitions since requisition_approvals
-  // links to step_definition_id, not directly to workflow_id
-  const { data: approvals, error: approvalsError } = await supabase
-    .from("requisition_approvals")
-    .select(
-      "id, step_definition_id, approval_step_definitions!inner(workflow_id)",
-    )
-    .eq("approval_step_definitions.workflow_id", workflowId)
-    .limit(1);
+  // Check if workflow is in use (approvals or transitions)
+  // Using RPC function to avoid RLS permission issues
+  const { data: usageCheck, error: usageError } = await supabase.rpc(
+    "check_workflow_in_use",
+    {
+      p_workflow_id: workflowId,
+    },
+  );
 
-  if (approvalsError) {
-    console.error("Error checking requisition approvals:", approvalsError);
+  if (usageError) {
+    console.error("Error checking workflow usage:", usageError);
     throw new Error("Failed to check if workflow is in use.");
   }
 
-  if (approvals && approvals.length > 0) {
+  if (usageCheck?.has_approvals) {
     throw new Error(
       "This workflow cannot be deleted because it has been used for requisitions. Please archive it instead.",
     );
   }
 
-  // Check if there are any workflow transitions pointing to this workflow
-  const { data: transitionsTo, error: transitionsToError } = await supabase
-    .from("workflow_transitions")
-    .select("id")
-    .eq("target_workflow_id", workflowId)
-    .limit(1);
-
-  if (transitionsToError) {
-    console.error("Error checking workflow transitions:", transitionsToError);
-    throw new Error("Failed to check if workflow is connected.");
-  }
-
-  if (transitionsTo && transitionsTo.length > 0) {
+  if (usageCheck?.has_transitions_to) {
     throw new Error(
       "This workflow cannot be deleted because other workflows are connected to it. Please archive it instead.",
+    );
+  }
+
+  if (usageCheck?.has_transitions_from) {
+    throw new Error(
+      "This workflow cannot be deleted because it has outgoing workflow transitions. Please remove the transitions first or archive the workflow.",
     );
   }
 
