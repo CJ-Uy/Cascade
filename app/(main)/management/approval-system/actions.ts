@@ -605,3 +605,30 @@ export async function getRolesWithDetails(businessUnitId: string) {
   }
   return data || [];
 }
+
+/**
+ * Get all data needed for workflow builder in a single optimized call
+ * This reduces database roundtrips and improves performance
+ */
+export async function getWorkflowBuilderData(businessUnitId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("get_workflow_builder_data", {
+    p_business_unit_id: businessUnitId,
+  });
+
+  if (error) {
+    console.error("Error fetching workflow builder data:", error);
+    return {
+      workflows: [],
+      forms: [],
+      roles: [],
+    };
+  }
+
+  return {
+    workflows: data?.workflows || [],
+    forms: data?.forms || [],
+    roles: data?.roles || [],
+  };
+}

@@ -14,7 +14,8 @@
       "Bash(grep:*)",
       "Bash(taskkill:*)",
       "Bash(dir:*)",
-      "Bash(npm run db:push:*)"
+      "Bash(npm run db:push:*)",
+      "Bash(timeout 30 npx supabase migration list:*)"
     ],
     "deny": [],
     "ask": []

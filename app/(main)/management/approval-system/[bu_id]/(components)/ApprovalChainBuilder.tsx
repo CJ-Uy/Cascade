@@ -147,20 +147,21 @@ export function ApprovalChainBuilder({
 
   // Filter out roles that are already in the chain
   const availableRolesFiltered = useMemo(
-    () => availableRoles.filter((role) => !selectedSteps.includes(role.id)),
+    () =>
+      availableRoles.filter((role) => !(selectedSteps || []).includes(role.id)),
     [availableRoles, selectedSteps],
   );
 
   const handleAddRole = useCallback(
     (roleId: string) => {
-      onStepsChange([...selectedSteps, roleId]);
+      onStepsChange([...(selectedSteps || []), roleId]);
     },
     [onStepsChange, selectedSteps],
   );
 
   const handleRemoveStep = useCallback(
     (index: number) => {
-      const newSteps = selectedSteps.filter((_, i) => i !== index);
+      const newSteps = (selectedSteps || []).filter((_, i) => i !== index);
       onStepsChange(newSteps);
     },
     [onStepsChange, selectedSteps],
@@ -168,7 +169,7 @@ export function ApprovalChainBuilder({
 
   const handleMoveStep = useCallback(
     (index: number, direction: "up" | "down") => {
-      const newSteps = [...selectedSteps];
+      const newSteps = [...(selectedSteps || [])];
       const targetIndex = direction === "up" ? index - 1 : index + 1;
       if (targetIndex >= 0 && targetIndex < newSteps.length) {
         [newSteps[index], newSteps[targetIndex]] = [
@@ -185,9 +186,10 @@ export function ApprovalChainBuilder({
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (over && active.id !== over.id) {
-        const oldIndex = selectedSteps.indexOf(active.id as string);
-        const newIndex = selectedSteps.indexOf(over.id as string);
-        onStepsChange(arrayMove(selectedSteps, oldIndex, newIndex));
+        const steps = selectedSteps || [];
+        const oldIndex = steps.indexOf(active.id as string);
+        const newIndex = steps.indexOf(over.id as string);
+        onStepsChange(arrayMove(steps, oldIndex, newIndex));
       }
     },
     [onStepsChange, selectedSteps],
@@ -274,14 +276,15 @@ export function ApprovalChainBuilder({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-medium">Approval Chain Order</h4>
-          {selectedSteps.length > 0 && (
+          {(selectedSteps || []).length > 0 && (
             <span className="text-muted-foreground text-sm">
-              {selectedSteps.length} step{selectedSteps.length !== 1 ? "s" : ""}
+              {(selectedSteps || []).length} step
+              {(selectedSteps || []).length !== 1 ? "s" : ""}
             </span>
           )}
         </div>
 
-        {selectedSteps.length === 0 ? (
+        {(selectedSteps || []).length === 0 ? (
           <div className="rounded-lg border-2 border-dashed p-8 text-center">
             <p className="text-muted-foreground text-sm">
               No approval steps added yet. Add roles from the table below.
@@ -293,11 +296,11 @@ export function ApprovalChainBuilder({
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={selectedSteps}
+              items={selectedSteps || []}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-2">
-                {selectedSteps.map((roleId, index) => {
+                {(selectedSteps || []).map((roleId, index) => {
                   const role = availableRoles.find((r) => r.id === roleId);
                   return (
                     <SortableStep
@@ -305,7 +308,7 @@ export function ApprovalChainBuilder({
                       roleId={roleId}
                       roleName={role?.name || "Unknown Role"}
                       index={index}
-                      totalSteps={selectedSteps.length}
+                      totalSteps={(selectedSteps || []).length}
                       onMove={handleMoveStep}
                       onRemove={handleRemoveStep}
                     />

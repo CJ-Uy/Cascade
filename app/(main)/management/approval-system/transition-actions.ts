@@ -36,13 +36,13 @@ export async function getWorkflowTransitions(
  * Get available target workflows for creating a transition
  */
 export async function getAvailableTargetWorkflows(
-  sourceWorkflowId: string,
+  sourceWorkflowId: string | null,
   businessUnitId: string,
 ): Promise<AvailableTargetWorkflow[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase.rpc("get_available_target_workflows", {
-    p_source_workflow_id: sourceWorkflowId,
+    p_source_workflow_id: sourceWorkflowId || null,
     p_business_unit_id: businessUnitId,
   });
 
