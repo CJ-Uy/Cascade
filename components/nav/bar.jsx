@@ -167,7 +167,21 @@ export function Navbar() {
     hasSystemRole,
     hasOrgAdminRole,
     selectedBuId,
+    isAuditor,
+    isSystemAuditor,
+    isBuAuditor,
   } = useSession();
+
+  // Debug: Log auditor status
+  if (authContext) {
+    console.log('Auditor Debug:', {
+      isAuditor,
+      isSystemAuditor,
+      isBuAuditor,
+      bu_permissions: authContext.bu_permissions,
+      system_roles: authContext.system_roles,
+    });
+  }
 
   // State for Super Admin organization and BU selection
   const [adminSelectedOrgId, setAdminSelectedOrgId] = useState(null);
@@ -318,6 +332,33 @@ export function Navbar() {
                       </SidebarMenuItem>
                     );
                   })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </AnimatedSection>
+          </SidebarGroup>
+        )}
+
+        {/* 2.5. Audit Section - Visible to auditors */}
+        {/* Debug: isAuditor = {String(isAuditor)}, isSystemAuditor = {String(isSystemAuditor)}, isBuAuditor = {String(isBuAuditor)} */}
+        {isAuditor && (
+          <SidebarGroup>
+            <AnimatedSection
+              title="Audit"
+              titleClassName="text-purple-600 dark:text-purple-400"
+            >
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={path.startsWith("/auditor/documents")}
+                    >
+                      <Link href="/auditor/documents">
+                        <FileText className="h-4 w-4" />
+                        <span>Documents</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </AnimatedSection>

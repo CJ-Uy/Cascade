@@ -96,6 +96,9 @@ app/
 ├── layout.tsx                # Root layout with providers
 ├── (main)/                   # Protected routes with sidebar navigation
 │   ├── layout.tsx           # Requires auth, includes Navbar sidebar
+│   ├── auditor/             # Auditor views (read-only document access)
+│   │   ├── layout.tsx       # Access protection (redirects non-auditors)
+│   │   └── documents/       # Document list and detail views
 │   ├── dashboard/           # User dashboard with invitations card
 │   ├── requisitions/        # LEGACY: Requisition workflows
 │   │   ├── create/[bu_id]  # Form selector & filler
@@ -327,6 +330,47 @@ await createNotification({
 
 - Dashboard invitations card: [app/(main)/dashboard/(components)/invitations-card.tsx](<app/(main)/dashboard/(components)/invitations-card.tsx>)
 - Invite form: [app/(main)/organization-admin/users/invite/](<app/(main)/organization-admin/users/invite/>)
+
+#### Auditor Views
+
+**Purpose**: Read-only document access for auditing and compliance purposes.
+
+**Access Control**:
+- **System Auditors**: Users with system role `AUDITOR` - can view all documents across all organizations
+- **BU Auditors**: Users with `membership_type = 'AUDITOR'` in `user_business_units` - can view documents from their assigned business units only
+
+**Key Features**:
+- Document list view with filtering (status, tags, search)
+- Document detail view with improved field rendering
+- Tag management (create, assign, remove own tags)
+- Read-only access (no approve/reject/edit capabilities)
+- Approval history timeline
+- Comments display (read-only)
+
+**Files**:
+- `app/(main)/auditor/` - Auditor routes
+  - `layout.tsx` - Access protection (redirects non-auditors)
+  - `documents/page.tsx` - Document list view
+  - `documents/[id]/page.tsx` - Document detail view
+  - `documents/actions.ts` - Server actions for data fetching and tag management
+- `app/contexts/SessionProvider.tsx` - Includes `isAuditor`, `isSystemAuditor`, `isBuAuditor` helpers
+- `components/nav/bar.jsx` - "Audit" section visible to auditors
+
+**RPC Functions** (in Supabase):
+- `is_auditor()` - Checks if current user is an auditor
+- `get_auditor_documents(tag_ids, status_filter, search_text)` - Fetches documents with filters
+- `get_auditor_document_details(document_id)` - Fetches complete document details
+
+**RLS Policies**:
+- `document_tags` table: Auditors can view/assign tags on accessible documents, remove own tags
+- `documents` table: Updated SELECT policy to include auditors
+- `tags` table: Auditors can create tags
+
+**Tag Management**:
+- Auditors can create tags inline when assigning
+- Tags are color-coded for visual categorization
+- Only tags assigned by the current user can be removed
+- Tags are displayed as badges throughout the UI
 
 #### Chat System
 
@@ -695,6 +739,12 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 **⚠️ CRITICAL: Always use RPC functions for SELECT queries**
 
 See [docs/rls_documentation.md](docs/rls_documentation.md) for complete reference.
+
+**Auditor Functions** (Migration: `20251215000001_create_auditor_rpc_functions.sql`):
+
+- `is_auditor()` - Returns boolean indicating if current user is an auditor (system or BU level)
+- `get_auditor_documents(p_tag_ids UUID[], p_status_filter document_status, p_search_text TEXT)` - Returns documents accessible to auditor with optional filters. System auditors see all documents, BU auditors see only their BU documents.
+- `get_auditor_document_details(p_document_id UUID)` - Returns complete document details including template fields, tags, history, and comments. Validates auditor access before returning data.
 
 **Helper Functions** (Migration: `20251130230000_create_rls_compliant_rpc_functions.sql`):
 

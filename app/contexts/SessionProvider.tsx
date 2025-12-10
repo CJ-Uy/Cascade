@@ -8,7 +8,7 @@ type SystemRole = "Super Admin" | "AUDITOR" | string; // Allow other string valu
 export type BuPermission = {
   business_unit_id: string;
   business_unit_name: string;
-  permission_level: "BU_ADMIN" | "APPROVER" | "MEMBER";
+  permission_level: "BU_ADMIN" | "APPROVER" | "MEMBER" | "AUDITOR";
   role?: { id: string; name: string };
 };
 
@@ -33,6 +33,9 @@ type SessionContextValue = {
   currentBuPermission: BuPermission | undefined; // The permission for the selected BU
   hasSystemRole: (role: SystemRole) => boolean;
   hasOrgAdminRole: () => boolean;
+  isSystemAuditor: boolean;
+  isBuAuditor: boolean;
+  isAuditor: boolean;
 };
 
 // 3. Create the context with a default value of null
@@ -71,6 +74,15 @@ export function SessionProvider({
       );
     };
 
+    // Auditor helpers
+    const isSystemAuditor = hasSystemRole("AUDITOR");
+    // Check if user is a BU auditor in ANY of their BUs (not just the selected one)
+    const isBuAuditor =
+      initialAuthContext?.bu_permissions?.some(
+        (p) => p.permission_level === "AUDITOR",
+      ) ?? false;
+    const isAuditor = isSystemAuditor || isBuAuditor;
+
     return {
       authContext: initialAuthContext,
       selectedBuId,
@@ -78,6 +90,9 @@ export function SessionProvider({
       currentBuPermission,
       hasSystemRole,
       hasOrgAdminRole,
+      isSystemAuditor,
+      isBuAuditor,
+      isAuditor,
     };
   }, [initialAuthContext, selectedBuId]);
 
