@@ -16,6 +16,15 @@ interface WorkflowData {
   versionOfId?: string; // Added
 }
 
+export interface WorkflowDetailsForEditing {
+  id: string;
+  name: string;
+  description: string | null;
+  formId: string | null;
+  initiatorRoleIds: string[];
+  approvalStepRoleIds: string[];
+}
+
 export async function getWorkflows(
   businessUnitId: string,
   showArchived: boolean,
@@ -662,5 +671,81 @@ export async function getWorkflowBuilderData(businessUnitId: string) {
     workflows: data?.workflows || [],
     forms: data?.forms || [],
     roles: data?.roles || [],
+  };
+}
+
+/**
+ * Get workflow details for editing including initiator roles
+ */
+export async function getWorkflowDetailsForEditing(
+  workflowId: string,
+  businessUnitId: string,
+): Promise<WorkflowDetailsForEditing | null> {
+  const supabase = await createClient();
+
+  // Get workflow basic info and approval steps
+  const { data: workflow, error: workflowError } = await supabase
+    .from("approval_workflows")
+    .select(
+      `
+      id,
+      name,
+      description,
+      approval_step_definitions (
+        step_number,
+        approver_role_id
+      )
+    `,
+    )
+    .eq("id", workflowId)
+    .single();
+
+  if (workflowError || !workflow) {
+    console.error("Error fetching workflow:", workflowError);
+    return null;
+  }
+
+  // Get the form/template ID for this workflow
+  const { data: template, error: templateError } = await supabase
+    .from("requisition_templates")
+    .select("id")
+    .eq("approval_workflow_id", workflowId)
+    .eq("business_unit_id", businessUnitId)
+    .maybeSingle();
+
+  if (templateError) {
+    console.error("Error fetching template:", templateError);
+  }
+
+  // Get initiator roles for this workflow's template (only if template exists)
+  let initiatorAccess = null;
+  if (template?.id) {
+    const { data, error: initiatorError } = await supabase
+      .from("template_initiator_access")
+      .select("role_id")
+      .eq("template_id", template.id);
+
+    if (initiatorError) {
+      console.error("Error fetching initiators:", initiatorError);
+    } else {
+      initiatorAccess = data;
+    }
+  }
+
+  const approvalSteps = workflow.approval_step_definitions || [];
+  const approvalStepRoleIds = approvalSteps
+    .sort((a: any, b: any) => a.step_number - b.step_number)
+    .map((step: any) => step.approver_role_id);
+
+  const initiatorRoleIds =
+    initiatorAccess?.map((access: any) => access.role_id) || [];
+
+  return {
+    id: workflow.id,
+    name: workflow.name,
+    description: workflow.description,
+    formId: template?.id || null,
+    initiatorRoleIds,
+    approvalStepRoleIds,
   };
 }

@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   MoreHorizontal,
-  Edit,
   Archive,
   ArchiveRestore,
   History,
@@ -41,14 +40,10 @@ import {
 import { getWorkflowTransitions } from "../../transition-actions";
 import { toast } from "sonner";
 import { VersionHistoryDialog } from "./VersionHistoryDialog";
-import WorkflowDetailsDialog from "./WorkflowDetailsDialog";
 
 interface WorkflowActionsProps {
   workflow: Workflow;
-  onOpenWorkflowDialog: (
-    workflow: Workflow | null,
-    isNewVersion: boolean,
-  ) => void; // Modified
+  onOpenWorkflowDialog: (workflow: Workflow) => void;
   onArchive: () => void;
   onRestore: () => void;
   isArchivedView: boolean;
@@ -57,7 +52,7 @@ interface WorkflowActionsProps {
 
 export function WorkflowActions({
   workflow,
-  onOpenWorkflowDialog, // Modified
+  onOpenWorkflowDialog,
   onArchive,
   onRestore,
   isArchivedView,
@@ -65,13 +60,10 @@ export function WorkflowActions({
 }: WorkflowActionsProps) {
   const [isWorking, setIsWorking] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showActivateConfirm, setShowActivateConfirm] = useState(false);
   const [hasChainedWorkflows, setHasChainedWorkflows] = useState(false);
   const pathname = usePathname();
-
-  // Removed handleEdit function as its logic is now handled by onOpenWorkflowDialog
 
   const handleArchive = async () => {
     setIsWorking(true);
@@ -182,37 +174,14 @@ export function WorkflowActions({
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsDetailsOpen(true);
+                  onOpenWorkflowDialog(workflow);
                 }}
                 disabled={isWorking}
               >
                 <LinkIcon className="mr-2 h-4 w-4" />
-                <span>View Details & Chaining</span>
+                <span>Edit Workflow Chain</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {workflow.status === "draft" ? (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenWorkflowDialog(workflow, false); // Call with isNewVersion = false
-                  }}
-                  disabled={isWorking}
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  <span>Edit Draft</span>
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenWorkflowDialog(workflow, true); // Call with isNewVersion = true
-                  }}
-                  disabled={isWorking}
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  <span>Create New Version</span>
-                </DropdownMenuItem>
-              )}
               {workflow.status === "draft" && !isArchivedView && (
                 <DropdownMenuItem
                   onClick={(e) => {
@@ -276,23 +245,25 @@ export function WorkflowActions({
         />
       )}
 
-      {isDetailsOpen && (
-        <WorkflowDetailsDialog
-          open={isDetailsOpen}
-          onOpenChange={setIsDetailsOpen}
-          workflow={workflow}
-          businessUnitId={businessUnitId}
-        />
-      )}
-
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Workflow</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to permanently delete this workflow? This
-              action cannot be undone. The workflow will only be deleted if it
-              has not been used and has no connections to other workflows.
+            <AlertDialogTitle>Delete Workflow Chain</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Are you sure you want to permanently delete "{workflow.name}"?
+              </p>
+              <p className="text-sm">
+                <strong>Note:</strong> This will delete the entire workflow chain including all connected sections.
+                The workflow can only be deleted if:
+              </p>
+              <ul className="list-disc pl-5 text-sm space-y-1">
+                <li>It has never been used for any requisitions</li>
+                <li>It is in draft status</li>
+              </ul>
+              <p className="text-sm text-muted-foreground">
+                If you just want to hide this workflow temporarily, use "Archive" instead.
+              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -308,7 +279,7 @@ export function WorkflowActions({
                   Deleting...
                 </>
               ) : (
-                "Delete"
+                "Delete Permanently"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

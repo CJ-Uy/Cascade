@@ -44,10 +44,7 @@ export interface Workflow {
 }
 
 export interface WorkflowListProps {
-  onOpenWorkflowDialog: (
-    workflow: Workflow | null,
-    isNewVersion: boolean,
-  ) => void; // Modified
+  onOpenWorkflowDialog: (workflow: Workflow) => void;
   businessUnitId: string;
   refreshKey: number;
   globalFilter: string;
