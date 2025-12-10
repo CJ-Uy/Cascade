@@ -101,6 +101,7 @@ export async function validateWorkflowTransition(
   sourceWorkflowId: string,
   targetWorkflowId: string,
   targetTemplateId: string | null,
+  businessUnitId?: string,
 ): Promise<TransitionValidationResult> {
   const supabase = await createClient();
 
@@ -108,6 +109,7 @@ export async function validateWorkflowTransition(
     p_source_workflow_id: sourceWorkflowId,
     p_target_workflow_id: targetWorkflowId,
     p_target_template_id: targetTemplateId,
+    p_business_unit_id: businessUnitId || null,
   });
 
   if (error) {
@@ -128,6 +130,7 @@ export async function createWorkflowTransition(
   sourceWorkflowId: string,
   formData: WorkflowTransitionFormData,
   pathname: string,
+  businessUnitId?: string,
 ): Promise<WorkflowTransitionResponse> {
   const supabase = await createClient();
 
@@ -137,6 +140,7 @@ export async function createWorkflowTransition(
       sourceWorkflowId,
       formData.target_workflow_id,
       formData.target_template_id,
+      businessUnitId,
     );
 
     if (!validation.valid) {
@@ -155,6 +159,7 @@ export async function createWorkflowTransition(
       p_initiator_role_id: formData.initiator_role_id,
       p_auto_trigger: formData.auto_trigger,
       p_description: formData.description || null,
+      p_business_unit_id: businessUnitId || null,
     });
 
     if (error) {
@@ -190,6 +195,7 @@ export async function updateWorkflowTransition(
   transitionId: string,
   formData: Partial<WorkflowTransitionFormData>,
   pathname: string,
+  businessUnitId?: string,
 ): Promise<WorkflowTransitionResponse> {
   const supabase = await createClient();
 
@@ -202,6 +208,7 @@ export async function updateWorkflowTransition(
       p_initiator_role_id: formData.initiator_role_id || null,
       p_auto_trigger: formData.auto_trigger ?? null,
       p_description: formData.description || null,
+      p_business_unit_id: businessUnitId || null,
     });
 
     if (error) {
@@ -235,12 +242,14 @@ export async function updateWorkflowTransition(
 export async function deleteWorkflowTransition(
   transitionId: string,
   pathname: string,
+  businessUnitId?: string,
 ): Promise<WorkflowTransitionResponse> {
   const supabase = await createClient();
 
   try {
     const { data, error } = await supabase.rpc("delete_workflow_transition", {
       p_transition_id: transitionId,
+      p_business_unit_id: businessUnitId || null,
     });
 
     if (error) {

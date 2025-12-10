@@ -77,11 +77,7 @@ export default function WorkflowTransitionManager({
       setTransitions(data);
     } catch (error) {
       console.error("Error loading transitions:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load workflow transitions",
-        variant: "destructive",
-      });
+      toast.error("Failed to load workflow transitions");
     } finally {
       setLoading(false);
     }
@@ -100,30 +96,20 @@ export default function WorkflowTransitionManager({
       const result = await deleteWorkflowTransition(
         transitionToDelete.transition_id,
         pathname,
+        businessUnitId,
       );
 
       if (result.success) {
-        toast({
-          title: "Success",
-          description: "Workflow transition deleted successfully",
-        });
+        toast.success("Workflow transition deleted successfully");
         setDeleteDialogOpen(false);
         setTransitionToDelete(null);
         loadTransitions();
       } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to delete transition",
-          variant: "destructive",
-        });
+        toast.error(result.error || "Failed to delete transition");
       }
     } catch (error) {
       console.error("Error deleting transition:", error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
+      toast.error("An unexpected error occurred");
     } finally {
       setDeleting(false);
     }
@@ -132,10 +118,7 @@ export default function WorkflowTransitionManager({
   function handleTransitionAdded(transition: WorkflowTransitionDetail) {
     setAddDialogOpen(false);
     loadTransitions();
-    toast({
-      title: "Success",
-      description: "Workflow transition created successfully",
-    });
+    toast.success("Workflow transition created successfully");
   }
 
   return (

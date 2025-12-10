@@ -124,22 +124,23 @@ export default function WorkflowDetailsDialog({
 
             <Separator />
 
-            {/* Workflow Transitions Section - Only show for active workflows */}
-            {workflow.status === "active" && (
-              <WorkflowTransitionManager
-                workflowId={workflow.id}
-                workflowName={workflow.name}
-                businessUnitId={businessUnitId}
-              />
-            )}
-
-            {workflow.status === "draft" && (
-              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-950/30">
-                <p className="text-sm text-yellow-900 dark:text-yellow-100">
-                  Workflow chaining is only available for active workflows.
-                  Activate this workflow to configure transitions.
-                </p>
-              </div>
+            {/* Workflow Transitions Section - Show for active and draft workflows */}
+            {(workflow.status === "active" || workflow.status === "draft") && (
+              <>
+                {workflow.status === "draft" && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
+                    <p className="text-sm text-blue-900 dark:text-blue-100">
+                      You can configure workflow transitions now. They will
+                      become active when you activate this workflow.
+                    </p>
+                  </div>
+                )}
+                <WorkflowTransitionManager
+                  workflowId={workflow.id}
+                  workflowName={workflow.name}
+                  businessUnitId={businessUnitId}
+                />
+              </>
             )}
 
             {workflow.status === "archived" && (

@@ -794,23 +794,41 @@ All tables now have proper RLS policies enforcing data isolation. See [docs/rls_
 **Circular Chain Detection:**
 System prevents loops by detecting if target workflow chains back to source.
 
-**UI Components** ([app/(main)/management/approval-system/[bu_id]/(components)/](<app/(main)/management/approval-system/[bu_id]/(components)/>)):
+**Multi-Step Workflow Builder:**
+
+Location: [app/(main)/management/approval-system/[bu_id]/(components)/MultiStepWorkflowBuilder.tsx](<app/(main)/management/approval-system/[bu_id]/(components)/MultiStepWorkflowBuilder.tsx>)
+
+- Drag-and-drop horizontal timeline interface
+- Create chains of existing or new workflows
+- Configure transition settings (trigger conditions, initiators, auto-trigger)
+- Validation ensures all required fields are filled
+- **CRITICAL BUG FIX** (Dec 2024): Fixed `createWorkflowTransition` calls to include required `pathname` parameter and added proper error handling to prevent silent transition creation failures
+
+**Workflow Visualizer:**
+
+Location: [app/(main)/management/approval-system/[bu_id]/visualizer/(components)/WorkflowVisualizer.tsx](<app/(main)/management/approval-system/[bu_id]/visualizer/(components)/WorkflowVisualizer.tsx>)
+
+- Integrated as tab in Approval System page ([page.tsx](<app/(main)/management/approval-system/[bu_id]/page.tsx>))
+- Linear flow visualization showing complete workflow chains
+- Color-coded sections: Blue (form), Purple (initiators), Green (approval steps)
+- Each workflow card displays: name, form, initiator roles, numbered approval chain
+- Down arrows with "Chains to" badges between connected workflows
+- Shows trigger conditions and auto-trigger status for chained workflows
+
+**Selection Components:**
 
 - `WorkflowSingleSelectTable.tsx` - Workflow selection with circular detection warnings
 - `RoleSingleSelectTable.tsx` - Role selection with admin badges
 - `TemplateSingleSelectTable.tsx` - Form template selection with "None" option
 - `FormSingleSelectTable.tsx` - Form selection with icons, descriptions, pagination
-- `WorkflowChainTimeline.tsx` - Visual timeline of workflow chains
-- `AddWorkflowTransitionSection.tsx` - UI for adding transitions
+- All use searchable, paginated data tables with visual indicators
 
-**All selection components use searchable, paginated data tables** with:
+**Key Files:**
 
-- Search/filter functionality
-- Sortable columns
-- Pagination (5 items per page)
-- Visual indicators (badges, icons, check marks)
-- Empty states
-- Memoized columns and handlers
+- Multi-step builder: [MultiStepWorkflowBuilder.tsx](<app/(main)/management/approval-system/[bu_id]/(components)/MultiStepWorkflowBuilder.tsx>)
+- Visualizer: [WorkflowVisualizer.tsx](<app/(main)/management/approval-system/[bu_id]/visualizer/(components)/WorkflowVisualizer.tsx>)
+- Main page: [page.tsx](<app/(main)/management/approval-system/[bu_id]/page.tsx>) - Tabs for Manage/Visualizer
+- Transition actions: [transition-actions.ts](<app/(main)/management/approval-system/transition-actions.ts>)
 
 **Migrations:**
 

@@ -166,6 +166,31 @@ export function WorkflowList({
       cell: ({ row }) => `v${row.getValue("version")}`,
     },
     {
+      id: "initiators",
+      accessorFn: (row) => row.initiators.join(" "),
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Initiator Roles <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {row.original.initiators && row.original.initiators.length > 0 ? (
+            row.original.initiators.map((initiator, index) => (
+              <Badge key={index} variant="secondary">
+                {initiator}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-muted-foreground text-sm">No initiators</span>
+          )}
+        </div>
+      ),
+    },
+    {
       id: "steps",
       accessorFn: (row) => row.steps.join(" "),
       header: ({ column }) => (

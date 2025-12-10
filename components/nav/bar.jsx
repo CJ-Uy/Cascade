@@ -56,6 +56,7 @@ import {
   Moon,
   LogOut,
   Bell,
+  Workflow,
 } from "lucide-react";
 
 import { NotificationBell } from "@/components/notifications/notification-bell";

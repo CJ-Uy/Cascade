@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,11 @@ import { WorkflowList, type Workflow } from "./(components)/WorkFlowList";
 import { WorkflowCardView } from "./(components)/WorkflowCardView";
 import { EnhancedWorkflowDialog } from "./(components)/EnhancedWorkflowDialog";
 import { MultiStepWorkflowBuilder } from "./(components)/MultiStepWorkflowBuilder";
+import WorkflowVisualizer from "./visualizer/(components)/WorkflowVisualizer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +51,7 @@ export default function ApprovalSystem() {
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [globalFilter, setGlobalFilter] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const builderRequestCloseRef = useRef<(() => void) | null>(null);
 
   const handleOpenWorkflowDialog = (
     workflow: Workflow | null,
@@ -144,6 +147,7 @@ export default function ApprovalSystem() {
               status: "draft",
             },
             buId,
+            `/management/approval-system/${buId}`,
           );
 
           if (!result.success || !result.workflowId) {
@@ -163,14 +167,25 @@ export default function ApprovalSystem() {
           }
           // If initiatorType is "last_approver", leave initiatorRoleId as null
 
-          await createWorkflowTransition(workflows[i - 1], {
-            target_workflow_id: workflowId,
-            trigger_condition: section.triggerCondition || "APPROVED",
-            initiator_role_id: initiatorRoleId,
-            target_template_id: section.targetTemplateId || null,
-            auto_trigger: section.autoTrigger ?? true,
-            description: `Transition to section ${i + 1}`,
-          });
+          const transitionResult = await createWorkflowTransition(
+            workflows[i - 1],
+            {
+              target_workflow_id: workflowId,
+              trigger_condition: section.triggerCondition || "APPROVED",
+              initiator_role_id: initiatorRoleId,
+              target_template_id: section.targetTemplateId || null,
+              auto_trigger: section.autoTrigger ?? true,
+              description: `Transition to section ${i + 1}`,
+            },
+            `/management/approval-system/${buId}`,
+            buId, // Pass business unit ID for permission checking
+          );
+
+          if (!transitionResult.success) {
+            throw new Error(
+              `Failed to create transition from section ${i} to ${i + 1}: ${transitionResult.error}`,
+            );
+          }
         }
       }
 
@@ -216,134 +231,153 @@ export default function ApprovalSystem() {
         Create, view, and manage the approval chains for different types of
         requests.
       </p>
-      <div className="flex items-center justify-between pb-4">
-        <Input
-          placeholder="Search workflows..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="max-w-sm"
-        />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Create Workflow
-              <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleCreateNew}>
-              <WorkflowIcon className="mr-2 h-4 w-4" />
-              Single Workflow
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleOpenMultiStepBuilder}>
-              <WorkflowIcon className="mr-2 h-4 w-4" />
-              <div className="flex items-center gap-2">
-                <span>Multi-Step Chain</span>
-                <ArrowRight className="h-3 w-3" />
-              </div>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <div className="flex items-center justify-between pb-4">
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="show-archived"
-            checked={showArchived}
-            onCheckedChange={setShowArchived}
-          />
-          <Label htmlFor="show-archived">Show Archived</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant={viewMode === "table" ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("table")}
-          >
-            <Table2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "card" ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("card")}
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
 
-      {viewMode === "table" ? (
-        <WorkflowList
-          refreshKey={key}
-          businessUnitId={buId}
-          onOpenWorkflowDialog={handleOpenWorkflowDialog}
-          globalFilter={globalFilter}
-          showArchived={showArchived}
-          onArchive={handleArchive}
-          onRestore={handleRestore}
-        />
-      ) : (
-        <WorkflowCardView
-          refreshKey={key}
-          businessUnitId={buId}
-          onOpenWorkflowDialog={handleOpenWorkflowDialog}
-          onOpenPreview={() => {}} // Not implemented yet
-          globalFilter={globalFilter}
-          showArchived={showArchived}
-          onArchive={handleArchive}
-          onRestore={handleRestore}
-        />
-      )}
+      <Tabs defaultValue="manage" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="manage">Manage</TabsTrigger>
+          <TabsTrigger value="visualizer">Visualizer</TabsTrigger>
+        </TabsList>
 
-      {isDialogOpen && (
-        <EnhancedWorkflowDialog
-          isOpen={isDialogOpen}
-          setIsOpen={setIsDialogOpen}
-          onSave={handleSaveWorkflow}
-          workflow={editingWorkflow}
-          businessUnitId={buId}
-          isNewVersion={isCreatingNewVersion}
-        />
-      )}
-
-      {isMultiStepBuilderOpen && (
-        <Dialog
-          open={isMultiStepBuilderOpen}
-          onOpenChange={setIsMultiStepBuilderOpen}
-        >
-          <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-[800px]">
-            <DialogHeader>
-              <DialogTitle>Multi-Step Workflow Chain Builder</DialogTitle>
-              <DialogDescription>
-                Create a chain of workflows that automatically trigger in
-                sequence when conditions are met.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-auto">
-              {isLoadingBuilderData ? (
-                <div className="flex h-64 items-center justify-center">
-                  <div className="text-center">
-                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-                    <p className="text-muted-foreground mt-4">
-                      Loading workflow builder...
-                    </p>
+        <TabsContent value="manage" className="space-y-4">
+          <div className="flex items-center justify-between pb-4">
+            <Input
+              placeholder="Search workflows..."
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              className="max-w-sm"
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Create Workflow
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleCreateNew}>
+                  <WorkflowIcon className="mr-2 h-4 w-4" />
+                  Single Workflow
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleOpenMultiStepBuilder}>
+                  <WorkflowIcon className="mr-2 h-4 w-4" />
+                  <div className="flex items-center gap-2">
+                    <span>Multi-Step Chain</span>
+                    <ArrowRight className="h-3 w-3" />
                   </div>
-                </div>
-              ) : (
-                <MultiStepWorkflowBuilder
-                  businessUnitId={buId}
-                  availableWorkflows={availableWorkflows}
-                  availableForms={availableForms}
-                  availableRoles={availableRoles}
-                  onSave={handleSaveMultiStepChain}
-                  onCancel={() => setIsMultiStepBuilderOpen(false)}
-                />
-              )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="flex items-center justify-between pb-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="show-archived"
+                checked={showArchived}
+                onCheckedChange={setShowArchived}
+              />
+              <Label htmlFor="show-archived">Show Archived</Label>
             </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            <div className="flex items-center space-x-2">
+              <Button
+                variant={viewMode === "table" ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("table")}
+              >
+                <Table2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "card" ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("card")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {viewMode === "table" ? (
+            <WorkflowList
+              refreshKey={key}
+              businessUnitId={buId}
+              onOpenWorkflowDialog={handleOpenWorkflowDialog}
+              globalFilter={globalFilter}
+              showArchived={showArchived}
+              onArchive={handleArchive}
+              onRestore={handleRestore}
+            />
+          ) : (
+            <WorkflowCardView
+              refreshKey={key}
+              businessUnitId={buId}
+              onOpenWorkflowDialog={handleOpenWorkflowDialog}
+              onOpenPreview={() => {}} // Not implemented yet
+              globalFilter={globalFilter}
+              showArchived={showArchived}
+              onArchive={handleArchive}
+              onRestore={handleRestore}
+            />
+          )}
+
+          {isDialogOpen && (
+            <EnhancedWorkflowDialog
+              isOpen={isDialogOpen}
+              setIsOpen={setIsDialogOpen}
+              onSave={handleSaveWorkflow}
+              workflow={editingWorkflow}
+              businessUnitId={buId}
+              isNewVersion={isCreatingNewVersion}
+            />
+          )}
+
+          {isMultiStepBuilderOpen && (
+            <Dialog open={isMultiStepBuilderOpen} onOpenChange={() => {}}>
+              <DialogContent
+                className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-[800px]"
+                onInteractOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+                onCloseClick={() => builderRequestCloseRef.current?.()}
+              >
+                <DialogHeader>
+                  <DialogTitle>Multi-Step Workflow Chain Builder</DialogTitle>
+                  <DialogDescription>
+                    Create a chain of workflows that automatically trigger in
+                    sequence when conditions are met.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex-1 overflow-auto">
+                  {isLoadingBuilderData ? (
+                    <div className="flex h-64 items-center justify-center">
+                      <div className="text-center">
+                        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+                        <p className="text-muted-foreground mt-4">
+                          Loading workflow builder...
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <MultiStepWorkflowBuilder
+                      businessUnitId={buId}
+                      availableWorkflows={availableWorkflows}
+                      availableForms={availableForms}
+                      availableRoles={availableRoles}
+                      onSave={handleSaveMultiStepChain}
+                      onCancel={() => setIsMultiStepBuilderOpen(false)}
+                      onRequestClose={(handler) => {
+                        builderRequestCloseRef.current = handler;
+                      }}
+                    />
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </TabsContent>
+
+        <TabsContent value="visualizer">
+          <WorkflowVisualizer businessUnitId={buId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

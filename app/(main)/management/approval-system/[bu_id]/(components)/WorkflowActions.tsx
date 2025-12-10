@@ -38,6 +38,7 @@ import {
   activateWorkflowAction,
   deleteWorkflowAction,
 } from "../../actions"; // New workflow actions
+import { getWorkflowTransitions } from "../../transition-actions";
 import { toast } from "sonner";
 import { VersionHistoryDialog } from "./VersionHistoryDialog";
 import WorkflowDetailsDialog from "./WorkflowDetailsDialog";
@@ -66,6 +67,8 @@ export function WorkflowActions({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showActivateConfirm, setShowActivateConfirm] = useState(false);
+  const [hasChainedWorkflows, setHasChainedWorkflows] = useState(false);
   const pathname = usePathname();
 
   // Removed handleEdit function as its logic is now handled by onOpenWorkflowDialog
@@ -97,6 +100,20 @@ export function WorkflowActions({
   };
 
   const handleActivate = async () => {
+    // Check if this workflow has any outgoing transitions (chained workflows)
+    const transitions = await getWorkflowTransitions(workflow.id);
+
+    if (transitions && transitions.length > 0) {
+      // Show confirmation dialog if there are chained workflows
+      setHasChainedWorkflows(true);
+      setShowActivateConfirm(true);
+    } else {
+      // No chains, activate directly
+      await confirmActivate();
+    }
+  };
+
+  const confirmActivate = async () => {
     setIsWorking(true);
     try {
       await activateWorkflowAction(workflow.id, pathname);
@@ -106,6 +123,7 @@ export function WorkflowActions({
       toast.error(error.message || "Failed to activate workflow.");
     } finally {
       setIsWorking(false);
+      setShowActivateConfirm(false);
     }
   };
 
@@ -291,6 +309,42 @@ export function WorkflowActions({
                 </>
               ) : (
                 "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showActivateConfirm}
+        onOpenChange={setShowActivateConfirm}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activate Workflow Chain</AlertDialogTitle>
+            <AlertDialogDescription>
+              This workflow has chained workflows connected to it. Activating
+              this workflow will also activate all workflows in the chain to
+              ensure the complete lifecycle is functional.
+              <br />
+              <br />
+              Do you want to proceed with activation?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isWorking}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmActivate}
+              disabled={isWorking}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isWorking ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Activating...
+                </>
+              ) : (
+                "Activate Chain"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

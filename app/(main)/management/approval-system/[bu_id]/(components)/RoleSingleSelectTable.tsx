@@ -45,7 +45,6 @@ export function RoleSingleSelectTable({
   selectedRoleId,
   onSelectionChange,
   title = "Select Role",
-  noneOptionLabel = "Last approver from previous workflow",
 }: RoleSingleSelectTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -133,23 +132,6 @@ export function RoleSingleSelectTable({
             {availableRoles.find((r) => r.id === selectedRoleId)?.name || ""}
           </span>
         )}
-      </div>
-
-      {/* None Option */}
-      <div
-        onClick={() => onSelectionChange(null)}
-        className={`hover:bg-accent flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors ${
-          selectedRoleId === null ? "border-primary bg-accent" : ""
-        }`}
-      >
-        <div className="flex h-5 w-5 items-center justify-center">
-          {selectedRoleId === null && (
-            <Check className="text-primary h-5 w-5" />
-          )}
-        </div>
-        <span className="text-muted-foreground flex-1 text-sm">
-          {noneOptionLabel}
-        </span>
       </div>
 
       <Input

@@ -329,6 +329,8 @@ export async function saveWorkflowAction(
   }
 
   revalidatePath(pathname);
+
+  return { success: true, workflowId };
 }
 
 export async function archiveWorkflowAction(
@@ -485,6 +487,23 @@ export async function activateWorkflowAction(
 ) {
   const supabase = await createClient();
 
+  // First, get all workflows in the chain
+  const { data: chainData, error: chainError } = await supabase.rpc(
+    "get_workflow_chain",
+    {
+      p_workflow_id: workflowId,
+    },
+  );
+
+  if (chainError) {
+    console.error("Error fetching workflow chain:", chainError);
+    throw new Error("Failed to fetch workflow chain.");
+  }
+
+  const chainedWorkflowIds =
+    chainData?.map((node: any) => node.workflow_id) || [];
+
+  // Activate the main workflow
   const { data: updatedWorkflow, error: updateError } = await supabase
     .from("approval_workflows")
     .update({ status: "active", is_latest: true })
@@ -495,6 +514,19 @@ export async function activateWorkflowAction(
   if (updateError || !updatedWorkflow) {
     console.error("Error activating workflow:", updateError);
     throw new Error("Failed to activate workflow.");
+  }
+
+  // Activate all chained workflows
+  if (chainedWorkflowIds.length > 0) {
+    const { error: activateChainError } = await supabase
+      .from("approval_workflows")
+      .update({ status: "active", is_latest: true })
+      .in("id", chainedWorkflowIds);
+
+    if (activateChainError) {
+      console.error("Error activating chained workflows:", activateChainError);
+      // Don't throw - main workflow is already activated
+    }
   }
 
   if (updatedWorkflow.parent_workflow_id) {
