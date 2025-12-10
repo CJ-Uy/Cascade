@@ -20,10 +20,7 @@ import { getWorkflows } from "../../actions";
 
 interface WorkflowCardViewProps {
   businessUnitId: string;
-  onOpenWorkflowDialog: (
-    workflow: Workflow | null,
-    isNewVersion: boolean,
-  ) => void; // Modified
+  onOpenWorkflowDialog: (workflow: Workflow) => void;
   onOpenPreview: (workflow: Workflow) => void; // Not implemented yet for workflows
   onArchive: () => void;
   onRestore: () => void;

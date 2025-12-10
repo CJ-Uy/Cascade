@@ -4,23 +4,15 @@ import { useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Table2, LayoutGrid, ArrowRight } from "lucide-react";
+import { PlusCircle, Table2, LayoutGrid } from "lucide-react";
 import { WorkflowList, type Workflow } from "./(components)/WorkFlowList";
 import { WorkflowCardView } from "./(components)/WorkflowCardView";
-import { EnhancedWorkflowDialog } from "./(components)/EnhancedWorkflowDialog";
 import { MultiStepWorkflowBuilder } from "./(components)/MultiStepWorkflowBuilder";
-import WorkflowVisualizer from "./visualizer/(components)/WorkflowVisualizer";
+import WorkflowOverview from "./(components)/WorkflowOverview";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown, Workflow as WorkflowIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -31,77 +23,48 @@ import {
 import { toast } from "sonner";
 import { saveWorkflowAction, getWorkflowBuilderData } from "../actions";
 import { createWorkflowTransition } from "../transition-actions";
-import type { WorkflowTransitionFormData } from "@/lib/types/workflow-chain";
 
-// Note: The Workflow type for the dialog/save action might differ slightly
-// from the one for listing, especially with the 'versionOfId' property.
-type SaveableWorkflow = Omit<Workflow, "id"> & {
-  id?: string;
-  versionOfId?: string;
+type WorkflowSection = {
+  id: string;
+  type: "existing" | "new";
+  order: number;
+  existingWorkflowId?: string;
+  name?: string;
+  description?: string;
+  formId?: string;
+  initiators?: string[];
+  steps?: string[];
+  triggerCondition?: string;
+  initiatorType?: "last_approver" | "specific_role";
+  initiatorRoleId?: string | null;
+  targetTemplateId?: string | null;
+  autoTrigger?: boolean;
 };
 
 export default function ApprovalSystem() {
   const params = useParams();
   const buId = params.bu_id as string;
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isMultiStepBuilderOpen, setIsMultiStepBuilderOpen] = useState(false);
-  const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
-  const [isCreatingNewVersion, setIsCreatingNewVersion] = useState(false);
+  const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(
+    null,
+  );
   const [key, setKey] = useState(Date.now());
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [globalFilter, setGlobalFilter] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const builderRequestCloseRef = useRef<(() => void) | null>(null);
 
-  const handleOpenWorkflowDialog = (
-    workflow: Workflow | null,
-    isNewVersion: boolean,
-  ) => {
-    setEditingWorkflow(workflow);
-    setIsCreatingNewVersion(isNewVersion);
-    setIsDialogOpen(true);
-  };
-
-  const handleCreateNew = () => {
-    handleOpenWorkflowDialog(null, false);
-  };
-
   const handleOpenMultiStepBuilder = async () => {
+    setEditingWorkflowId(null);
     setIsMultiStepBuilderOpen(true);
     await loadBuilderData();
   };
 
-  const handleSaveWorkflow = async (
-    workflowData: SaveableWorkflow,
-    transitions?: WorkflowTransitionFormData[],
-  ) => {
-    try {
-      // First save the workflow
-      await saveWorkflowAction(
-        workflowData,
-        buId,
-        `/management/approval-system/${buId}`,
-      );
-
-      // If transitions are provided, create them
-      // Note: This is a simplified approach. In production, you might want to
-      // handle this server-side or get the workflow ID from the save action
-      if (transitions && transitions.length > 0) {
-        toast.success(
-          `Workflow saved! ${transitions.length} transition(s) will be configured.`,
-        );
-        // TODO: Implement transition creation after workflow is saved
-        // For now, transitions can be added after workflow creation via the details dialog
-      } else {
-        toast.success("Workflow saved successfully!");
-      }
-
-      setIsDialogOpen(false);
-      setKey(Date.now());
-    } catch (error: any) {
-      console.error("Failed to save workflow:", error);
-      toast.error(error.message || "An unknown error occurred.");
-    }
+  const handleManageWorkflow = async (workflow: Workflow) => {
+    // Set the workflow being edited and open the multi-step builder
+    setEditingWorkflowId(workflow.id);
+    setIsMultiStepBuilderOpen(true);
+    await loadBuilderData();
   };
 
   const handleArchive = () => {
@@ -112,7 +75,11 @@ export default function ApprovalSystem() {
     setKey(Date.now());
   };
 
-  const handleSaveMultiStepChain = async (sections: any[]) => {
+  const handleSaveMultiStepChain = async (
+    sections: WorkflowSection[],
+    chainName: string,
+    chainDescription: string,
+  ) => {
     try {
       const workflows: string[] = [];
 
@@ -125,23 +92,31 @@ export default function ApprovalSystem() {
           workflowId = section.existingWorkflowId;
         } else {
           // Create new workflow
+          // For the first section, use the chain name; for others, use section name or "Section X"
+          const workflowName =
+            i === 0
+              ? chainName
+              : section.name?.trim() || `${chainName} - Section ${i + 1}`;
+          const workflowDescription =
+            i === 0 ? chainDescription : section.description || "";
+
           const result = await saveWorkflowAction(
             {
-              name: section.name,
-              description: section.description || "",
-              formId: section.formId,
-              initiators: section.initiators
+              name: workflowName,
+              description: workflowDescription,
+              formId: section.formId || "",
+              initiators: (section.initiators || [])
                 .map(
                   (roleId: string) =>
                     availableRoles.find((r: any) => r.id === roleId)?.name,
                 )
-                .filter(Boolean),
-              steps: section.steps
+                .filter(Boolean) as string[],
+              steps: (section.steps || [])
                 .map(
                   (roleId: string) =>
                     availableRoles.find((r: any) => r.id === roleId)?.name,
                 )
-                .filter(Boolean),
+                .filter(Boolean) as string[],
               version: 1,
               is_latest: true,
               status: "draft",
@@ -171,8 +146,13 @@ export default function ApprovalSystem() {
             workflows[i - 1],
             {
               target_workflow_id: workflowId,
-              trigger_condition: section.triggerCondition || "APPROVED",
-              initiator_role_id: initiatorRoleId,
+              trigger_condition: (section.triggerCondition || "APPROVED") as
+                | "APPROVED"
+                | "REJECTED"
+                | "COMPLETED"
+                | "FLAGGED"
+                | "NEEDS_CLARIFICATION",
+              initiator_role_id: initiatorRoleId || null,
               target_template_id: section.targetTemplateId || null,
               auto_trigger: section.autoTrigger ?? true,
               description: `Transition to section ${i + 1}`,
@@ -232,11 +212,19 @@ export default function ApprovalSystem() {
         requests.
       </p>
 
-      <Tabs defaultValue="manage" className="space-y-4">
+      <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="manage">Manage</TabsTrigger>
-          <TabsTrigger value="visualizer">Visualizer</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview">
+          <WorkflowOverview
+            businessUnitId={buId}
+            onCreateMultiStepChain={handleOpenMultiStepBuilder}
+            onManageWorkflow={handleManageWorkflow}
+          />
+        </TabsContent>
 
         <TabsContent value="manage" className="space-y-4">
           <div className="flex items-center justify-between pb-4">
@@ -246,28 +234,10 @@ export default function ApprovalSystem() {
               onChange={(e) => setGlobalFilter(e.target.value)}
               className="max-w-sm"
             />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Create Workflow
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleCreateNew}>
-                  <WorkflowIcon className="mr-2 h-4 w-4" />
-                  Single Workflow
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleOpenMultiStepBuilder}>
-                  <WorkflowIcon className="mr-2 h-4 w-4" />
-                  <div className="flex items-center gap-2">
-                    <span>Multi-Step Chain</span>
-                    <ArrowRight className="h-3 w-3" />
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button onClick={handleOpenMultiStepBuilder}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Create New Workflow
+            </Button>
           </div>
           <div className="flex items-center justify-between pb-4">
             <div className="flex items-center space-x-2">
@@ -300,7 +270,7 @@ export default function ApprovalSystem() {
             <WorkflowList
               refreshKey={key}
               businessUnitId={buId}
-              onOpenWorkflowDialog={handleOpenWorkflowDialog}
+              onOpenWorkflowDialog={handleManageWorkflow}
               globalFilter={globalFilter}
               showArchived={showArchived}
               onArchive={handleArchive}
@@ -310,7 +280,7 @@ export default function ApprovalSystem() {
             <WorkflowCardView
               refreshKey={key}
               businessUnitId={buId}
-              onOpenWorkflowDialog={handleOpenWorkflowDialog}
+              onOpenWorkflowDialog={handleManageWorkflow}
               onOpenPreview={() => {}} // Not implemented yet
               globalFilter={globalFilter}
               showArchived={showArchived}
@@ -318,66 +288,53 @@ export default function ApprovalSystem() {
               onRestore={handleRestore}
             />
           )}
-
-          {isDialogOpen && (
-            <EnhancedWorkflowDialog
-              isOpen={isDialogOpen}
-              setIsOpen={setIsDialogOpen}
-              onSave={handleSaveWorkflow}
-              workflow={editingWorkflow}
-              businessUnitId={buId}
-              isNewVersion={isCreatingNewVersion}
-            />
-          )}
-
-          {isMultiStepBuilderOpen && (
-            <Dialog open={isMultiStepBuilderOpen} onOpenChange={() => {}}>
-              <DialogContent
-                className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-[800px]"
-                onInteractOutside={(e) => e.preventDefault()}
-                onEscapeKeyDown={(e) => e.preventDefault()}
-                onCloseClick={() => builderRequestCloseRef.current?.()}
-              >
-                <DialogHeader>
-                  <DialogTitle>Multi-Step Workflow Chain Builder</DialogTitle>
-                  <DialogDescription>
-                    Create a chain of workflows that automatically trigger in
-                    sequence when conditions are met.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="flex-1 overflow-auto">
-                  {isLoadingBuilderData ? (
-                    <div className="flex h-64 items-center justify-center">
-                      <div className="text-center">
-                        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-                        <p className="text-muted-foreground mt-4">
-                          Loading workflow builder...
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <MultiStepWorkflowBuilder
-                      businessUnitId={buId}
-                      availableWorkflows={availableWorkflows}
-                      availableForms={availableForms}
-                      availableRoles={availableRoles}
-                      onSave={handleSaveMultiStepChain}
-                      onCancel={() => setIsMultiStepBuilderOpen(false)}
-                      onRequestClose={(handler) => {
-                        builderRequestCloseRef.current = handler;
-                      }}
-                    />
-                  )}
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </TabsContent>
-
-        <TabsContent value="visualizer">
-          <WorkflowVisualizer businessUnitId={buId} />
         </TabsContent>
       </Tabs>
+
+      {/* Multi-Step Workflow Builder Dialog - Accessible from both Overview and Manage tabs */}
+      {isMultiStepBuilderOpen && (
+        <Dialog open={isMultiStepBuilderOpen} onOpenChange={() => {}}>
+          <DialogContent
+            className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-[800px]"
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+            onCloseClick={() => builderRequestCloseRef.current?.()}
+          >
+            <DialogHeader>
+              <DialogTitle>Workflow Chain Builder</DialogTitle>
+              <DialogDescription>
+                Create a workflow chain with one or more sections that
+                automatically trigger in sequence when conditions are met.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-auto">
+              {isLoadingBuilderData ? (
+                <div className="flex h-64 items-center justify-center">
+                  <div className="text-center">
+                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+                    <p className="text-muted-foreground mt-4">
+                      Loading workflow builder...
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <MultiStepWorkflowBuilder
+                  businessUnitId={buId}
+                  availableWorkflows={availableWorkflows}
+                  availableForms={availableForms}
+                  availableRoles={availableRoles}
+                  editingWorkflowId={editingWorkflowId}
+                  onSave={handleSaveMultiStepChain}
+                  onCancel={() => setIsMultiStepBuilderOpen(false)}
+                  onRequestClose={(handler) => {
+                    builderRequestCloseRef.current = handler;
+                  }}
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

@@ -96,6 +96,13 @@ export interface WorkflowChainNode {
   target_template_id: string | null;
   target_template_name: string | null;
   auto_trigger: boolean;
+  initiator_role_id: string | null;
+  initiator_role_name: string | null;
+  approval_steps: Array<{
+    step_number: number;
+    role_id: string;
+    role_name: string;
+  }> | null;
   chain_depth: number;
 }
 

@@ -57,6 +57,8 @@ import { FormSingleSelectTable } from "./FormSingleSelectTable";
 import { WorkflowSingleSelectTable } from "./WorkflowSingleSelectTable";
 import { RoleSingleSelectTable } from "./RoleSingleSelectTable";
 import { TRIGGER_CONDITION_LABELS } from "@/lib/types/workflow-chain";
+import { getWorkflowChain } from "../../transition-actions";
+import { getWorkflowDetailsForEditing } from "../../actions";
 
 type WorkflowSection = {
   id: string;
@@ -91,7 +93,12 @@ interface MultiStepWorkflowBuilderProps {
     description?: string;
   }>;
   availableRoles: Role[];
-  onSave: (sections: WorkflowSection[]) => Promise<void>;
+  editingWorkflowId?: string | null;
+  onSave: (
+    sections: WorkflowSection[],
+    chainName: string,
+    chainDescription: string,
+  ) => Promise<void>;
   onCancel: () => void;
   onRequestClose?: (handler: () => void) => void;
 }
@@ -187,6 +194,7 @@ export function MultiStepWorkflowBuilder({
   availableWorkflows,
   availableForms,
   availableRoles,
+  editingWorkflowId,
   onSave,
   onCancel,
   onRequestClose,
@@ -206,8 +214,116 @@ export function MultiStepWorkflowBuilder({
   const [isSaving, setIsSaving] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isLoadingChain, setIsLoadingChain] = useState(false);
+  const [workflowChainName, setWorkflowChainName] = useState("");
+  const [workflowChainDescription, setWorkflowChainDescription] = useState("");
 
   const handleCancelRef = useRef<() => void>();
+
+  // Load workflow chain data when editing an existing workflow
+  useEffect(() => {
+    const loadWorkflowChain = async () => {
+      if (!editingWorkflowId) {
+        // Reset to empty state when creating new
+        setSections([
+          {
+            id: "section-1",
+            type: "new",
+            order: 0,
+            name: "",
+            description: "",
+            initiators: [],
+            steps: [],
+          },
+        ]);
+        setActiveSection(0);
+        return;
+      }
+
+      setIsLoadingChain(true);
+      try {
+        const chain = await getWorkflowChain(editingWorkflowId);
+
+        if (chain && chain.length > 0) {
+          // Convert chain nodes to editable workflow sections
+          // Fetch full details for each workflow to get all data including initiator roles
+          const convertedSections: WorkflowSection[] = await Promise.all(
+            chain.map(async (node, index) => {
+              // Fetch complete workflow details
+              const details = await getWorkflowDetailsForEditing(
+                node.workflow_id,
+                businessUnitId,
+              );
+
+              if (!details) {
+                // Fallback to partial data if fetch fails
+                const steps =
+                  node.approval_steps?.map((step) => step.role_id) || [];
+                return {
+                  id: `section-${index + 1}`,
+                  type: "new",
+                  order: index,
+                  name: node.workflow_name,
+                  description: node.workflow_description || "",
+                  formId: node.target_template_id || undefined,
+                  initiators: [],
+                  steps: steps,
+                  ...(index > 0 && {
+                    triggerCondition: node.trigger_condition || "APPROVED",
+                    initiatorType: node.initiator_role_id
+                      ? "specific_role"
+                      : "last_approver",
+                    initiatorRoleId: node.initiator_role_id,
+                    targetTemplateId: node.target_template_id,
+                    autoTrigger: node.auto_trigger ?? true,
+                  }),
+                };
+              }
+
+              return {
+                id: `section-${index + 1}`,
+                type: "new", // Make it editable
+                order: index,
+                name: details.name,
+                description: details.description || "",
+                formId: details.formId || undefined,
+                initiators: details.initiatorRoleIds,
+                steps: details.approvalStepRoleIds,
+                // Transition settings (for sections after the first)
+                ...(index > 0 && {
+                  triggerCondition: node.trigger_condition || "APPROVED",
+                  initiatorType: node.initiator_role_id
+                    ? "specific_role"
+                    : "last_approver",
+                  initiatorRoleId: node.initiator_role_id,
+                  targetTemplateId: node.target_template_id,
+                  autoTrigger: node.auto_trigger ?? true,
+                }),
+              };
+            }),
+          );
+
+          setSections(convertedSections);
+          setActiveSection(0);
+
+          // Set the overall chain name from the first workflow
+          if (convertedSections.length > 0) {
+            setWorkflowChainName(convertedSections[0].name || "");
+            setWorkflowChainDescription(convertedSections[0].description || "");
+          }
+        } else {
+          toast.error("Failed to load workflow chain data");
+        }
+      } catch (error) {
+        console.error("Error loading workflow chain:", error);
+        toast.error("Failed to load workflow chain");
+      } finally {
+        setIsLoadingChain(false);
+      }
+    };
+
+    loadWorkflowChain();
+  }, [editingWorkflowId]);
 
   const handleCancel = () => {
     if (hasChanges) {
@@ -303,6 +419,12 @@ export function MultiStepWorkflowBuilder({
   };
 
   const handleSave = async () => {
+    // Validate chain name
+    if (!workflowChainName.trim()) {
+      toast.error("Please enter a workflow chain name");
+      return;
+    }
+
     for (let i = 0; i < sections.length; i++) {
       const section = sections[i];
 
@@ -313,11 +435,12 @@ export function MultiStepWorkflowBuilder({
           return;
         }
       } else {
-        if (!section.name?.trim()) {
-          toast.error(`Section ${i + 1}: Please enter a workflow name`);
-          setActiveSection(i);
-          return;
-        }
+        // Section name is now optional - we'll use "Section X" if not provided
+        // if (!section.name?.trim()) {
+        //   toast.error(`Section ${i + 1}: Please enter a workflow name`);
+        //   setActiveSection(i);
+        //   return;
+        // }
         if (!section.formId) {
           toast.error(`Section ${i + 1}: Please select a form`);
           setActiveSection(i);
@@ -359,7 +482,8 @@ export function MultiStepWorkflowBuilder({
 
     setIsSaving(true);
     try {
-      await onSave(sections);
+      // Pass chain name and description along with sections
+      await onSave(sections, workflowChainName, workflowChainDescription);
     } catch (error) {
       console.error("Error saving workflow chain:", error);
     } finally {
@@ -376,6 +500,20 @@ export function MultiStepWorkflowBuilder({
       : [...currentInitiators, roleId];
     updateSection(activeSection, { initiators: newInitiators });
   };
+
+  // Show loading state while fetching workflow chain
+  if (isLoadingChain) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+          <p className="text-muted-foreground mt-4">
+            Loading workflow chain...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -411,10 +549,52 @@ export function MultiStepWorkflowBuilder({
       </AlertDialog>
 
       <div className="flex h-full flex-col gap-6">
+        {/* Workflow Chain Name */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Workflow Chain Name</CardTitle>
+            <CardDescription>
+              Give your complete workflow process a clear name that describes
+              the entire approval chain.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div>
+                <Label htmlFor="chain-name">Chain Name</Label>
+                <Input
+                  id="chain-name"
+                  value={workflowChainName}
+                  onChange={(e) => {
+                    setWorkflowChainName(e.target.value);
+                    setHasChanges(true);
+                  }}
+                  placeholder="e.g., 'Purchase Approval Process' or 'Travel Request Workflow'"
+                />
+              </div>
+              <div>
+                <Label htmlFor="chain-description">
+                  Chain Description (Optional)
+                </Label>
+                <Textarea
+                  id="chain-description"
+                  value={workflowChainDescription}
+                  onChange={(e) => {
+                    setWorkflowChainDescription(e.target.value);
+                    setHasChanges(true);
+                  }}
+                  placeholder="Describe the overall purpose of this workflow chain..."
+                  rows={2}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Horizontal Timeline */}
         <div className="border-b pb-6">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold">Workflow Chain Timeline</h3>
+            <h3 className="font-semibold">Workflow Sections</h3>
             <Button onClick={addSection} size="sm" variant="outline">
               <Plus className="mr-2 h-4 w-4" />
               Add Section
@@ -529,21 +709,21 @@ export function MultiStepWorkflowBuilder({
             ) : (
               /* New Workflow Configuration - Match Single Workflow Style */
               <>
-                {/* Step 1: Workflow Details */}
+                {/* Step 1: Section Details */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg">
-                      1. Workflow Details
+                      1. Section Details (Optional)
                     </CardTitle>
                     <CardDescription>
-                      Give your workflow a clear and descriptive name and
-                      description.
+                      Optionally give this section a specific name. If left
+                      blank, it will be named "Section {activeSection + 1}".
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="grid gap-4">
                       <div>
-                        <Label htmlFor="name">Workflow Name</Label>
+                        <Label htmlFor="name">Section Name (Optional)</Label>
                         <Input
                           id="name"
                           value={currentSection.name || ""}
@@ -552,11 +732,13 @@ export function MultiStepWorkflowBuilder({
                               name: e.target.value,
                             })
                           }
-                          placeholder="e.g., 'Department Head Approval'"
+                          placeholder={`e.g., 'Department Review' or leave blank for 'Section ${activeSection + 1}'`}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="description">Description</Label>
+                        <Label htmlFor="description">
+                          Section Description (Optional)
+                        </Label>
                         <Textarea
                           id="description"
                           value={currentSection.description || ""}
@@ -565,8 +747,8 @@ export function MultiStepWorkflowBuilder({
                               description: e.target.value,
                             })
                           }
-                          placeholder="e.g., 'Workflow for department head approval of escalated requests.'"
-                          rows={3}
+                          placeholder="Optionally describe what happens in this section..."
+                          rows={2}
                         />
                       </div>
                     </div>

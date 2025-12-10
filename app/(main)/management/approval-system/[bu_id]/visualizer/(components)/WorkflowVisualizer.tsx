@@ -150,7 +150,10 @@ export default function WorkflowVisualizer({
           ? [workflow.initiator_role_name]
           : []
         : workflow.initiators || [];
-    const steps = workflow.steps || [];
+    const steps =
+      "approval_steps" in workflow && workflow.approval_steps
+        ? workflow.approval_steps.map((s) => s.role_name)
+        : workflow.steps || [];
 
     return (
       <Card className="border-primary border-2">
@@ -311,8 +314,9 @@ export default function WorkflowVisualizer({
                   </p>
                 </div>
               </div>
-            ) : workflowChain.length > 0 ? (
-              workflowChain.map((node, idx) => (
+            ) : workflowChain.length > 1 ? (
+              // Skip first element (chain_depth = 0) as it's the selected workflow already shown
+              workflowChain.slice(1).map((node, idx) => (
                 <div key={idx}>
                   {/* Arrow Between Workflows */}
                   <div className="flex items-center justify-center py-4">
