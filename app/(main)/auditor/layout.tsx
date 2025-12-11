@@ -42,4 +42,3 @@ export default function AuditorLayout({
   // User is an auditor, show content
   return <>{children}</>;
 }
-

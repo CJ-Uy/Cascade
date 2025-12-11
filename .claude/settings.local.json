@@ -15,7 +15,12 @@
       "Bash(taskkill:*)",
       "Bash(dir:*)",
       "Bash(npm run db:push:*)",
-      "Bash(timeout 30 npx supabase migration list:*)"
+      "Bash(timeout 30 npx supabase migration list:*)",
+      "Bash(del \"supabase\\migrations\\20251211000000_clear_workflow_data.sql\")",
+      "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251211000000_clear_workflow_data.sql''\")",
+      "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251211000004_create_workflow_chains_schema.sql''\")",
+      "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251211000005_create_workflow_chain_rpc_functions.sql''\")",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "ask": []

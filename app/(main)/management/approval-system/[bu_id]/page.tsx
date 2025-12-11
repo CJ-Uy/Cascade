@@ -21,8 +21,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { saveWorkflowAction, getWorkflowBuilderData } from "../actions";
-import { createWorkflowTransition } from "../transition-actions";
+import { getWorkflowBuilderData } from "../actions";
+import {
+  saveWorkflowChain,
+  getWorkflowChainDetails,
+  deleteWorkflowChain,
+  type WorkflowSection as WorkflowChainSection,
+} from "../[bu_id]/workflow-chain-actions";
 
 type WorkflowSection = {
   id: string;
@@ -81,102 +86,49 @@ export default function ApprovalSystem() {
     chainDescription: string,
   ) => {
     try {
-      const workflows: string[] = [];
+      // Convert sections to the format expected by the new API
+      const workflowSections: WorkflowChainSection[] = sections.map(
+        (section, index) => ({
+          order: index,
+          name: section.name || `Section ${index + 1}`,
+          description: section.description || null,
+          formTemplateId: section.formId || null,
+          triggerCondition: section.triggerCondition || null,
+          initiatorType: section.initiatorType || null,
+          initiatorRoleId: section.initiatorRoleId || null,
+          targetTemplateId: section.targetTemplateId || null,
+          autoTrigger: section.autoTrigger ?? true,
+          initiators: section.initiators || [],
+          steps: section.steps || [],
+        }),
+      );
 
-      // Save each section in order
-      for (let i = 0; i < sections.length; i++) {
-        const section = sections[i];
-        let workflowId: string;
+      const result = await saveWorkflowChain(
+        editingWorkflowId, // null for new, chain ID for editing
+        chainName,
+        chainDescription,
+        buId,
+        workflowSections,
+        `/management/approval-system/${buId}`,
+      );
 
-        if (section.type === "existing") {
-          workflowId = section.existingWorkflowId;
-        } else {
-          // Create new workflow
-          // For the first section, use the chain name; for others, use section name or "Section X"
-          const workflowName =
-            i === 0
-              ? chainName
-              : section.name?.trim() || `${chainName} - Section ${i + 1}`;
-          const workflowDescription =
-            i === 0 ? chainDescription : section.description || "";
-
-          const result = await saveWorkflowAction(
-            {
-              name: workflowName,
-              description: workflowDescription,
-              formId: section.formId || "",
-              initiators: (section.initiators || [])
-                .map(
-                  (roleId: string) =>
-                    availableRoles.find((r: any) => r.id === roleId)?.name,
-                )
-                .filter(Boolean) as string[],
-              steps: (section.steps || [])
-                .map(
-                  (roleId: string) =>
-                    availableRoles.find((r: any) => r.id === roleId)?.name,
-                )
-                .filter(Boolean) as string[],
-              version: 1,
-              is_latest: true,
-              status: "draft",
-            },
-            buId,
-            `/management/approval-system/${buId}`,
-          );
-
-          if (!result.success || !result.workflowId) {
-            throw new Error(`Failed to create workflow for section ${i + 1}`);
-          }
-          workflowId = result.workflowId;
-        }
-
-        workflows.push(workflowId);
-
-        // Create transition from previous workflow (if not first section)
-        if (i > 0) {
-          // Determine initiator_role_id based on initiatorType
-          let initiatorRoleId = null;
-          if (section.initiatorType === "specific_role") {
-            initiatorRoleId = section.initiatorRoleId;
-          }
-          // If initiatorType is "last_approver", leave initiatorRoleId as null
-
-          const transitionResult = await createWorkflowTransition(
-            workflows[i - 1],
-            {
-              target_workflow_id: workflowId,
-              trigger_condition: (section.triggerCondition || "APPROVED") as
-                | "APPROVED"
-                | "REJECTED"
-                | "COMPLETED"
-                | "FLAGGED"
-                | "NEEDS_CLARIFICATION",
-              initiator_role_id: initiatorRoleId || null,
-              target_template_id: section.targetTemplateId || null,
-              auto_trigger: section.autoTrigger ?? true,
-              description: `Transition to section ${i + 1}`,
-            },
-            `/management/approval-system/${buId}`,
-            buId, // Pass business unit ID for permission checking
-          );
-
-          if (!transitionResult.success) {
-            throw new Error(
-              `Failed to create transition from section ${i} to ${i + 1}: ${transitionResult.error}`,
-            );
-          }
-        }
+      if (!result.success) {
+        throw new Error(result.error || "Failed to save workflow chain");
       }
 
+      const action = editingWorkflowId ? "updated" : "created";
       toast.success(
-        `Successfully created workflow chain with ${sections.length} sections!`,
+        `Successfully ${action} workflow chain "${chainName}" with ${sections.length} section${sections.length > 1 ? "s" : ""}!`,
       );
       setIsMultiStepBuilderOpen(false);
+      setEditingWorkflowId(null); // Clear editing state
       setKey(Date.now());
     } catch (error: any) {
-      console.error("Failed to save multi-step chain:", error);
-      toast.error(error.message || "Failed to save workflow chain");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to save workflow chain",
+      );
       throw error;
     }
   };
@@ -197,7 +149,6 @@ export default function ApprovalSystem() {
       setAvailableForms(builderData.forms);
       setAvailableRoles(builderData.roles);
     } catch (error) {
-      console.error("Error loading builder data:", error);
       toast.error("Failed to load workflow builder data");
     } finally {
       setIsLoadingBuilderData(false);
@@ -223,6 +174,7 @@ export default function ApprovalSystem() {
             businessUnitId={buId}
             onCreateMultiStepChain={handleOpenMultiStepBuilder}
             onManageWorkflow={handleManageWorkflow}
+            refreshKey={key}
           />
         </TabsContent>
 

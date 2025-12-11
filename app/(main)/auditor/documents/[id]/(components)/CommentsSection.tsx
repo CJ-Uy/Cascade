@@ -17,9 +17,9 @@ interface CommentsSectionProps {
 export function CommentsSection({ comments }: CommentsSectionProps) {
   if (comments.length === 0) {
     return (
-      <div className="text-center py-8">
-        <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
-        <p className="text-sm text-muted-foreground">No comments yet</p>
+      <div className="py-8 text-center">
+        <MessageSquare className="text-muted-foreground mx-auto mb-2 h-12 w-12" />
+        <p className="text-muted-foreground text-sm">No comments yet</p>
       </div>
     );
   }
@@ -40,15 +40,18 @@ export function CommentsSection({ comments }: CommentsSectionProps) {
           <div key={comment.id} className="space-y-2">
             {/* Main Comment */}
             <div className="bg-muted rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="font-semibold text-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold">
                   {comment.author_first_name} {comment.author_last_name}
                 </p>
                 <p className="text-muted-foreground text-xs">
-                  {format(new Date(comment.created_at), "MMM d, yyyy 'at' h:mm a")}
+                  {format(
+                    new Date(comment.created_at),
+                    "MMM d, yyyy 'at' h:mm a",
+                  )}
                 </p>
               </div>
-              <p className="text-sm whitespace-pre-wrap break-words">
+              <p className="text-sm break-words whitespace-pre-wrap">
                 {comment.content}
               </p>
             </div>
@@ -58,15 +61,18 @@ export function CommentsSection({ comments }: CommentsSectionProps) {
               <div className="ml-6 space-y-2 border-l-2 pl-4">
                 {commentReplies.map((reply) => (
                   <div key={reply.id} className="bg-muted/50 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="font-medium text-xs">
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-xs font-medium">
                         {reply.author_first_name} {reply.author_last_name}
                       </p>
                       <p className="text-muted-foreground text-xs">
-                        {format(new Date(reply.created_at), "MMM d, yyyy 'at' h:mm a")}
+                        {format(
+                          new Date(reply.created_at),
+                          "MMM d, yyyy 'at' h:mm a",
+                        )}
                       </p>
                     </div>
-                    <p className="text-xs whitespace-pre-wrap break-words">
+                    <p className="text-xs break-words whitespace-pre-wrap">
                       {reply.content}
                     </p>
                   </div>
@@ -79,4 +85,3 @@ export function CommentsSection({ comments }: CommentsSectionProps) {
     </div>
   );
 }
-

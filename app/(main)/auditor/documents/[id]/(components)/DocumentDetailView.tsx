@@ -76,7 +76,7 @@ export function DocumentDetailView({
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Content - Left Column (2/3) */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6 lg:col-span-2">
           {/* Form Data */}
           <Card>
             <CardHeader>
@@ -130,4 +130,3 @@ export function DocumentDetailView({
     </div>
   );
 }
-

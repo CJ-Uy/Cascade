@@ -24,7 +24,11 @@ export function FormDataDisplay({
   const sortedFields = [...templateFields].sort((a, b) => a.order - b.order);
 
   const renderFieldValue = (
-    field: { name: string; field_type: string; options?: Array<{ value: string; label: string }> | null },
+    field: {
+      name: string;
+      field_type: string;
+      options?: Array<{ value: string; label: string }> | null;
+    },
     value: any,
   ) => {
     if (value === null || value === undefined || value === "") {
@@ -37,13 +41,15 @@ export function FormDataDisplay({
 
       case "textarea":
         return (
-          <div className="whitespace-pre-wrap break-words">
-            {String(value).split("\n").map((line, i) => (
-              <span key={i}>
-                {line}
-                {i < String(value).split("\n").length - 1 && <br />}
-              </span>
-            ))}
+          <div className="break-words whitespace-pre-wrap">
+            {String(value)
+              .split("\n")
+              .map((line, i) => (
+                <span key={i}>
+                  {line}
+                  {i < String(value).split("\n").length - 1 && <br />}
+                </span>
+              ))}
           </div>
         );
 
@@ -71,7 +77,9 @@ export function FormDataDisplay({
             return (
               <div className="flex flex-wrap gap-1">
                 {value.map((val, i) => {
-                  const option = field.options?.find((opt) => opt.value === val);
+                  const option = field.options?.find(
+                    (opt) => opt.value === val,
+                  );
                   return (
                     <Badge key={i} variant="outline">
                       {option?.label || val}
@@ -99,7 +107,7 @@ export function FormDataDisplay({
             {value ? (
               <Check className="h-4 w-4 text-green-600" />
             ) : (
-              <X className="h-4 w-4 text-muted-foreground" />
+              <X className="text-muted-foreground h-4 w-4" />
             )}
             <span>{value ? "Yes" : "No"}</span>
           </div>
@@ -124,7 +132,7 @@ export function FormDataDisplay({
         // For complex objects, display as formatted JSON
         if (typeof value === "object") {
           return (
-            <pre className="bg-muted rounded p-2 text-xs overflow-x-auto">
+            <pre className="bg-muted overflow-x-auto rounded p-2 text-xs">
               {JSON.stringify(value, null, 2)}
             </pre>
           );
@@ -135,7 +143,7 @@ export function FormDataDisplay({
 
   if (sortedFields.length === 0) {
     return (
-      <p className="text-muted-foreground text-center py-8">
+      <p className="text-muted-foreground py-8 text-center">
         No form fields available.
       </p>
     );
@@ -147,7 +155,7 @@ export function FormDataDisplay({
         const value = documentData[field.name];
         return (
           <div key={field.id} className="space-y-1">
-            <dt className="text-sm font-medium text-muted-foreground">
+            <dt className="text-muted-foreground text-sm font-medium">
               {field.label}
             </dt>
             <dd className="text-sm">{renderFieldValue(field, value)}</dd>
@@ -157,4 +165,3 @@ export function FormDataDisplay({
     </div>
   );
 }
-

@@ -28,7 +28,7 @@ const TimelineItem = ({ children }: { children: React.ReactNode }) => (
 export function ApprovalHistory({ history }: ApprovalHistoryProps) {
   if (history.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground text-center py-4">
+      <p className="text-muted-foreground py-4 text-center text-sm">
         No history available
       </p>
     );
@@ -39,12 +39,12 @@ export function ApprovalHistory({ history }: ApprovalHistoryProps) {
       {history.map((item) => (
         <TimelineItem key={item.id}>
           <div className="space-y-1">
-            <p className="font-semibold text-sm">{item.action}</p>
+            <p className="text-sm font-semibold">{item.action}</p>
             <p className="text-muted-foreground text-xs">
               by {item.actor_first_name} {item.actor_last_name}
             </p>
             {item.comments && (
-              <p className="border-l-2 pl-2 mt-2 text-sm italic text-muted-foreground">
+              <p className="text-muted-foreground mt-2 border-l-2 pl-2 text-sm italic">
                 "{item.comments}"
               </p>
             )}
@@ -57,4 +57,3 @@ export function ApprovalHistory({ history }: ApprovalHistoryProps) {
     </Timeline>
   );
 }
-

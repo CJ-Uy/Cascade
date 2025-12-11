@@ -15,11 +15,11 @@ export default async function AuditorDocumentsPage() {
   }
 
   // Check if user is an auditor
-  const isSystemAuditor = authContext.system_roles?.includes("AUDITOR") ?? false;
+  const isSystemAuditor =
+    authContext.system_roles?.includes("AUDITOR") ?? false;
   const isBuAuditor =
-    authContext.bu_permissions?.some(
-      (p) => p.permission_level === "AUDITOR",
-    ) ?? false;
+    authContext.bu_permissions?.some((p) => p.permission_level === "AUDITOR") ??
+    false;
 
   if (!isSystemAuditor && !isBuAuditor) {
     redirect("/dashboard");
@@ -49,4 +49,3 @@ export default async function AuditorDocumentsPage() {
     </div>
   );
 }
-

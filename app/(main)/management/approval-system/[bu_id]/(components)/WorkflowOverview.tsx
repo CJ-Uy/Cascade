@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getWorkflows } from "../../actions";
-import { getWorkflowChain } from "../../transition-actions";
+import { getWorkflowChainDetails } from "../workflow-chain-actions";
 import {
   Card,
   CardContent,
@@ -28,7 +28,6 @@ import {
   Plus,
   Settings,
 } from "lucide-react";
-import type { WorkflowChainNode } from "@/lib/types/workflow-chain";
 
 interface Workflow {
   id: string;
@@ -45,12 +44,14 @@ interface WorkflowOverviewProps {
   businessUnitId: string;
   onCreateMultiStepChain: () => void;
   onManageWorkflow: (workflow: Workflow) => void;
+  refreshKey?: number;
 }
 
 export default function WorkflowOverview({
   businessUnitId,
   onCreateMultiStepChain,
   onManageWorkflow,
+  refreshKey,
 }: WorkflowOverviewProps) {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +60,7 @@ export default function WorkflowOverview({
     null,
   );
   const [chainData, setChainData] = useState<{
-    [key: string]: WorkflowChainNode[];
+    [key: string]: any; // WorkflowChain from workflow-chain-actions
   }>({});
   const [loadingChain, setLoadingChain] = useState<string | null>(null);
 
@@ -72,7 +73,7 @@ export default function WorkflowOverview({
     };
 
     fetchWorkflows();
-  }, [businessUnitId]);
+  }, [businessUnitId, refreshKey]);
 
   const handleExpandWorkflow = async (workflowId: string) => {
     if (expandedWorkflowId === workflowId) {
@@ -85,8 +86,11 @@ export default function WorkflowOverview({
     // Load chain data if not already loaded
     if (!chainData[workflowId]) {
       setLoadingChain(workflowId);
-      const chain = await getWorkflowChain(workflowId);
-      setChainData((prev) => ({ ...prev, [workflowId]: chain || [] }));
+      const result = await getWorkflowChainDetails(workflowId);
+      setChainData((prev) => ({
+        ...prev,
+        [workflowId]: result.success ? result.data : null,
+      }));
       setLoadingChain(null);
     }
   };
@@ -126,8 +130,9 @@ export default function WorkflowOverview({
 
   const renderWorkflowCard = (workflow: Workflow) => {
     const isExpanded = expandedWorkflowId === workflow.id;
-    const chain = chainData[workflow.id] || [];
-    const hasChain = chain.length > 1;
+    const chainDetails = chainData[workflow.id];
+    const sections = chainDetails?.sections || [];
+    const hasChain = sections.length > 1;
     const isLoadingThisChain = loadingChain === workflow.id;
 
     return (
@@ -147,10 +152,28 @@ export default function WorkflowOverview({
                   {workflow.status}
                 </Badge>
                 {hasChain && (
-                  <Badge variant="outline" className="gap-1">
-                    <LinkIcon className="h-3 w-3" />
-                    {chain.length - 1} chained
-                  </Badge>
+                  <>
+                    <Badge variant="outline" className="gap-1">
+                      <LinkIcon className="h-3 w-3" />
+                      {sections.length}{" "}
+                      {sections.length === 1 ? "section" : "sections"}
+                    </Badge>
+                    <Badge variant="outline" className="gap-1">
+                      <CheckCircle className="h-3 w-3" />
+                      {sections.reduce(
+                        (total, section) =>
+                          total + (section.steps?.length || 0),
+                        0,
+                      )}{" "}
+                      {sections.reduce(
+                        (total, section) =>
+                          total + (section.steps?.length || 0),
+                        0,
+                      ) === 1
+                        ? "step"
+                        : "steps"}
+                    </Badge>
+                  </>
                 )}
               </div>
               {workflow.description && (
@@ -225,8 +248,8 @@ export default function WorkflowOverview({
               <div className="space-y-4">
                 {/* Complete Chain Visualization with Full Details */}
                 <div className="space-y-3">
-                  {chain.map((node, idx) => (
-                    <div key={idx}>
+                  {sections.map((section: any, idx: number) => (
+                    <div key={section.id || idx}>
                       {/* Section Header */}
                       <div className="mb-2 flex items-center gap-2">
                         <Badge
@@ -236,7 +259,7 @@ export default function WorkflowOverview({
                           Section {idx + 1}
                         </Badge>
                         <span className="text-sm font-medium">
-                          {node.workflow_name}
+                          {section.name}
                         </span>
                       </div>
 
@@ -245,14 +268,14 @@ export default function WorkflowOverview({
                         className={`rounded-lg border p-4 ${idx === 0 ? "border-primary bg-primary/5" : "bg-muted/50"}`}
                       >
                         {/* Form */}
-                        {node.target_template_name && (
+                        {section.formTemplateId && (
                           <div className="mb-3">
                             <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-blue-300">
                               <FileText className="h-3 w-3" />
                               Form Template
                             </p>
                             <Badge variant="outline" className="text-xs">
-                              {node.target_template_name}
+                              {section.formTemplateName || "Form"}
                             </Badge>
                           </div>
                         )}
@@ -260,22 +283,25 @@ export default function WorkflowOverview({
                         {/* Initiators */}
                         {idx === 0 ? (
                           /* First section shows workflow initiators */
-                          workflow.initiators.length > 0 && (
+                          section.initiatorNames &&
+                          section.initiatorNames.length > 0 && (
                             <div className="mb-3">
                               <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-purple-700 dark:text-purple-300">
                                 <Users className="h-3 w-3" />
                                 Who Can Start
                               </p>
                               <div className="flex flex-wrap gap-1">
-                                {workflow.initiators.map((init, initIdx) => (
-                                  <Badge
-                                    key={initIdx}
-                                    variant="secondary"
-                                    className="bg-purple-100 text-xs text-purple-800 dark:bg-purple-900/30 dark:text-purple-200"
-                                  >
-                                    {init}
-                                  </Badge>
-                                ))}
+                                {section.initiatorNames.map(
+                                  (name: string, initIdx: number) => (
+                                    <Badge
+                                      key={initIdx}
+                                      variant="secondary"
+                                      className="bg-purple-100 text-xs text-purple-800 dark:bg-purple-900/30 dark:text-purple-200"
+                                    >
+                                      {name}
+                                    </Badge>
+                                  ),
+                                )}
                               </div>
                             </div>
                           )
@@ -290,22 +316,23 @@ export default function WorkflowOverview({
                               variant="secondary"
                               className="bg-purple-100 text-xs text-purple-800 dark:bg-purple-900/30 dark:text-purple-200"
                             >
-                              {node.initiator_role_name ||
-                                "Last Approver from Previous Section"}
+                              {section.initiatorType === "specific_role"
+                                ? section.initiatorRoleName || "Specific Role"
+                                : "Last Approver from Previous Section"}
                             </Badge>
                           </div>
                         )}
 
                         {/* Approval Steps */}
-                        {node.approval_steps &&
-                          node.approval_steps.length > 0 && (
-                            <div>
-                              <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-300">
-                                <CheckCircle className="h-3 w-3" />
-                                Approval Chain
-                              </p>
-                              <div className="flex flex-wrap items-center gap-1">
-                                {node.approval_steps?.map((step, stepIdx) => (
+                        {section.stepNames && section.stepNames.length > 0 && (
+                          <div>
+                            <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-300">
+                              <CheckCircle className="h-3 w-3" />
+                              Approval Chain
+                            </p>
+                            <div className="flex flex-wrap items-center gap-1">
+                              {section.stepNames.map(
+                                (name: string, stepIdx: number) => (
                                   <div
                                     key={stepIdx}
                                     className="flex items-center gap-1"
@@ -314,29 +341,28 @@ export default function WorkflowOverview({
                                       variant="secondary"
                                       className="bg-green-100 text-xs text-green-800 dark:bg-green-900/30 dark:text-green-200"
                                     >
-                                      {step.step_number}. {step.role_name}
+                                      {stepIdx + 1}. {name}
                                     </Badge>
-                                    {stepIdx <
-                                      (node.approval_steps?.length || 0) -
-                                        1 && (
+                                    {stepIdx < section.stepNames.length - 1 && (
                                       <ArrowRight className="h-3 w-3 text-green-600" />
                                     )}
                                   </div>
-                                ))}
-                              </div>
+                                ),
+                              )}
                             </div>
-                          )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Arrow to next section */}
-                      {idx < chain.length - 1 && (
+                      {idx < sections.length - 1 && (
                         <div className="my-2 flex items-center gap-2">
                           <ArrowRight className="text-muted-foreground h-5 w-5" />
                           <Badge variant="outline" className="text-xs">
                             {formatTriggerCondition(
-                              chain[idx + 1].trigger_condition,
+                              sections[idx + 1].triggerCondition,
                             )}
-                            {chain[idx + 1].auto_trigger && " (Auto)"}
+                            {sections[idx + 1].autoTrigger && " (Auto)"}
                           </Badge>
                         </div>
                       )}
@@ -345,7 +371,7 @@ export default function WorkflowOverview({
                 </div>
 
                 {/* No chain message */}
-                {chain.length <= 1 && (
+                {sections.length <= 1 && (
                   <div className="bg-muted/30 rounded-lg border border-dashed p-4 text-center">
                     <LinkIcon className="text-muted-foreground mx-auto mb-2 h-8 w-8" />
                     <p className="text-muted-foreground text-sm">

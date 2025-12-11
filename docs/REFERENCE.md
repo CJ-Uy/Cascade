@@ -1,220 +1,108 @@
 # Cascade Quick Reference
 
-## Security & RLS (Row Level Security)
+This document provides a high-level technical reference for the Cascade project. For a day-by-day log of the major workflow system refactor, see [./archive/REFACTOR_LOG.md](./archive/REFACTOR_LOG.md).
 
-### ⚠️ CRITICAL: Always Use RPC Functions
+## Architecture Overview
 
-Never use direct `supabase.from()` SELECT queries. Always use RPC functions to ensure proper access control.
+### Workflow System Refactor (December 2025)
 
-**Helper Functions:**
+The application underwent a major architectural refactor to simplify the workflow system.
 
-- `is_super_admin()` - Check if current user is Super Admin
-- `is_organization_admin()` - Check if user is Organization Admin
-- `is_bu_admin_for_unit(bu_id)` - Check BU Admin status
-- `get_user_organization_id()` - Get user's organization ID
+**Previous Architecture ("N workflows + transitions"):**
+*   Each step in a workflow was a separate `approval_workflows` record.
+*   Steps were linked by a `workflow_transitions` table.
+*   This caused numerous issues with RLS, data consistency (duplicates, name overwriting), and code complexity.
 
-**Data Access Functions:**
+**New Architecture ("1 chain + N sections"):**
+*   A single `workflow_chains` record represents an entire workflow.
+*   Each chain contains multiple `workflow_sections`.
+*   This simplified the data model, queries, and RLS policies, resolving the previous issues.
+*   The old tables (`approval_workflows`, `workflow_transitions`, etc.) were deleted after ensuring no data would be lost.
 
-- `get_business_units_for_user()` - BUs user can access
-- `get_users_in_organization()` - Users in user's org
-- `get_requisitions_for_bu(bu_id)` - Requisitions for a BU
-- `get_templates_for_bu(bu_id)` - Templates for a BU
+### Authentication & Authorization Model
 
-**RLS Policy Summary:**
+The application uses a **4-tier hierarchical permission system**:
 
-- Organization-level: Super Admins access all, Org Admins access their org
-- Business Unit-level: Users access only their BUs
-- Data isolation: Requisitions/Documents scoped to user's BUs
-- Chat: Users access only chats they participate in
+1.  **System Roles** (scope: SYSTEM):
+    *   `Super Admin` - Global access across all organizations
+    *   `AUDITOR` - System-wide auditing access
 
-**Migrations:**
+2.  **Organization Roles** (scope: ORGANIZATION):
+    *   `Organization Admin` - Access to all business units within their organization
 
-- `20251130214500_fix_insecure_rls_policies.sql` - Fixed insecure policies
-- `20251130220000_enable_rls_on_chat_tables.sql` - Enabled RLS on chat
-- `20251130230000_create_rls_compliant_rpc_functions.sql` - RPC functions
+3.  **Business Unit Roles** (scope: BU):
+    *   Custom roles per BU with `is_bu_admin` flag for admin rights.
 
-## Workflow Chaining
+4.  **Business Unit Membership** (via `user_business_units`):
+    *   `BU_ADMIN` / `Head` - Full management access
+    *   `APPROVER` - Can approve requisitions
+    *   `MEMBER` - Can create and view own requisitions
+    *   `AUDITOR` - Read-only access
 
-### Trigger Conditions
+The `useSession()` hook provides client-side access to the user's authentication context and permissions.
 
-- **When Approved** - Trigger when workflow fully approved
-- **When Rejected** - Trigger when workflow rejected
-- **When Completed** - Trigger regardless of outcome
-- **When Flagged** - Trigger when flagged for review
-- **When Clarification Requested** - Trigger when clarification needed
+### Supabase Integration
 
-### Initiator Options
+-   **Server Components/Actions**: Use `createClient()` from `lib/supabase/server.ts`.
+-   **Client Components**: Use `createClient()` from `lib/supabase/client.ts`.
+-   **Middleware**: Uses `createClient()` from `lib/supabase/middleware.ts`.
 
-- **Last Approver** (default) - Person who completed last step
-- **Specific Role** - Designated role becomes initiator
+**CRITICAL**: Always use RPC functions for `SELECT` queries to ensure RLS policies are enforced. Direct table access is only for `INSERT`, `UPDATE`, `DELETE` within server actions where RLS `WITH CHECK` policies apply.
 
-### Auto-Trigger
+## Database
 
-- **Enabled** - Automatically creates next requisition
-- **Disabled** - Sends notification, requires manual action
+### Schema Overview
 
-### Circular Chain Detection
+The database uses a "1 chain + N sections" model for workflows.
 
-System prevents creating loops by detecting if target workflow chains back to source.
+**Key Tables:**
 
-### UI Components (Searchable Data Tables)
+*   `workflow_chains`: The top-level record for a workflow.
+*   `workflow_sections`: The individual, ordered sections or stages within a `workflow_chain`.
+*   `workflow_section_initiators`: Defines which roles can start a given section.
+*   `workflow_section_steps`: Defines the approval steps for each section.
 
-All workflow/role/form selection uses searchable, paginated data tables:
+**Legacy Tables:**
 
-- `WorkflowSingleSelectTable.tsx` - Workflow selection with circular detection
-- `RoleSingleSelectTable.tsx` - Role selection with admin badges
-- `TemplateSingleSelectTable.tsx` - Form template selection
-- `FormSingleSelectTable.tsx` - Form selection with icons & descriptions
+*   All tables related to the old "N workflows + transitions" model (e.g., `approval_workflows`, `workflow_transitions`, `workflow_chain_instances`) have been **deleted**.
+*   The `requisitions` table and its related tables are still active for backward compatibility but are considered legacy. New development should use the "Dynamic Documents" system.
 
-**Features:**
+### RPC Functions
 
-- Search/filter functionality
-- Sortable columns
-- Pagination (5 items per page)
-- Visual indicators (badges, icons)
-- Empty states
+Key functions for interacting with the new workflow system:
 
-## Database Schema
+*   `get_workflow_chains_for_bu(p_bu_id)`: Fetches all workflow chains for a business unit.
+*   `get_workflow_chain_details(p_chain_id)`: Gets the complete details of a single workflow chain, including all its sections, initiators, and steps.
+*   `save_workflow_chain(...)`: Atomically creates or updates a workflow chain and all its sections.
+*   `delete_workflow_chain(p_chain_id)`: Permanently deletes a workflow chain and all its associated data (via cascade delete).
+*   `archive_workflow_chain(p_chain_id)`: Soft-deletes a workflow chain by setting its status to 'archived'.
 
-### Current Schema (Dynamic Documents)
+### Row Level Security (RLS)
 
-**Primary Tables:**
-
-- `form_templates` - Dynamic form definitions
-- `form_fields` - Field specifications (type, validation, options)
-- `workflow_templates` - Approval workflow definitions
-- `workflow_steps` - Individual steps in workflows
-- `documents` - Document submissions (JSONB data)
-- `document_history` - Audit trail
-
-**Workflow Transitions:**
-
-- `workflow_transitions` - Chained workflow connections
-- Stores: target workflow, trigger condition, initiator role, template, auto-trigger flag
-
-### Legacy Schema (Requisitions)
-
-**Still Active:**
-
-- `requisitions`, `requisition_templates`, `approval_workflows`
-- Maintained for backwards compatibility
-- New features should use Current Schema
-
-### Key Enums
-
-- `action_type` - SUBMIT, APPROVE, REJECT, REQUEST_REVISION, etc.
-- `approval_status` - WAITING, PENDING, APPROVED, etc.
-- `field_type` - short-text, long-text, number, radio, checkbox, table, file-upload
-- `requisition_status` - DRAFT, PENDING, APPROVED, CANCELED
-- `template_status` - draft, active, archived
-
-## Component Patterns
-
-### Searchable Data Tables
-
-All use TanStack React Table with:
-
-```tsx
-const table = useReactTable({
-  data,
-  columns,
-  getCoreRowModel: getCoreRowModel(),
-  getPaginationRowModel: getPaginationRowModel(),
-  getSortedRowModel: getSortedRowModel(),
-  getFilteredRowModel: getFilteredRowModel(),
-  state: { sorting, globalFilter },
-  initialState: { pagination: { pageSize: 5 } },
-});
-```
-
-**Common Features:**
-
-- Memoized columns with `useMemo`
-- Global search input
-- Sortable headers with ArrowUpDown icon
-- Check mark for selected items
-- Pagination controls (Previous/Next)
-- Empty states
-
-### File Colocation
-
-Route-specific components in `(components)` folders next to pages.
-
-### Naming Conventions
-
-- Data table columns: `*-columns.tsx`
-- Data tables: `*-data-table.tsx`
-- Actions: `*-actions.ts` or `actions.ts`
-- Forms: `*-form.tsx`
-- Cards: `*-card.tsx`
-
-## Server Actions Pattern
-
-```typescript
-"use server";
-
-export async function actionName(formData: FormData) {
-  const supabase = await createClient();
-
-  // Validate input
-  const data = {
-    /* validated data */
-  };
-
-  // Perform operation (use RPC for SELECT)
-  const { error } = await supabase.from("table").insert(data);
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  // Revalidate paths
-  revalidatePath("/path/to/revalidate");
-
-  return { success: true };
-}
-```
+-   All tables have RLS policies enabled.
+-   Policies are simpler due to the new architecture, primarily scoping data to the user's organization or business unit.
+-   `Super Admins` can manage all data.
+-   `Organization Admins` can manage data within their organization.
+-   `BU Admins` can manage data within their business unit.
+-   Regular users have read-only access, limited to their business units.
 
 ## Key Migrations
 
-**Security:**
+**Workflow Refactor (December 2025):**
 
-- `20251130214500` - Fix insecure RLS policies
-- `20251130220000` - Enable RLS on chat tables
-- `20251130230000` - Create RLS-compliant RPC functions
-
-**Dynamic Documents:**
-
-- `20251201000000` - Finalize dynamic schema
-- `20251201010000` - Form template RPC
-- `20251201020000` - Workflow template RPC
-- `20251201030000` - Update notifications schema
-- `20251201040000` - Form submission RPC
-- `20251201050000` - Document approval RPC
-- `20251201070000` - Dashboard RPC
-
-**Workflow Chaining:**
-
-- `20251208120000` - Fix workflow transitions function
-- `20251210000000` - Add workflow chaining
-- `20251210000001` - Workflow chain RPC functions
-
-## Important Notes
-
-- **Always use RPC functions** for SELECT queries to ensure RLS compliance
-- **Use Current Schema** (documents, form_templates) for new features
-- **Legacy Schema** (requisitions) maintained for backwards compatibility
-- **All selection dropdowns** replaced with searchable data tables
-- **Workflow deletion** only for draft workflows with no usage
-- **Circular chains** prevented by detection system
-- **Settings page** (`/settings`) is UI-only, not fully functional
+*   `..._create_workflow_chains_schema.sql`: Created the new `workflow_chains`, `workflow_sections`, etc., tables.
+*   `..._create_workflow_chain_rpc_functions.sql`: Created the RPC functions to interact with the new schema.
+*   `..._fix_workflow_sections_trigger_values.sql`: Aligned trigger condition values between the UI and the database.
+*   `..._enhance_workflow_chain_details_with_names.sql`: Improved an RPC to return role/template names instead of just IDs.
+*   `..._drop_obsolete_workflow_tables.sql`: Dropped the old `approval_workflows`, `workflow_transitions`, and other related tables.
 
 ## Tech Stack
 
-- Next.js 15, React 19, TypeScript
-- Supabase (PostgreSQL with RLS)
-- Tailwind CSS 4, shadcn/ui
-- @tanstack/react-table
-- @dnd-kit (drag & drop)
-- react-hook-form, zod
-- lucide-react icons
+-   **Framework**: Next.js 15 (App Router), React 19
+-   **Language**: TypeScript
+-   **Database**: Supabase (PostgreSQL)
+-   **Auth**: Supabase Auth with RLS
+-   **Styling**: Tailwind CSS 4, shadcn/ui
+-   **Forms**: react-hook-form, zod
+-   **Tables**: @tanstack/react-table
+-   **Icons**: lucide-react

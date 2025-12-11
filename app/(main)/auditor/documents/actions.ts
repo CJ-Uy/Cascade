@@ -58,10 +58,7 @@ export async function getAuditorDocumentDetails(documentId: string) {
  * Assign a tag to a document
  * Uses: Direct insert to document_tags table (RLS protected)
  */
-export async function assignTagToDocument(
-  documentId: string,
-  tagId: string,
-) {
+export async function assignTagToDocument(documentId: string, tagId: string) {
   const supabase = await createClient();
 
   const {
@@ -93,10 +90,7 @@ export async function assignTagToDocument(
  * Remove a tag from a document
  * Uses: Direct delete from document_tags table (RLS protected)
  */
-export async function removeTagFromDocument(
-  documentId: string,
-  tagId: string,
-) {
+export async function removeTagFromDocument(documentId: string, tagId: string) {
   const supabase = await createClient();
 
   const {
@@ -179,4 +173,3 @@ export async function createTag(label: string, color: string) {
 
   return { success: true, error: null, data };
 }
-

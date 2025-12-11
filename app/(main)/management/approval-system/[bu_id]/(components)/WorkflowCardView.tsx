@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { type Workflow } from "./WorkFlowList";
 import { icons } from "lucide-react";
 import {
   Card,
@@ -12,16 +11,42 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { WorkflowActions } from "./WorkflowActions";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Workflow as WorkflowIcon } from "lucide-react";
+import {
+  Workflow as WorkflowIcon,
+  MoreHorizontal,
+  Edit,
+  Archive,
+  RotateCcw,
+} from "lucide-react";
 
 import { getWorkflows } from "../../actions";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+export interface Workflow {
+  id: string;
+  name: string;
+  description?: string;
+  initiators: string[];
+  steps: string[];
+  version: number;
+  parent_workflow_id?: string;
+  is_latest: boolean;
+  status: string;
+  formId?: string; // Added
+  formName?: string; // Added
+  formIcon?: string; // Added
+}
 
 interface WorkflowCardViewProps {
   businessUnitId: string;
   onOpenWorkflowDialog: (workflow: Workflow) => void;
-  onOpenPreview: (workflow: Workflow) => void; // Not implemented yet for workflows
   onArchive: () => void;
   onRestore: () => void;
   globalFilter: string;
@@ -32,7 +57,6 @@ interface WorkflowCardViewProps {
 export function WorkflowCardView({
   businessUnitId,
   onOpenWorkflowDialog, // Changed from onEditWorkflow
-  onOpenPreview,
   onArchive,
   onRestore,
   globalFilter,
@@ -116,7 +140,7 @@ export function WorkflowCardView({
         filteredWorkflows.map((workflow) => (
           <Card
             key={workflow.id}
-            onClick={() => onOpenPreview(workflow)} // Preview not implemented yet
+            onClick={() => onOpenWorkflowDialog(workflow)}
             className="flex cursor-pointer flex-col"
           >
             <CardHeader className="flex-grow">
@@ -140,14 +164,45 @@ export function WorkflowCardView({
                     <span>{workflow.formName}</span>
                   </div>
                 )}
-                <WorkflowActions
-                  workflow={workflow}
-                  onOpenWorkflowDialog={onOpenWorkflowDialog} // Modified
-                  onArchive={onArchive}
-                  onRestore={onRestore}
-                  isArchivedView={showArchived}
-                  businessUnitId={businessUnitId}
-                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card onClick from firing
+                        onOpenWorkflowDialog(workflow);
+                      }}
+                    >
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    {showArchived ? (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent card onClick from firing
+                          onRestore();
+                        }}
+                      >
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Restore
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent card onClick from firing
+                          onArchive();
+                        }}
+                      >
+                        <Archive className="mr-2 h-4 w-4" />
+                        Archive
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <CardDescription className="line-clamp-2">
                 {workflow.description || "No description"}

@@ -31,119 +31,45 @@ export async function getWorkflows(
 ) {
   const supabase = await createClient();
 
-  let query = supabase
-    .from("approval_workflows")
-    .select(
-      `
-            id,
-            name,
-            description,
-            version,
-            parent_workflow_id,
-            is_latest,
-            status,
-            approval_step_definitions (
-                step_number,
-                roles ( id, name )
-            ),
-            requisition_templates!left(id, name, icon)
-        `,
-    )
-    .order("created_at", { ascending: false });
+  // Use the new RPC function to get workflow chains
+  const { data: workflowChains, error } = await supabase.rpc(
+    "get_workflow_chains_for_bu",
+    {
+      p_bu_id: businessUnitId,
+    },
+  );
 
-  if (showArchived) {
-    query = query.eq("status", "archived");
-  } else {
-    query = query.neq("status", "archived").eq("is_latest", true);
-  }
-
-  // Filter by workflows that have at least one step associated with a role in the current business unit
-  // This is a simplification, a more robust solution might involve linking workflows directly to BUs
-  const { data: buRoles, error: buRolesError } = await supabase
-    .from("roles")
-    .select("id")
-    .eq("business_unit_id", businessUnitId);
-
-  if (buRolesError) {
-    console.error("Error fetching BU roles:", buRolesError);
-    return [];
-  }
-  const buRoleIds = buRoles.map((r) => r.id);
-
-  const { data: workflowSteps, error: wsError } = await supabase
-    .from("approval_step_definitions")
-    .select("workflow_id")
-    .in("approver_role_id", buRoleIds);
-
-  if (wsError) {
-    console.error("Error fetching workflow steps:", wsError);
-    return [];
-  }
-  const relevantWorkflowIds = [
-    ...new Set(workflowSteps.map((ws) => ws.workflow_id)),
-  ];
-
-  if (relevantWorkflowIds.length === 0) return [];
-
-  query = query.in("id", relevantWorkflowIds);
-
-  const { data: workflows, error: workflowsError } = await query;
-
-  if (workflowsError) {
-    console.error("Error fetching workflows", workflowsError);
+  if (error) {
+    console.error("[getWorkflows] Error fetching workflow chains:", error);
     return [];
   }
 
-  // Fetch initiators (roles that can start a requisition using a template linked to this workflow)
-  const { data: initiatorAccess, error: accessError } = await supabase
-    .from("template_initiator_access")
-    .select(
-      `
-            roles ( name ),
-            requisition_templates!inner ( approval_workflow_id )
-        `,
-    )
-    .in("requisition_templates.approval_workflow_id", relevantWorkflowIds)
-    .eq("requisition_templates.business_unit_id", businessUnitId);
-
-  const initiatorsByWorkflow = new Map<string, Set<string>>();
-  if (initiatorAccess && !accessError) {
-    for (const access of initiatorAccess) {
-      const wfId = access.requisition_templates.approval_workflow_id;
-      if (!initiatorsByWorkflow.has(wfId)) {
-        initiatorsByWorkflow.set(wfId, new Set());
-      }
-      if (access.roles) {
-        initiatorsByWorkflow.get(wfId)!.add(access.roles.name);
-      }
-    }
+  if (!workflowChains) {
+    return [];
   }
 
-  return workflows.map((wf: any) => {
-    // A workflow can be linked to multiple templates. We'll display the first one for now.
-    const template = Array.isArray(wf.requisition_templates)
-      ? wf.requisition_templates[0]
-      : wf.requisition_templates;
+  // Filter by archived status
+  const filtered = showArchived
+    ? workflowChains.filter((chain: any) => chain.status === "archived")
+    : workflowChains.filter((chain: any) => chain.status !== "archived");
 
-    return {
-      id: wf.id,
-      name: wf.name,
-      description: wf.description,
-      version: wf.version,
-      parent_workflow_id: wf.parent_workflow_id,
-      is_latest: wf.is_latest,
-      status: wf.status,
-      steps: wf.approval_step_definitions
-        .sort((a: any, b: any) => a.step_number - b.step_number)
-        .map((step: any) => step.roles.name),
-      initiators: initiatorsByWorkflow.has(wf.id)
-        ? Array.from(initiatorsByWorkflow.get(wf.id)!)
-        : [],
-      formId: template?.id || null,
-      formName: template?.name || null,
-      formIcon: template?.icon || null,
-    };
-  });
+  // Transform to match the expected format
+  return filtered.map((chain: any) => ({
+    id: chain.id,
+    name: chain.name,
+    description: chain.description,
+    version: chain.version,
+    parent_workflow_id: chain.parent_chain_id,
+    is_latest: chain.is_latest,
+    status: chain.status,
+    steps: [], // Will be populated when we add workflow details
+    initiators: [], // Will be populated when we add workflow details
+    formId: null, // Will be populated when we add workflow details
+    formName: null,
+    formIcon: null,
+    sectionCount: Number(chain.section_count) || 0,
+    totalSteps: Number(chain.total_steps) || 0,
+  }));
 }
 
 export async function saveWorkflowAction(
@@ -413,7 +339,7 @@ export async function deleteWorkflowAction(
 ) {
   const supabase = await createClient();
 
-  // Check if the workflow is a draft
+  // Check if the workflow exists
   const { data: workflow, error: fetchError } = await supabase
     .from("approval_workflows")
     .select("status, parent_workflow_id")
@@ -423,13 +349,6 @@ export async function deleteWorkflowAction(
   if (fetchError || !workflow) {
     console.error("Error fetching workflow to delete:", fetchError);
     throw new Error("Could not find the workflow to delete.");
-  }
-
-  // Only allow deletion if the workflow is a draft
-  if (workflow.status !== "draft") {
-    throw new Error(
-      "Only draft workflows can be deleted. Active or archived workflows must be archived instead.",
-    );
   }
 
   // Check if workflow is in use (approvals or transitions)
@@ -446,25 +365,23 @@ export async function deleteWorkflowAction(
     throw new Error("Failed to check if workflow is in use.");
   }
 
+  // If workflow has been used for requisitions/approvals, don't allow deletion
   if (usageCheck?.has_approvals) {
     throw new Error(
       "This workflow cannot be deleted because it has been used for requisitions. Please archive it instead.",
     );
   }
 
-  if (usageCheck?.has_transitions_to) {
-    throw new Error(
-      "This workflow cannot be deleted because other workflows are connected to it. Please archive it instead.",
-    );
-  }
+  // Allow deletion if workflow is not in use, regardless of status
+  // This allows users to delete active workflows that have never been used
 
-  if (usageCheck?.has_transitions_from) {
-    throw new Error(
-      "This workflow cannot be deleted because it has outgoing workflow transitions. Please remove the transitions first or archive the workflow.",
-    );
-  }
+  // Delete workflow transitions TO this workflow
+  await supabase
+    .from("workflow_transitions")
+    .delete()
+    .eq("target_workflow_id", workflowId);
 
-  // Delete workflow transitions from this workflow
+  // Delete workflow transitions FROM this workflow
   await supabase
     .from("workflow_transitions")
     .delete()
@@ -485,6 +402,75 @@ export async function deleteWorkflowAction(
   if (deleteError) {
     console.error("Error deleting workflow:", deleteError);
     throw new Error("Failed to delete workflow.");
+  }
+
+  revalidatePath(pathname);
+}
+
+export async function convertToDraftAction(
+  workflowId: string,
+  pathname: string,
+) {
+  const supabase = await createClient();
+
+  // Check if workflow is in use
+  const { data: usageCheck, error: usageError } = await supabase.rpc(
+    "check_workflow_in_use",
+    {
+      p_workflow_id: workflowId,
+    },
+  );
+
+  if (usageError) {
+    console.error("Error checking workflow usage:", usageError);
+    throw new Error("Failed to check if workflow is in use.");
+  }
+
+  // If workflow has been used for requisitions/approvals, don't allow conversion to draft
+  if (usageCheck?.has_approvals) {
+    throw new Error(
+      "This workflow cannot be converted to draft because it has been used for requisitions. Please create a new version instead.",
+    );
+  }
+
+  // Get workflow chain to convert all chained workflows
+  const { data: chainData, error: chainError } = await supabase.rpc(
+    "get_workflow_chain",
+    {
+      p_workflow_id: workflowId,
+    },
+  );
+
+  if (chainError) {
+    console.error("Error fetching workflow chain:", chainError);
+    throw new Error("Failed to fetch workflow chain.");
+  }
+
+  const chainedWorkflowIds =
+    chainData?.map((node: any) => node.workflow_id) || [];
+
+  // Convert main workflow to draft
+  const { error: updateError } = await supabase
+    .from("approval_workflows")
+    .update({ status: "draft" })
+    .eq("id", workflowId);
+
+  if (updateError) {
+    console.error("Error converting workflow to draft:", updateError);
+    throw new Error("Failed to convert workflow to draft.");
+  }
+
+  // Convert all chained workflows to draft
+  if (chainedWorkflowIds.length > 0) {
+    const { error: convertChainError } = await supabase
+      .from("approval_workflows")
+      .update({ status: "draft" })
+      .in("id", chainedWorkflowIds);
+
+    if (convertChainError) {
+      console.error("Error converting chained workflows:", convertChainError);
+      // Don't throw - main workflow is already converted
+    }
   }
 
   revalidatePath(pathname);

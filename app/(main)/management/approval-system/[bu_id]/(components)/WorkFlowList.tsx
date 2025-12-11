@@ -24,7 +24,13 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { WorkflowActions } from "./WorkflowActions";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Edit, Archive, RotateCcw } from "lucide-react";
 
 import { icons } from "lucide-react"; // Import icons for dynamic rendering
 
@@ -212,14 +218,32 @@ export function WorkflowList({
       id: "actions",
       cell: ({ row }) => (
         <div className="text-right">
-          <WorkflowActions
-            workflow={row.original}
-            onOpenWorkflowDialog={onOpenWorkflowDialog} // Modified
-            onArchive={onArchive}
-            onRestore={onRestore}
-            isArchivedView={showArchived}
-            businessUnitId={businessUnitId}
-          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => onOpenWorkflowDialog(row.original)}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              {showArchived ? (
+                <DropdownMenuItem onClick={onRestore}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Restore
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={onArchive}>
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archive
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ),
     },

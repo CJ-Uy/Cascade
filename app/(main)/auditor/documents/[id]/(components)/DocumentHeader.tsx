@@ -52,10 +52,13 @@ export function DocumentHeader({ document }: DocumentHeaderProps) {
     <Card>
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
-          <div className="space-y-4 flex-1">
+          <div className="flex-1 space-y-4">
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold">{document.template_name}</h1>
-              <Badge variant="outline" className="bg-purple-50 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+              <Badge
+                variant="outline"
+                className="bg-purple-50 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
+              >
                 <Eye className="mr-1 h-3 w-3" />
                 Read-Only
               </Badge>
@@ -66,46 +69,52 @@ export function DocumentHeader({ document }: DocumentHeaderProps) {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">
+                <p className="text-muted-foreground text-sm font-medium">
                   Initiator
                 </p>
                 <p className="text-sm">
                   {document.initiator_first_name} {document.initiator_last_name}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   {document.initiator_email}
                 </p>
               </div>
 
               <div>
-                <p className="text-sm font-medium text-muted-foreground">
+                <p className="text-muted-foreground text-sm font-medium">
                   Business Unit
                 </p>
                 <p className="text-sm">{document.business_unit_name}</p>
               </div>
 
               <div>
-                <p className="text-sm font-medium text-muted-foreground">
+                <p className="text-muted-foreground text-sm font-medium">
                   Organization
                 </p>
                 <p className="text-sm">{document.organization_name}</p>
               </div>
 
               <div>
-                <p className="text-sm font-medium text-muted-foreground">
+                <p className="text-muted-foreground text-sm font-medium">
                   Created
                 </p>
                 <p className="text-sm">
-                  {format(new Date(document.created_at), "MMM d, yyyy 'at' h:mm a")}
+                  {format(
+                    new Date(document.created_at),
+                    "MMM d, yyyy 'at' h:mm a",
+                  )}
                 </p>
               </div>
 
               <div>
-                <p className="text-sm font-medium text-muted-foreground">
+                <p className="text-muted-foreground text-sm font-medium">
                   Last Updated
                 </p>
                 <p className="text-sm">
-                  {format(new Date(document.updated_at), "MMM d, yyyy 'at' h:mm a")}
+                  {format(
+                    new Date(document.updated_at),
+                    "MMM d, yyyy 'at' h:mm a",
+                  )}
                 </p>
               </div>
             </div>
@@ -115,4 +124,3 @@ export function DocumentHeader({ document }: DocumentHeaderProps) {
     </Card>
   );
 }
-

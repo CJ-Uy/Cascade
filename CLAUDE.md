@@ -336,10 +336,12 @@ await createNotification({
 **Purpose**: Read-only document access for auditing and compliance purposes.
 
 **Access Control**:
+
 - **System Auditors**: Users with system role `AUDITOR` - can view all documents across all organizations
 - **BU Auditors**: Users with `membership_type = 'AUDITOR'` in `user_business_units` - can view documents from their assigned business units only
 
 **Key Features**:
+
 - Document list view with filtering (status, tags, search)
 - Document detail view with improved field rendering
 - Tag management (create, assign, remove own tags)
@@ -348,6 +350,7 @@ await createNotification({
 - Comments display (read-only)
 
 **Files**:
+
 - `app/(main)/auditor/` - Auditor routes
   - `layout.tsx` - Access protection (redirects non-auditors)
   - `documents/page.tsx` - Document list view
@@ -357,16 +360,19 @@ await createNotification({
 - `components/nav/bar.jsx` - "Audit" section visible to auditors
 
 **RPC Functions** (in Supabase):
+
 - `is_auditor()` - Checks if current user is an auditor
 - `get_auditor_documents(tag_ids, status_filter, search_text)` - Fetches documents with filters
 - `get_auditor_document_details(document_id)` - Fetches complete document details
 
 **RLS Policies**:
+
 - `document_tags` table: Auditors can view/assign tags on accessible documents, remove own tags
 - `documents` table: Updated SELECT policy to include auditors
 - `tags` table: Auditors can create tags
 
 **Tag Management**:
+
 - Auditors can create tags inline when assigning
 - Tags are color-coded for visual categorization
 - Only tags assigned by the current user can be removed

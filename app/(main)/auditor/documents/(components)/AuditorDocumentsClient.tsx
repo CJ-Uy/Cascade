@@ -41,9 +41,8 @@ export function AuditorDocumentsClient({
   initialTags,
   initialError,
 }: AuditorDocumentsClientProps) {
-  const [documents, setDocuments] = useState<AuditorDocument[]>(
-    initialDocuments,
-  );
+  const [documents, setDocuments] =
+    useState<AuditorDocument[]>(initialDocuments);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
 
@@ -130,7 +129,7 @@ export function AuditorDocumentsClient({
           <div className="space-y-4">
             <Skeleton className="h-10 w-full" />
             <div className="rounded-md border">
-              <div className="p-4 space-y-4">
+              <div className="space-y-4 p-4">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Skeleton key={i} className="h-16 w-full" />
                 ))}
@@ -139,8 +138,10 @@ export function AuditorDocumentsClient({
           </div>
         ) : error ? (
           <div className="rounded-md border p-8 text-center">
-            <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Error Loading Documents</h3>
+            <AlertCircle className="text-destructive mx-auto mb-4 h-12 w-12" />
+            <h3 className="mb-2 text-lg font-semibold">
+              Error Loading Documents
+            </h3>
             <p className="text-muted-foreground mb-4">{error}</p>
             <Button onClick={fetchDocuments} variant="outline">
               Try Again
@@ -153,4 +154,3 @@ export function AuditorDocumentsClient({
     </div>
   );
 }
-

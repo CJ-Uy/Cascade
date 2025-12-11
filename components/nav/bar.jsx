@@ -174,7 +174,7 @@ export function Navbar() {
 
   // Debug: Log auditor status
   if (authContext) {
-    console.log('Auditor Debug:', {
+    console.log("Auditor Debug:", {
       isAuditor,
       isSystemAuditor,
       isBuAuditor,

@@ -73,7 +73,7 @@ export function FilterSidebar({
                 onClick={onClearFilters}
                 className="h-8 px-2"
               >
-                <X className="h-4 w-4 mr-1" />
+                <X className="mr-1 h-4 w-4" />
                 Clear
               </Button>
             )}
@@ -118,15 +118,13 @@ export function FilterSidebar({
           <div className="space-y-2">
             <Label>Tags</Label>
             {availableTags.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No tags available
-              </p>
+              <p className="text-muted-foreground text-sm">No tags available</p>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="max-h-64 space-y-2 overflow-y-auto">
                 {availableTags.map((tag) => (
                   <div
                     key={tag.id}
-                    className="flex items-center space-x-2 space-y-0"
+                    className="flex items-center space-y-0 space-x-2"
                   >
                     <Checkbox
                       id={`tag-${tag.id}`}
@@ -193,4 +191,3 @@ export function FilterSidebar({
     </div>
   );
 }
-

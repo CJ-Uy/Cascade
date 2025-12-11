@@ -20,7 +20,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { X, Plus, Trash2 } from "lucide-react";
-import { assignTagToDocument, removeTagFromDocument, getTags, createTag } from "../../actions";
+import {
+  assignTagToDocument,
+  removeTagFromDocument,
+  getTags,
+  createTag,
+} from "../../actions";
 import { useSession } from "@/app/contexts/SessionProvider";
 import { toast } from "sonner";
 
@@ -39,7 +44,9 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
   const { authContext } = useSession();
   const currentUserId = authContext?.user_id;
   const [tags, setTags] = useState(initialTags);
-  const [availableTags, setAvailableTags] = useState<Array<{ id: string; label: string; color: string }>>([]);
+  const [availableTags, setAvailableTags] = useState<
+    Array<{ id: string; label: string; color: string }>
+  >([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [selectedTagId, setSelectedTagId] = useState<string>("");
@@ -112,7 +119,10 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
     }
 
     setIsCreatingTag(true);
-    const { success, error, data } = await createTag(newTagLabel.trim(), newTagColor);
+    const { success, error, data } = await createTag(
+      newTagLabel.trim(),
+      newTagColor,
+    );
     setIsCreatingTag(false);
 
     if (!success || !data) {
@@ -125,7 +135,7 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
     setAvailableTags([...availableTags, newTag]);
     setNewTagLabel("");
     setNewTagColor("#3b82f6");
-    
+
     // Automatically assign the newly created tag
     const optimisticTag = {
       id: data.id,
@@ -136,8 +146,11 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
     };
     setTags([...tags, optimisticTag]);
     setIsDialogOpen(false);
-    
-    const { success, error: assignError } = await assignTagToDocument(documentId, data.id);
+
+    const { success, error: assignError } = await assignTagToDocument(
+      documentId,
+      data.id,
+    );
     if (!success) {
       // Revert optimistic update
       setTags(tags);
@@ -185,7 +198,7 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
           })}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">No tags assigned</p>
+        <p className="text-muted-foreground text-sm">No tags assigned</p>
       )}
 
       {/* Add Tag Dialog */}
@@ -240,7 +253,7 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
+                  <span className="bg-background text-muted-foreground px-2">
                     Or
                   </span>
                 </div>
@@ -263,7 +276,7 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
                   onChange={(e) => setNewTagColor(e.target.value)}
                   className="h-10 w-20"
                 />
-                <span className="text-sm text-muted-foreground">
+                <span className="text-muted-foreground text-sm">
                   {newTagColor}
                 </span>
               </div>
@@ -281,4 +294,3 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
     </div>
   );
 }
-

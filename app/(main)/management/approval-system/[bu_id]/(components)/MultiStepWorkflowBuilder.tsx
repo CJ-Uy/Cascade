@@ -57,8 +57,7 @@ import { FormSingleSelectTable } from "./FormSingleSelectTable";
 import { WorkflowSingleSelectTable } from "./WorkflowSingleSelectTable";
 import { RoleSingleSelectTable } from "./RoleSingleSelectTable";
 import { TRIGGER_CONDITION_LABELS } from "@/lib/types/workflow-chain";
-import { getWorkflowChain } from "../../transition-actions";
-import { getWorkflowDetailsForEditing } from "../../actions";
+import { getWorkflowChainDetails } from "../workflow-chain-actions";
 
 type WorkflowSection = {
   id: string;
@@ -242,78 +241,43 @@ export function MultiStepWorkflowBuilder({
 
       setIsLoadingChain(true);
       try {
-        const chain = await getWorkflowChain(editingWorkflowId);
+        const result = await getWorkflowChainDetails(editingWorkflowId);
 
-        if (chain && chain.length > 0) {
-          // Convert chain nodes to editable workflow sections
-          // Fetch full details for each workflow to get all data including initiator roles
-          const convertedSections: WorkflowSection[] = await Promise.all(
-            chain.map(async (node, index) => {
-              // Fetch complete workflow details
-              const details = await getWorkflowDetailsForEditing(
-                node.workflow_id,
-                businessUnitId,
-              );
-
-              if (!details) {
-                // Fallback to partial data if fetch fails
-                const steps =
-                  node.approval_steps?.map((step) => step.role_id) || [];
-                return {
-                  id: `section-${index + 1}`,
-                  type: "new",
-                  order: index,
-                  name: node.workflow_name,
-                  description: node.workflow_description || "",
-                  formId: node.target_template_id || undefined,
-                  initiators: [],
-                  steps: steps,
-                  ...(index > 0 && {
-                    triggerCondition: node.trigger_condition || "APPROVED",
-                    initiatorType: node.initiator_role_id
-                      ? "specific_role"
-                      : "last_approver",
-                    initiatorRoleId: node.initiator_role_id,
-                    targetTemplateId: node.target_template_id,
-                    autoTrigger: node.auto_trigger ?? true,
-                  }),
-                };
-              }
-
-              return {
-                id: `section-${index + 1}`,
-                type: "new", // Make it editable
-                order: index,
-                name: details.name,
-                description: details.description || "",
-                formId: details.formId || undefined,
-                initiators: details.initiatorRoleIds,
-                steps: details.approvalStepRoleIds,
-                // Transition settings (for sections after the first)
-                ...(index > 0 && {
-                  triggerCondition: node.trigger_condition || "APPROVED",
-                  initiatorType: node.initiator_role_id
-                    ? "specific_role"
-                    : "last_approver",
-                  initiatorRoleId: node.initiator_role_id,
-                  targetTemplateId: node.target_template_id,
-                  autoTrigger: node.auto_trigger ?? true,
-                }),
-              };
-            }),
-          );
-
-          setSections(convertedSections);
-          setActiveSection(0);
-
-          // Set the overall chain name from the first workflow
-          if (convertedSections.length > 0) {
-            setWorkflowChainName(convertedSections[0].name || "");
-            setWorkflowChainDescription(convertedSections[0].description || "");
-          }
-        } else {
-          toast.error("Failed to load workflow chain data");
+        if (!result.success || !result.data) {
+          toast.error(result.error || "Failed to load workflow chain data");
+          return;
         }
+
+        const chain = result.data;
+
+        // Set the overall chain name and description
+        setWorkflowChainName(chain.name);
+        setWorkflowChainDescription(chain.description || "");
+
+        // Convert sections to the format expected by the UI
+        const convertedSections: WorkflowSection[] = chain.sections.map(
+          (section, index) => ({
+            id: section.id || `section-${index + 1}`,
+            type: "new" as const, // Make it editable
+            order: section.order,
+            name: section.name,
+            description: section.description || "",
+            formId: section.formTemplateId || undefined,
+            initiators: section.initiators || [],
+            steps: section.steps || [],
+            // Transition settings (for sections after the first)
+            ...(index > 0 && {
+              triggerCondition: section.triggerCondition || "APPROVED",
+              initiatorType: section.initiatorType || "last_approver",
+              initiatorRoleId: section.initiatorRoleId || undefined,
+              targetTemplateId: section.targetTemplateId || undefined,
+              autoTrigger: section.autoTrigger ?? true,
+            }),
+          }),
+        );
+
+        setSections(convertedSections);
+        setActiveSection(0);
       } catch (error) {
         console.error("Error loading workflow chain:", error);
         toast.error("Failed to load workflow chain");
@@ -323,7 +287,7 @@ export function MultiStepWorkflowBuilder({
     };
 
     loadWorkflowChain();
-  }, [editingWorkflowId]);
+  }, [editingWorkflowId, businessUnitId]);
 
   const handleCancel = () => {
     if (hasChanges) {
@@ -435,12 +399,12 @@ export function MultiStepWorkflowBuilder({
           return;
         }
       } else {
-        // Section name is now optional - we'll use "Section X" if not provided
-        // if (!section.name?.trim()) {
-        //   toast.error(`Section ${i + 1}: Please enter a workflow name`);
-        //   setActiveSection(i);
-        //   return;
-        // }
+        // Section name is required
+        if (!section.name?.trim()) {
+          toast.error(`Section ${i + 1}: Please enter a section name`);
+          setActiveSection(i);
+          return;
+        }
         if (!section.formId) {
           toast.error(`Section ${i + 1}: Please select a form`);
           setActiveSection(i);
@@ -713,17 +677,18 @@ export function MultiStepWorkflowBuilder({
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg">
-                      1. Section Details (Optional)
+                      1. Section Details
                     </CardTitle>
                     <CardDescription>
-                      Optionally give this section a specific name. If left
-                      blank, it will be named "Section {activeSection + 1}".
+                      Give this section a clear, descriptive name.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="grid gap-4">
                       <div>
-                        <Label htmlFor="name">Section Name (Optional)</Label>
+                        <Label htmlFor="name">
+                          Section Name <span className="text-red-500">*</span>
+                        </Label>
                         <Input
                           id="name"
                           value={currentSection.name || ""}
@@ -732,7 +697,8 @@ export function MultiStepWorkflowBuilder({
                               name: e.target.value,
                             })
                           }
-                          placeholder={`e.g., 'Department Review' or leave blank for 'Section ${activeSection + 1}'`}
+                          placeholder="e.g., 'Department Review' or 'Manager Approval'"
+                          required
                         />
                       </div>
                       <div>

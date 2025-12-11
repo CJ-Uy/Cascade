@@ -78,7 +78,7 @@ const columns: ColumnDef<AuditorDocument>[] = [
     cell: ({ row }) => (
       <div>
         <div className="font-medium">{row.original.initiator_name}</div>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-muted-foreground text-sm">
           {row.original.initiator_email}
         </div>
       </div>
@@ -97,9 +97,7 @@ const columns: ColumnDef<AuditorDocument>[] = [
     cell: ({ row }) => {
       const status = row.original.status;
       return (
-        <Badge variant={getStatusVariant(status)}>
-          {formatStatus(status)}
-        </Badge>
+        <Badge variant={getStatusVariant(status)}>{formatStatus(status)}</Badge>
       );
     },
   },
@@ -197,10 +195,11 @@ export function DocumentTable({ documents }: DocumentTableProps) {
   if (documents.length === 0) {
     return (
       <div className="rounded-md border p-12 text-center">
-        <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No Documents Found</h3>
+        <FileText className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+        <h3 className="mb-2 text-lg font-semibold">No Documents Found</h3>
         <p className="text-muted-foreground">
-          No documents match your current filters. Try adjusting your search criteria.
+          No documents match your current filters. Try adjusting your search
+          criteria.
         </p>
       </div>
     );
@@ -259,7 +258,7 @@ export function DocumentTable({ documents }: DocumentTableProps) {
         </Table>
       </div>
       <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
+        <div className="text-muted-foreground text-sm">
           Showing {table.getRowModel().rows.length} of {documents.length}{" "}
           documents
         </div>
@@ -285,4 +284,3 @@ export function DocumentTable({ documents }: DocumentTableProps) {
     </div>
   );
 }
-
