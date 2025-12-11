@@ -337,6 +337,7 @@ I strongly recommend this approach because:
 **Should we proceed with this refactor?** It will take some time but will save countless hours of debugging and fixing edge cases in the future.
 
 ---
+
 ---
 
 # From RLS_POLICY_FIX.md
@@ -587,6 +588,7 @@ INSERT INTO workflow_transitions (
 **Author:** Claude Code Assistant
 
 ---
+
 ---
 
 # From WORKFLOW_CHAIN_DISPLAY_FIX.md
@@ -909,6 +911,7 @@ If you have duplicate workflows in your database from before this fix, you shoul
 **Author:** Claude Code Assistant
 
 ---
+
 ---
 
 # From WORKFLOW_EDIT_DELETE_FIXES.md
@@ -1311,6 +1314,7 @@ console.log(`[Section ${index}] Workflow Details:`, {
 **Author:** Claude Code Assistant
 
 ---
+
 ---
 
 # From WORKFLOW_FIXES_SUMMARY.md
@@ -1613,6 +1617,7 @@ If you encounter any issues after applying these fixes:
 **Author**: Claude Code Assistant
 
 ---
+
 ---
 
 # From WORKFLOW_FINAL_FIXES.md
@@ -1964,6 +1969,7 @@ psql -h [host] -U postgres -d postgres -f clear_workflow_data.sql
 **Author:** Claude Code Assistant
 
 ---
+
 ---
 
 # From WORKFLOW_DEBUGGING_GUIDE.md
@@ -2303,6 +2309,7 @@ This gives a clean slate for testing the fixes.
 **Author:** Claude Code Assistant
 
 ---
+
 ---
 
 # From WORKFLOW_CHAINS_REFACTOR_STATUS.md
@@ -2596,6 +2603,7 @@ If issues are discovered:
 **Status:** 50% Complete (Backend done, Frontend pending)
 
 ---
+
 ---
 
 # From WORKFLOW_CHAIN_EDIT_FIX.md
@@ -2691,6 +2699,7 @@ Try the following:
 6.  Verify changes are persisted
 
 ---
+
 ---
 
 # From WORKFLOW_OVERVIEW_FIX.md
@@ -2839,6 +2848,7 @@ Try the following:
 4.  Verify it shows proper details for both single-section and multi-section workflows
 
 ---
+
 ---
 
 # From WORKFLOW_TRIGGER_CONDITION_FIX.md
@@ -2907,6 +2917,7 @@ COMMENT ON COLUMN workflow_sections.trigger_condition IS 'Condition that trigger
 Try saving a workflow chain again. The error should no longer occur.
 
 ---
+
 ---
 
 # From WORKFLOW_CHAIN_REFACTOR_SUMMARY.md
@@ -3174,6 +3185,7 @@ If you encounter any issues:
 4.  Check database tables exist: `SELECT * FROM workflow_chains LIMIT 1;`
 
 ---
+
 ---
 
 # From CLEANUP_SUMMARY.md
@@ -3354,6 +3366,7 @@ app/(main)/management/approval-system/transition-actions.ts
 - [ ] Verify no TypeScript errors from deleted files
 
 ---
+
 ---
 
 # From DATABASE_CLEANUP_PLAN.md
@@ -3550,6 +3563,7 @@ If migration fails:
 - **Document what was dropped and when**
 
 ---
+
 ---
 
 # From COMPREHENSIVE_CLEANUP_COMPLETE.md
@@ -3771,6 +3785,7 @@ app/(main)/management/approval-system/
 **Ready for testing:** Yes
 
 ---
+
 ---
 
 # From DATABASE_CLEANUP_COMPLETED.md
