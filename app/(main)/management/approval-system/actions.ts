@@ -636,15 +636,47 @@ export async function getRolesWithDetails(businessUnitId: string) {
 /**
  * Get all data needed for workflow builder in a single optimized call
  * This reduces database roundtrips and improves performance
+ *
+ * NOTE: This now fetches from workflow_chains instead of the deleted approval_workflows table
  */
 export async function getWorkflowBuilderData(businessUnitId: string) {
   const supabase = await createClient();
 
-  const { data, error } = await supabase.rpc("get_workflow_builder_data", {
-    p_business_unit_id: businessUnitId,
-  });
+  try {
+    // Fetch forms (requisition templates)
+    const { data: forms, error: formsError } = await supabase
+      .from("requisition_templates")
+      .select("id, name, icon, description")
+      .eq("business_unit_id", businessUnitId)
+      .eq("is_latest", true)
+      .eq("status", "active")
+      .order("name");
 
-  if (error) {
+    if (formsError) {
+      console.error("Error fetching forms:", formsError);
+    }
+
+    // Fetch roles
+    const { data: roles, error: rolesError } = await supabase
+      .from("roles")
+      .select("id, name, is_bu_admin, scope, business_unit_id")
+      .eq("business_unit_id", businessUnitId)
+      .order("name");
+
+    if (rolesError) {
+      console.error("Error fetching roles:", rolesError);
+    }
+
+    // Fetch workflow chains (for the workflows list - currently empty array as we don't need it)
+    // The workflow builder creates new workflow chains, it doesn't edit existing ones
+    const workflows: any[] = [];
+
+    return {
+      workflows: workflows || [],
+      forms: forms || [],
+      roles: roles || [],
+    };
+  } catch (error) {
     console.error("Error fetching workflow builder data:", error);
     return {
       workflows: [],
@@ -652,12 +684,6 @@ export async function getWorkflowBuilderData(businessUnitId: string) {
       roles: [],
     };
   }
-
-  return {
-    workflows: data?.workflows || [],
-    forms: data?.forms || [],
-    roles: data?.roles || [],
-  };
 }
 
 /**

@@ -180,3 +180,33 @@ export async function archiveWorkflowChain(
 
   return { success: true };
 }
+
+/**
+ * Update workflow chain status (draft, active, archived)
+ */
+export async function updateWorkflowChainStatus(
+  chainId: string,
+  status: "draft" | "active" | "archived",
+  businessUnitId: string,
+  pathname?: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("update_workflow_chain_status", {
+    p_chain_id: chainId,
+    p_status: status,
+  });
+
+  if (error) {
+    console.error("[updateWorkflowChainStatus] Error:", error);
+    return { success: false, error: error.message };
+  }
+
+  // Revalidate the page
+  if (pathname) {
+    revalidatePath(pathname);
+  }
+  revalidatePath(`/management/approval-system/${businessUnitId}`);
+
+  return { success: true };
+}

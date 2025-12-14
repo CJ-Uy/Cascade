@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { getWorkflows } from "../../actions";
-import { getWorkflowChainDetails } from "../workflow-chain-actions";
+import {
+  getWorkflowChainDetails,
+  updateWorkflowChainStatus,
+} from "../workflow-chain-actions";
 import {
   Card,
   CardContent,
@@ -16,6 +19,13 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
   Workflow as WorkflowIcon,
   ChevronRight,
   ChevronDown,
@@ -27,7 +37,13 @@ import {
   ArrowRight,
   Plus,
   Settings,
+  MoreVertical,
+  PlayCircle,
+  PauseCircle,
+  Archive,
 } from "lucide-react";
+import { toast } from "sonner";
+import { usePathname } from "next/navigation";
 
 interface Workflow {
   id: string;
@@ -63,6 +79,7 @@ export default function WorkflowOverview({
     [key: string]: any; // WorkflowChain from workflow-chain-actions
   }>({});
   const [loadingChain, setLoadingChain] = useState<string | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -92,6 +109,27 @@ export default function WorkflowOverview({
         [workflowId]: result.success ? result.data : null,
       }));
       setLoadingChain(null);
+    }
+  };
+
+  const handleStatusChange = async (
+    workflowId: string,
+    newStatus: "draft" | "active" | "archived",
+  ) => {
+    const result = await updateWorkflowChainStatus(
+      workflowId,
+      newStatus,
+      businessUnitId,
+      pathname,
+    );
+
+    if (result.success) {
+      toast.success(`Workflow ${newStatus === "active" ? "activated" : newStatus === "draft" ? "set to draft" : "archived"}`);
+      // Refresh workflows
+      const fetchedWorkflows = await getWorkflows(businessUnitId, false);
+      setWorkflows(fetchedWorkflows);
+    } else {
+      toast.error(result.error || "Failed to update workflow status");
     }
   };
 
@@ -191,6 +229,39 @@ export default function WorkflowOverview({
                 <Settings className="mr-1 h-4 w-4" />
                 Manage
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {workflow.status === "draft" && (
+                    <DropdownMenuItem
+                      onClick={() => handleStatusChange(workflow.id, "active")}
+                    >
+                      <PlayCircle className="mr-2 h-4 w-4" />
+                      Activate
+                    </DropdownMenuItem>
+                  )}
+                  {workflow.status === "active" && (
+                    <DropdownMenuItem
+                      onClick={() => handleStatusChange(workflow.id, "draft")}
+                    >
+                      <PauseCircle className="mr-2 h-4 w-4" />
+                      Set to Draft
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => handleStatusChange(workflow.id, "archived")}
+                    className="text-destructive"
+                  >
+                    <Archive className="mr-2 h-4 w-4" />
+                    Archive
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="ghost"
                 size="icon"
