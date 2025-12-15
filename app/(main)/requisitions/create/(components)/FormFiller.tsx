@@ -23,14 +23,24 @@ interface FormFillerProps {
   formFields: FormField[];
   onSubmit: (formData: Record<string, any>) => void;
   isSubmitting?: boolean;
+  onChange?: (formData: Record<string, any>) => void;
+  onValidationChange?: (isValid: boolean) => void;
+  initialValues?: Record<string, any>;
+  hideSubmitButton?: boolean;
 }
 
 export function FormFiller({
   formFields,
   onSubmit,
   isSubmitting = false,
+  onChange,
+  onValidationChange,
+  initialValues,
+  hideSubmitButton = false,
 }: FormFillerProps) {
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, any>>(
+    initialValues || {},
+  );
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
@@ -39,15 +49,26 @@ export function FormFiller({
 
   useEffect(() => {
     // Reset form data and errors when formFields change
-    setFormData({});
-    setValidationErrors({});
-    setIsFormValid(false);
-  }, [formFields]);
+    if (!initialValues) {
+      setFormData({});
+      setValidationErrors({});
+      setIsFormValid(false);
+    }
+  }, [formFields, initialValues]);
 
   useEffect(() => {
     // Re-validate form whenever formData changes
-    setIsFormValid(validateForm(true)); // Pass true to not set errors, just check validity
-  }, [formData, formFields]); // Depend on formData and formFields
+    const valid = validateForm(true); // Pass true to not set errors, just check validity
+    setIsFormValid(valid);
+    // Notify parent of form data changes
+    if (onChange) {
+      onChange(formData);
+    }
+    // Notify parent of validation changes
+    if (onValidationChange) {
+      onValidationChange(valid);
+    }
+  }, [formData, formFields, onChange, onValidationChange]); // Depend on formData and formFields
 
   const handleValueChange = (fieldId: string, value: any) => {
     setFormData((prev) => ({ ...prev, [fieldId]: value }));
@@ -284,20 +305,22 @@ export function FormFiller({
       {/* Use a fragment to wrap multiple top-level elements */}
       <form onSubmit={handleSubmit} className="space-y-8">
         {formFields.map((field) => renderField(field))}
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={isSubmitting || !isFormValid}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Submitting...
-            </>
-          ) : (
-            "Submit Requisition"
-          )}
-        </Button>
+        {!hideSubmitButton && (
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isSubmitting || !isFormValid}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              "Submit Requisition"
+            )}
+          </Button>
+        )}
       </form>
       <AlertDialog open={showSubmitConfirm} onOpenChange={setShowSubmitConfirm}>
         <AlertDialogContent>
@@ -386,6 +409,7 @@ function RepeaterFiller({
           >
             <div className="absolute top-1 right-1 z-10">
               <Button
+                type="button"
                 variant="ghost"
                 size="icon"
                 onClick={() => removeRow(rowIndex)}
@@ -411,7 +435,7 @@ function RepeaterFiller({
           </div>
         ))}
       </div>
-      <Button onClick={addRow} variant="outline" className="mt-4">
+      <Button type="button" onClick={addRow} variant="outline" className="mt-4">
         <Plus className="mr-2 h-4 w-4" />
         Add Row
       </Button>
@@ -687,6 +711,7 @@ function GridTableFiller({
                 className="relative space-y-2 rounded border bg-white p-2"
               >
                 <Button
+                  type="button"
                   variant="ghost"
                   size="icon"
                   className="absolute -top-2 -right-2 h-6 w-6"
@@ -749,6 +774,7 @@ function GridTableFiller({
               </div>
             ))}
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={() => {

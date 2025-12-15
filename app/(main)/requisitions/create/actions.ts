@@ -49,50 +49,24 @@ export async function getInitiatableForms(
     throw new Error("User not authenticated.");
   }
 
-  // Get user's roles in this business unit
-  const { data: userRoles, error: userRolesError } = await supabase
-    .from("user_role_assignments")
-    .select("role_id")
-    .eq("user_id", user.id);
-
-  if (userRolesError) {
-    console.error("Error fetching user roles:", userRolesError);
-    return [];
-  }
-  const userRoleIds = userRoles.map((ur) => ur.role_id);
-
-  // Fetch templates that are active, latest, in this BU, and accessible by user's roles
-  const { data: templates, error: templatesError } = await supabase
-    .from("requisition_templates")
-    .select(
-      `
-        id,
-        name,
-        description,
-        icon,
-        status,
-        version,
-        is_latest,
-        template_initiator_access!inner(role_id),
-        template_fields(*, field_options(*), columns:template_fields(*, field_options(*))),
-        approval_workflows!left(
-          approval_step_definitions(
-            step_number,
-            roles(name)
-          )
-        )
-      `,
-    )
-    .eq("business_unit_id", businessUnitId)
-    .eq("is_latest", true)
-    .eq("status", "active")
-    .in("template_initiator_access.role_id", userRoleIds);
+  // Use the new RPC function that works with workflow_chains
+  const { data: templates, error: templatesError } = await supabase.rpc(
+    "get_initiatable_templates",
+    {
+      p_business_unit_id: businessUnitId,
+    },
+  );
 
   if (templatesError) {
     console.error("Error fetching initiatable templates:", templatesError);
     return [];
   }
 
+  if (!templates) {
+    return [];
+  }
+
+  // Transform the RPC result to match the Form type
   return templates.map((template: any) => ({
     id: template.id,
     name: template.name,
@@ -100,15 +74,12 @@ export async function getInitiatableForms(
     icon: template.icon,
     status: template.status,
     version: template.version,
-    is_latest: template.is_latest,
-    fields: transformDbFieldsToFormFields(template.template_fields),
-    accessRoles: template.template_initiator_access.map(
-      (tia: any) => tia.role_id,
-    ), // This will be role IDs, not names
-    workflowSteps:
-      template.approval_workflows?.approval_step_definitions
-        ?.sort((a: any, b: any) => a.step_number - b.step_number)
-        .map((step: any) => step.roles.name) || [],
+    is_latest: template.isLatest,
+    fields: template.fields || [],
+    accessRoles: template.accessRoleIds || [],
+    workflowSteps: template.workflowSteps
+      ? template.workflowSteps.flatMap((step: any) => step.approverRoles || [])
+      : [],
   }));
 }
 

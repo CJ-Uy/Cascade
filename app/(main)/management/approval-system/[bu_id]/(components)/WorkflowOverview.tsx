@@ -124,7 +124,9 @@ export default function WorkflowOverview({
     );
 
     if (result.success) {
-      toast.success(`Workflow ${newStatus === "active" ? "activated" : newStatus === "draft" ? "set to draft" : "archived"}`);
+      toast.success(
+        `Workflow ${newStatus === "active" ? "activated" : newStatus === "draft" ? "set to draft" : "archived"}`,
+      );
       // Refresh workflows
       const fetchedWorkflows = await getWorkflows(businessUnitId, false);
       setWorkflows(fetchedWorkflows);

@@ -20,7 +20,13 @@
       "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251211000000_clear_workflow_data.sql''\")",
       "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251211000004_create_workflow_chains_schema.sql''\")",
       "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251211000005_create_workflow_chain_rpc_functions.sql''\")",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(del \"supabase\\migrations\\20251215000001_drop_obsolete_rpc_functions.sql\")",
+      "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251215000001_drop_obsolete_rpc_functions.sql''\")",
+      "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251215000002_fix_get_initiatable_templates_rpc.sql''\")",
+      "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251215000011_add_draft_status_to_requisitions.sql''\")",
+      "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251215000012_restore_documents_insert_policy.sql''\")",
+      "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251215000012_debug_documents_rls.sql''\")"
     ],
     "deny": [],
     "ask": []

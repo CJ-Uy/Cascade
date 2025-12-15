@@ -85,10 +85,10 @@ const generalItems = [
 ];
 
 // 1. Define the menu items for each group
-const requisitionItems = [
-  { title: "Create", url: "/requisitions/create", icon: FilePlus },
-  { title: "Running", url: "/requisitions/running", icon: Play },
-  { title: "History", url: "/requisitions/history", icon: History },
+const requestItems = [
+  { title: "Create", url: "/requests/create", icon: FilePlus },
+  { title: "Pending", url: "/requests/pending", icon: Play },
+  { title: "History", url: "/requests/history", icon: History },
 ];
 
 const approvalItems = [
@@ -381,21 +381,21 @@ export function Navbar() {
                   <BuSelector />
                 </div>
                 <SidebarMenu>
-                  {/* Requisitions Dropdown - Visible to Members, Approvers, BU Admins, Org Admins */}
+                  {/* Requests Dropdown - Visible to Members, Approvers, BU Admins, Org Admins */}
                   {(permissionLevel === "MEMBER" ||
                     permissionLevel === "APPROVER" ||
                     permissionLevel === "BU_ADMIN" ||
                     hasOrgAdminRole()) && (
                     <SidebarMenuItem>
-                      <AnimatedSection title="Requisitions" isNested>
+                      <AnimatedSection title="Requests" isNested>
                         <SidebarMenuSub>
-                          {requisitionItems.map((item) => (
+                          {requestItems.map((item) => (
                             <SidebarMenuSubItem key={item.title}>
                               <SidebarMenuSubButton
                                 asChild
                                 isActive={path.startsWith(item.url)}
                               >
-                                <Link href={`${item.url}/${selectedBuId}`}>
+                                <Link href={item.url}>
                                   <item.icon className="h-4 w-4" />
                                   <span>{item.title}</span>
                                 </Link>
@@ -518,17 +518,17 @@ export function Navbar() {
                 {/* Show BU-specific options when a BU is selected */}
                 {adminSelectedBuId && (
                   <SidebarMenu>
-                    {/* Requisitions Dropdown */}
+                    {/* Requests Dropdown */}
                     <SidebarMenuItem>
-                      <AnimatedSection title="Requisitions" isNested>
+                      <AnimatedSection title="Requests" isNested>
                         <SidebarMenuSub>
-                          {requisitionItems.map((item) => (
+                          {requestItems.map((item) => (
                             <SidebarMenuSubItem key={item.title}>
                               <SidebarMenuSubButton
                                 asChild
                                 isActive={path.startsWith(item.url)}
                               >
-                                <Link href={`${item.url}/${adminSelectedBuId}`}>
+                                <Link href={item.url}>
                                   <item.icon className="h-4 w-4" />
                                   <span>{item.title}</span>
                                 </Link>

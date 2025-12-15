@@ -66,6 +66,21 @@ export async function saveFormAction(
       throw new Error("Failed to create the new version.");
     }
     templateId = newTemplate.id;
+
+    // Update all workflow sections that use the old template to use the new version
+    const { error: updateSectionsError } = await supabase
+      .from("workflow_sections")
+      .update({ form_template_id: templateId })
+      .eq("form_template_id", form.versionOfId);
+
+    if (updateSectionsError) {
+      console.error(
+        "Error updating workflow sections to new template version:",
+        updateSectionsError,
+      );
+      // Don't throw - this is a non-critical update
+      // The new version is created successfully, just log the warning
+    }
   } else if (form.id) {
     // Handle updating an existing form (draft)
     const { error } = await supabase
