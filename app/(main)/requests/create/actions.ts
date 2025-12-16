@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
  * Submit a new request (document) with form data
  */
 export async function submitRequest(
-  templateId: string,
+  formId: string,
   formData: Record<string, any>,
   businessUnitId: string,
 ) {
@@ -22,32 +22,31 @@ export async function submitRequest(
   }
 
   try {
-    // Create the document with JSONB data
-    const { data: newDocument, error: documentError } = await supabase
-      .from("documents")
+    // Create the request with JSONB data
+    const { data: newRequest, error: requestError } = await supabase
+      .from("requests")
       .insert({
-        form_template_id: templateId,
+        form_id: formId,
         business_unit_id: businessUnitId,
         initiator_id: user.id,
         status: "SUBMITTED",
         data: formData, // Store form data as JSONB
-        current_step: 0,
       })
       .select("id")
       .single();
 
-    if (documentError || !newDocument) {
-      console.error("Error creating document:", documentError);
+    if (requestError || !newRequest) {
+      console.error("Error creating request:", requestError);
       throw new Error("Failed to submit request.");
     }
 
-    const documentId = newDocument.id;
+    const requestId = newRequest.id;
 
-    // Create initial document history entry
+    // Create initial request history entry
     const { error: historyError } = await supabase
-      .from("document_history")
+      .from("request_history")
       .insert({
-        document_id: documentId,
+        request_id: requestId,
         action: "SUBMIT",
         actor_id: user.id,
         comment: "Request submitted",
@@ -55,16 +54,16 @@ export async function submitRequest(
 
     if (historyError) {
       console.error("Error creating history entry:", historyError);
-      // Don't throw - document is created, history is optional
+      // Don't throw - request is created, history is optional
     }
 
     // TODO: Trigger workflow and create first approval step
     // This will be implemented when we create the approval flow
 
     revalidatePath("/requests/pending");
-    revalidatePath(`/requests/${documentId}`);
+    revalidatePath(`/requests/${requestId}`);
 
-    return { success: true, documentId };
+    return { success: true, requestId: requestId };
   } catch (error) {
     console.error("Error submitting request:", error);
     throw error;
@@ -72,14 +71,27 @@ export async function submitRequest(
 }
 
 /**
- * Get a specific template with all its fields
+ * Get a specific form that is initiatable by the current user
  */
-export async function getTemplate(templateId: string, businessUnitId: string) {
+export async function getForm(formId: string) {
   const supabase = await createClient();
 
-  const { data: templates } = await supabase.rpc("get_initiatable_templates", {
-    p_business_unit_id: businessUnitId,
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("User not authenticated.");
+  }
+
+  const { data: forms, error } = await supabase.rpc("get_initiatable_forms", {
+    p_user_id: user.id,
   });
 
-  return templates?.find((t: any) => t.id === templateId) || null;
+  if (error) {
+    console.error("Error fetching initiatable forms:", error);
+    return null;
+  }
+
+  return forms?.find((f: any) => f.id === formId) || null;
 }

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { RequestsList } from "../pending/(components)/RequestsList";
+import { RequestsDataTable } from "../pending/(components)/requests-data-table";
+import { requestsColumns } from "../pending/(components)/requests-columns";
 
 export const metadata = {
   title: "Request History | Cascade",
@@ -19,24 +20,50 @@ export default async function RequestHistoryPage() {
     redirect("/auth/login");
   }
 
-  // Fetch completed/rejected documents for this user
-  const { data: documents, error } = await supabase
-    .from("documents")
+  // Fetch completed/rejected requests for this user
+  const { data: requests, error } = await supabase
+    .from("requests")
     .select(
       `
         *,
-        requisition_templates(name, icon),
-        business_units(name),
+        forms(
+          id,
+          name,
+          icon,
+          workflow_chain_id
+        ),
+        business_units(
+          id,
+          name
+        ),
         initiator:profiles!initiator_id(first_name, last_name)
       `,
     )
     .eq("initiator_id", user.id)
-    .in("status", ["APPROVED", "REJECTED"])
+    .in("status", ["APPROVED", "REJECTED", "CANCELLED"])
     .order("updated_at", { ascending: false });
 
   if (error) {
     console.error("Error fetching request history:", error);
   }
+
+  // Fetch workflow progress for each request
+  const requestsWithProgress = await Promise.all(
+    (requests || []).map(async (req) => {
+      const { data: progress } = await supabase.rpc(
+        "get_document_workflow_progress",
+        { p_document_id: req.id },
+      );
+
+      return {
+        ...req,
+        workflow_progress: progress || {
+          has_workflow: false,
+          sections: [],
+        },
+      };
+    }),
+  );
 
   return (
     <div className="container mx-auto max-w-7xl p-6">
@@ -47,10 +74,10 @@ export default async function RequestHistoryPage() {
         </p>
       </div>
 
-      <RequestsList
-        documents={documents || []}
+      <RequestsDataTable
+        columns={requestsColumns}
+        data={requestsWithProgress}
         emptyMessage="You have no completed requests"
-        showStatus
       />
     </div>
   );

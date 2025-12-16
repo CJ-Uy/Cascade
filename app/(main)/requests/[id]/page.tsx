@@ -12,15 +12,15 @@ export async function generateMetadata({ params }: PageProps) {
   const supabase = await createClient();
   const { id } = await params;
 
-  const { data: document } = await supabase
-    .from("documents")
-    .select("requisition_templates(name)")
+  const { data: request } = await supabase
+    .from("requests")
+    .select("forms(name)")
     .eq("id", id)
     .single();
 
   return {
-    title: document
-      ? `${(document as any).requisition_templates?.name || "Request"} | Cascade`
+    title: request
+      ? `${(request as any).forms?.name || "Request"} | Cascade`
       : "Request | Cascade",
     description: "View request details",
   };
@@ -38,27 +38,28 @@ export default async function RequestDetailPage({ params }: PageProps) {
     redirect("/auth/login");
   }
 
-  const { id: documentId } = await params;
+  const { id: requestId } = await params;
 
-  // Fetch the document with all related data
-  const { data: document, error: documentError } = await supabase
-    .from("documents")
+  // Fetch the request with all related data
+  const { data: request, error: requestError } = await supabase
+    .from("requests")
     .select(
       `
         *,
-        requisition_templates(
+        forms(
           id,
           name,
           description,
           icon,
           workflow_chain_id,
-          template_fields(
+          form_fields!form_fields_form_id_fkey(
             id,
             field_type,
             label,
-            required,
+            is_required,
             placeholder,
-            order_index,
+            order,
+            parent_list_field_id,
             field_options(
               id,
               label,
@@ -76,35 +77,35 @@ export default async function RequestDetailPage({ params }: PageProps) {
           first_name,
           last_name,
           email,
-          avatar_url
+          image_url
         )
       `,
     )
-    .eq("id", documentId)
+    .eq("id", requestId)
     .single();
 
-  if (documentError || !document) {
-    console.error("Error fetching document:", documentError);
+  if (requestError || !request) {
+    console.error("Error fetching request:", requestError);
     notFound();
   }
 
-  // Fetch document history
+  // Fetch request history
   const { data: history } = await supabase
-    .from("document_history")
+    .from("request_history")
     .select(
       `
         *,
         actor:profiles!actor_id(
           first_name,
           last_name,
-          avatar_url
+          image_url
         )
       `,
     )
-    .eq("document_id", documentId)
+    .eq("request_id", requestId)
     .order("created_at", { ascending: false });
 
-  // Fetch comments (if comments table is linked to documents)
+  // Fetch comments (if comments table is linked to requests)
   const { data: comments } = await supabase
     .from("comments")
     .select(
@@ -113,20 +114,27 @@ export default async function RequestDetailPage({ params }: PageProps) {
         author:profiles!author_id(
           first_name,
           last_name,
-          avatar_url
+          image_url
         )
       `,
     )
-    .eq("document_id", documentId)
+    .eq("request_id", requestId)
     .order("created_at", { ascending: true });
+
+  // Fetch workflow progress
+  const { data: workflowProgress } = await supabase.rpc(
+    "get_document_workflow_progress",
+    { p_document_id: requestId },
+  );
 
   return (
     <div className="container mx-auto max-w-7xl p-6">
       <DocumentView
-        document={document}
+        document={request}
         history={history || []}
         comments={comments || []}
         currentUserId={user.id}
+        workflowProgress={workflowProgress || null}
       />
     </div>
   );

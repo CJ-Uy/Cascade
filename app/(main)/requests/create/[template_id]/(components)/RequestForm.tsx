@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Send, Loader2, FileText, Save } from "lucide-react";
 import { toast } from "sonner";
-import { FormFiller } from "@/app/(main)/requisitions/create/(components)/FormFiller";
+import { FormFiller } from "./FormFiller";
 import { submitRequest, saveRequestAsDraft } from "../actions";
 import { icons } from "lucide-react";
 

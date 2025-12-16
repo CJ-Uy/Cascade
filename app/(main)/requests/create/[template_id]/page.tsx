@@ -43,7 +43,7 @@ export default async function FillRequestFormPage({
   let draftData = null;
   if (draftId) {
     const { data: draft } = await supabase
-      .from("documents")
+      .from("requests")
       .select("data")
       .eq("id", draftId)
       .eq("initiator_id", user.id)

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { RequestsList } from "./(components)/RequestsList";
+import { RequestsDataTable } from "./(components)/requests-data-table";
+import { requestsColumns } from "./(components)/requests-columns";
 
 export const metadata = {
   title: "Pending Requests | Cascade",
@@ -20,13 +21,24 @@ export default async function PendingRequestsPage() {
   }
 
   // Fetch pending documents for this user
-  const { data: documents, error } = await supabase
-    .from("documents")
+  const { data: requests, error } = await supabase
+    .from("requests")
     .select(
       `
         *,
-        requisition_templates(name, icon),
-        business_units(name),
+        forms(
+          id,
+          name,
+          icon
+        ),
+        workflow_chains(
+          id,
+          name
+        ),
+        business_units(
+          id,
+          name
+        ),
         initiator:profiles!initiator_id(first_name, last_name)
       `,
     )
@@ -38,6 +50,24 @@ export default async function PendingRequestsPage() {
     console.error("Error fetching pending requests:", error);
   }
 
+  // Fetch workflow progress for each request
+  const requestsWithProgress = await Promise.all(
+    (requests || []).map(async (request) => {
+      const { data: progress } = await supabase.rpc(
+        "get_request_workflow_progress",
+        { p_request_id: request.id },
+      );
+
+      return {
+        ...request,
+        workflow_progress: progress || {
+          has_workflow: false,
+          sections: [],
+        },
+      };
+    }),
+  );
+
   return (
     <div className="container mx-auto max-w-7xl p-6">
       <div className="mb-8">
@@ -47,8 +77,9 @@ export default async function PendingRequestsPage() {
         </p>
       </div>
 
-      <RequestsList
-        documents={documents || []}
+      <RequestsDataTable
+        columns={requestsColumns}
+        data={requestsWithProgress}
         emptyMessage="You have no pending requests"
       />
     </div>

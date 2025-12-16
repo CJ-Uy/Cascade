@@ -26,7 +26,7 @@ export type WorkflowSection = {
   order: number;
   name: string;
   description: string | null;
-  formTemplateId: string | null;
+  formId: string | null;
   triggerCondition: string | null;
   initiatorType: "last_approver" | "specific_role" | null;
   initiatorRoleId: string | null;

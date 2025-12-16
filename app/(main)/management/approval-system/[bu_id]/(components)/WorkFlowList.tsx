@@ -277,12 +277,12 @@ export function WorkflowList({
       .channel("workflows-changes")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "approval_workflows" },
+        { event: "*", schema: "public", table: "workflow_chains" },
         fetchWorkflows,
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "approval_step_definitions" },
+        { event: "*", schema: "public", table: "workflow_sections" },
         fetchWorkflows,
       )
       .on(

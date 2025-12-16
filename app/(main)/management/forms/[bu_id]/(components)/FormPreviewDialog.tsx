@@ -15,44 +15,6 @@ interface FormPreviewDialogProps {
   form: Form | null;
 }
 
-const transformDbFormToPreviewForm = (dbForm: any) => {
-  if (!dbForm) return null;
-
-  const mapField = (field: any): FormField => {
-    const newField: any = {
-      id: field.id,
-      type: field.field_type,
-      label: field.label,
-      required: field.is_required,
-      placeholder: field.placeholder,
-    };
-
-    if (field.field_options && field.field_options.length > 0) {
-      newField.options = field.field_options.map((opt: any) => opt.value);
-    }
-
-    if (field.columns && field.columns.length > 0) {
-      newField.columns = field.columns.map(mapField);
-    }
-
-    // Map gridConfig for grid-table fields
-    if (field.field_type === "grid-table" && field.field_config) {
-      newField.gridConfig = field.field_config;
-    }
-
-    return newField;
-  };
-
-  const topLevelFields = (dbForm.template_fields || [])
-    .filter((field: any) => !field.parent_list_field_id)
-    .map(mapField);
-
-  return {
-    name: dbForm.name,
-    fields: topLevelFields,
-  };
-};
-
 export function FormPreviewDialog({
   isOpen,
   onClose,
@@ -60,9 +22,8 @@ export function FormPreviewDialog({
 }: FormPreviewDialogProps) {
   if (!form) return null;
 
-  const previewForm = transformDbFormToPreviewForm(form);
-
-  if (!previewForm) return null;
+  // The 'form' object passed from the list is now correctly shaped,
+  // so the old transformation logic is no longer needed.
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -71,10 +32,10 @@ export function FormPreviewDialog({
         className="flex max-h-[90vh] flex-col"
       >
         <DialogHeader>
-          <DialogTitle>{previewForm.name}</DialogTitle>
+          <DialogTitle>{form.name}</DialogTitle>
         </DialogHeader>
         <div className="mt-4 overflow-y-auto">
-          <FormPreview name={previewForm.name} fields={previewForm.fields} />
+          <FormPreview name={form.name} fields={form.fields || []} />
         </div>
       </DialogContent>
     </Dialog>

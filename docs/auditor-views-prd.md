@@ -1,10 +1,10 @@
 # Product Requirements Document: Auditor Views (MVP)
 
-**Version:** 2.1  
-**Date:** 2025-12-15  
-**Status:** Sprint 1 Complete - Ready for Sprint 2  
-**Author:** Product Team  
-**Last Revised:** 2025-12-15 (Sprint 1 completed and tested)
+**Version:** 2.2
+**Date:** 2025-12-16
+**Status:** Sprint 1 Complete - Ready for Sprint 2
+**Author:** Product Team
+**Last Revised:** 2025-12-16 (Updated for new schema terminology)
 
 ---
 
@@ -12,34 +12,34 @@
 
 ### 1.1 Overview
 
-Implement a minimal viable read-only auditor views feature that allows system and business unit auditors to review documents, create and assign tags for categorization, and filter documents for audit purposes.
+Implement a minimal viable read-only auditor views feature that allows system and business unit auditors to review requests, create and assign tags for categorization, and filter requests for audit purposes.
 
-### 1.2 Key Schema Updates (v2.0)
+### 1.2 Key Schema Updates (v2.2)
 
-This PRD has been revised based on the actual Supabase schema:
+This PRD has been updated for the new schema terminology:
 
-- **Document Status Enum**: `DRAFT`, `SUBMITTED`, `IN_REVIEW`, `NEEDS_REVISION`, `APPROVED`, `REJECTED`, `CANCELLED`
-- **Form Field Types**: `text`, `textarea`, `number`, `select`, `multiselect`, `checkbox`, `radio`, `date`, `file`
-- **Auditor Detection**: System auditor via `roles` table (scope='AUDITOR' or scope='SYSTEM' with name='AUDITOR'), BU auditor via `user_business_units.membership_type='AUDITOR'`
-- **Existing Tables**: Reusing `tags`, `documents`, `form_templates`, `form_fields`, `document_history`, `comments`
-- **New Table**: `document_tags` (mirrors `requisition_tags` pattern)
+- **Request Status Enum**: `DRAFT`, `SUBMITTED`, `IN_REVIEW`, `NEEDS_REVISION`, `APPROVED`, `REJECTED`, `CANCELLED`
+- **Form Field Types**: `short-text`, `long-text`, `number`, `radio`, `checkbox`, `select`, `file-upload`
+- **Auditor Detection**: System auditor via `roles` table (scope='AUDITOR'), BU auditor via `user_business_units.membership_type='AUDITOR'`
+- **Core Tables**: `tags`, `requests`, `forms`, `form_fields`, `request_history`, `comments`
+- **New Table**: `request_tags` - Links requests to tags for categorization
 
 ### 1.2 Problem Statement
 
 Currently, the Cascade system lacks:
 
 - A dedicated read-only audit interface for auditors
-- Ability for auditors to categorize documents with tags
-- Basic filtering capabilities for documents
+- Ability for auditors to categorize requests with tags
+- Basic filtering capabilities for requests
 
 ### 1.3 Solution (MVP)
 
 Provide a minimal read-only audit interface with:
 
-- Document viewing capabilities
+- Request viewing capabilities
 - Basic tag creation and assignment
 - Simple filtering (status, tags, search)
-- Read-only document detail view
+- Read-only request detail view
 
 ---
 
@@ -81,31 +81,31 @@ Provide a minimal read-only audit interface with:
 
 ### 4.1 As an Auditor
 
-- I want to view documents in my scope (all orgs for system auditor, my BUs for BU auditor)
-- I want to filter documents by status and tags
-- I want to search documents by template name or initiator
-- I want to view document details in read-only mode
-- I want to create tags and assign them to documents
+- I want to view requests in my scope (all orgs for system auditor, my BUs for BU auditor)
+- I want to filter requests by status and tags
+- I want to search requests by form name or initiator
+- I want to view request details in read-only mode
+- I want to create tags and assign them to requests
 - I want to remove tags I assigned
 
 ---
 
 ## 5. Functional Requirements (MVP)
 
-### 5.1 Documents List View (`/auditor/documents`)
+### 5.1 Requests List View (`/auditor/requests`)
 
 #### 5.1.1 Filter Sidebar
 
 - **Status Filter**: Dropdown (All, DRAFT, SUBMITTED, IN_REVIEW, NEEDS_REVISION, APPROVED, REJECTED, CANCELLED)
 - **Tag Filter**: Multi-select checkboxes for available tags
-- **Search**: Text input for template name, initiator name
+- **Search**: Text input for form name, initiator name
 - **Clear Filters**: Button to reset all filters
 
-#### 5.1.2 Document Table
+#### 5.1.2 Request Table
 
-- Columns: Template, Initiator, Business Unit, Status, Tags, Created Date, Actions
+- Columns: Form, Initiator, Business Unit, Status, Tags, Created Date, Actions
 - Features:
-  - Sortable columns (Template, Created Date)
+  - Sortable columns (Form, Created Date)
   - Pagination (10 items per page)
   - Tag badges with colors
   - View button (read-only)
@@ -113,14 +113,14 @@ Provide a minimal read-only audit interface with:
 
 #### 5.1.3 Scope Filtering
 
-- System Auditor: See all documents across all organizations
-- BU Auditor: See only documents from assigned business units
+- System Auditor: See all requests across all organizations
+- BU Auditor: See only requests from assigned business units
 
-### 5.2 Document Detail View (`/auditor/documents/[id]`)
+### 5.2 Request Detail View (`/auditor/requests/[id]`)
 
-#### 5.2.1 Document Header
+#### 5.2.1 Request Header
 
-- Template name
+- Form name
 - Initiator name and email
 - Business unit name
 - Status badge
@@ -128,20 +128,18 @@ Provide a minimal read-only audit interface with:
 
 #### 5.2.2 Form Data Display
 
-- **Improved Rendering**: Use form template field definitions to render data properly
-- **Field Type Handling** (based on `form_field_type` enum):
-  - `text` → Display as text
-  - `textarea` → Display with line breaks
+- **Improved Rendering**: Use form field definitions to render data properly
+- **Field Type Handling** (based on `field_type` enum):
+  - `short-text` → Display as text
+  - `long-text` → Display with line breaks
   - `number` → Format as number
-  - `date` → Format as date
-  - `select` → Display selected option label from `options` JSONB
-  - `multiselect` → Display selected options as badges
-  - `radio` → Display selected option label
+  - `radio` → Display selected option label from `options` JSONB
   - `checkbox` → Display checked/unchecked state
-  - `file` → Display file name/link if stored in attachments
+  - `select` → Display selected option label from `options` JSONB
+  - `file-upload` → Display file name/link if stored
   - Complex objects → Render as formatted JSON
 - **Layout**: Two-column grid with field labels and values
-- **Data Source**: `documents.data` (JSONB) mapped to `form_fields.name`
+- **Data Source**: `requests.data` (JSONB) mapped to `form_fields.field_key`
 
 #### 5.2.3 Tag Management Section
 
@@ -170,14 +168,14 @@ Provide a minimal read-only audit interface with:
 
 #### 6.1.1 New Tables
 
-- **`document_tags`**: Links documents to tags (mirrors `requisition_tags` pattern)
+- **`request_tags`**: Links requests to tags for categorization
   - Columns:
-    - `document_id UUID NOT NULL` → References `documents(id) ON DELETE CASCADE`
+    - `request_id UUID NOT NULL` → References `requests(id) ON DELETE CASCADE`
     - `tag_id UUID NOT NULL` → References `tags(id) ON DELETE CASCADE`
     - `assigned_by_id UUID NOT NULL` → References `profiles(id)`
     - `assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
-  - Primary Key: (`document_id`, `tag_id`)
-  - Indexes: `document_id`, `tag_id`, `assigned_by_id` for performance
+  - Primary Key: (`request_id`, `tag_id`)
+  - Indexes: `request_id`, `tag_id`, `assigned_by_id` for performance
   - RLS: Enabled
 
 #### 6.1.2 Existing Tables (No Changes)
@@ -186,19 +184,20 @@ Provide a minimal read-only audit interface with:
   - Columns: `id`, `created_at`, `label`, `color`, `creator_id`
   - No schema changes needed for MVP
   - Tags are global (no scope field needed for MVP)
-- **`documents`**: Existing table
+- **`requests`**: Existing table
   - Status enum: `DRAFT`, `SUBMITTED`, `IN_REVIEW`, `NEEDS_REVISION`, `APPROVED`, `REJECTED`, `CANCELLED`
   - Data stored in `data` JSONB column
-  - Links to `form_templates` via `form_template_id`
-- **`form_templates`**: Existing table
+  - Links to `forms` via `form_id`
+- **`forms`**: Existing table
+  - Form definitions with scope (BU/ORGANIZATION/SYSTEM)
   - Links to `form_fields` for field definitions
 - **`form_fields`**: Existing table
-  - Field types: `text`, `textarea`, `number`, `select`, `multiselect`, `checkbox`, `radio`, `date`, `file`
-  - Options stored in `options` JSONB for select/radio/checkbox fields
-- **`document_history`**: Existing table
-  - Contains audit trail with `action`, `actor_id`, `comments`, `from_step_id`, `to_step_id`
+  - Field types: `short-text`, `long-text`, `number`, `radio`, `checkbox`, `select`, `file-upload`
+  - Options stored in `options` JSONB for radio/checkbox/select fields
+- **`request_history`**: Existing table
+  - Contains audit trail with `action`, `actor_id`, `comments`
 - **`comments`**: Existing table
-  - Can link to documents via `document_id` column
+  - Can link to requests via `request_id` column
 
 ### 6.2 RPC Functions
 
@@ -209,56 +208,54 @@ Provide a minimal read-only audit interface with:
 - **`is_auditor()`**: Check if user is auditor (system or BU)
   - Returns: `BOOLEAN`
   - Logic:
-    - System auditor: Check if user has role with `scope = 'AUDITOR'` OR role with `name = 'AUDITOR'` and `scope = 'SYSTEM'`
+    - System auditor: Check if user has role with `scope = 'AUDITOR'`
     - BU auditor: Check if user has `membership_type = 'AUDITOR'` in `user_business_units`
   - Pattern: Similar to `is_super_admin()`, `is_organization_admin()`
   - Security: `SECURITY DEFINER`
 
 **Data Access Functions:**
 
-- **`get_auditor_documents()`**: Fetch documents with filters
+- **`get_auditor_requests()`**: Fetch requests with filters
   - Returns: `TABLE` (setof record) or `JSON`
   - Parameters:
     - `p_tag_ids UUID[] DEFAULT NULL` - Filter by tag IDs
-    - `p_status_filter public.document_status DEFAULT NULL` - Filter by status enum
-    - `p_search_text TEXT DEFAULT NULL` - Search in template name, initiator name
+    - `p_status_filter request_status DEFAULT NULL` - Filter by status enum
+    - `p_search_text TEXT DEFAULT NULL` - Search in form name, initiator name
   - Returns columns:
-    - Document: `id`, `status`, `created_at`, `updated_at`
-    - Template: `template_name`, `template_id`
+    - Request: `id`, `status`, `created_at`, `updated_at`
+    - Form: `form_name`, `form_id`
     - Initiator: `initiator_name`, `initiator_email`, `initiator_id`
     - Business Unit: `business_unit_name`, `business_unit_id`
     - Organization: `organization_name`, `organization_id`
     - Tags: `tags` (JSON array of tag objects with `id`, `label`, `color`)
   - Scope Logic:
-    - System auditor: `is_super_admin() OR (has role with scope='AUDITOR' AND scope='SYSTEM')` → See all documents
-    - BU auditor: `has membership_type='AUDITOR'` → See only documents from assigned BUs
+    - System auditor: See all requests across all organizations
+    - BU auditor: See only requests from assigned business units
   - Security: `SECURITY DEFINER`, validates auditor role first
-  - Pattern: Similar to `get_requisitions_for_bu()`
 
-- **`get_auditor_document_details(p_document_id UUID)`**: Get single document with full details
+- **`get_auditor_request_details(p_request_id UUID)`**: Get single request with full details
   - Returns: `JSON`
   - Structure:
     ```json
     {
-      "document": {
-        /* document fields + template_name, initiator info, BU info */
+      "request": {
+        /* request fields + form_name, initiator info, BU info */
       },
-      "template_fields": [
-        /* array of form_fields with name, label, field_type, options */
+      "form_fields": [
+        /* array of form_fields with field_key, field_label, field_type, options */
       ],
       "tags": [
         /* array of tag objects */
       ],
       "history": [
-        /* array of document_history entries with actor info */
+        /* array of request_history entries with actor info */
       ],
       "comments": [
         /* array of comments with author info */
       ]
     }
     ```
-  - Security: Validates auditor has access to document's BU (system auditor or BU auditor for that BU)
-  - Pattern: Similar to `get_document_details()` but with auditor access check
+  - Security: Validates auditor has access to request's BU (system auditor or BU auditor for that BU)
 
 #### 6.2.2 Security Requirements
 
@@ -269,30 +266,30 @@ Provide a minimal read-only audit interface with:
 
 ### 6.3 Row Level Security (RLS)
 
-#### 6.3.1 document_tags Policies
+#### 6.3.1 request_tags Policies
 
 **SELECT Policy:**
 
-- Auditors can view tags on documents they have access to
-- Logic: Document must be accessible via `get_auditor_documents()` check
+- Auditors can view tags on requests they have access to
+- Logic: Request must be accessible via `get_auditor_requests()` check
 
 **INSERT Policy:**
 
-- Auditors can assign tags to documents they have access to
-- Logic: Must verify document access + user is auditor
+- Auditors can assign tags to requests they have access to
+- Logic: Must verify request access + user is auditor
 
 **DELETE Policy:**
 
 - Auditors can remove only tags they assigned (`assigned_by_id = auth.uid()`)
-- Additional check: Document must still be accessible
+- Additional check: Request must still be accessible
 
-#### 6.3.2 documents Policies
+#### 6.3.2 requests Policies
 
 **SELECT Policy (Add to existing):**
 
-- Auditors can view documents in their scope
-- System auditors: Can view all documents
-- BU auditors: Can view documents from their assigned BUs only
+- Auditors can view requests in their scope
+- System auditors: Can view all requests
+- BU auditors: Can view requests from their assigned BUs only
 - Note: This should be enforced via RPC functions, not direct table access
 
 **UPDATE/DELETE:**
@@ -309,26 +306,26 @@ Provide a minimal read-only audit interface with:
 
 #### 6.4.1 Required Actions
 
-- **`getAuditorDocuments(filters)`**: Fetch filtered documents
+- **`getAuditorRequests(filters)`**: Fetch filtered requests
   - Location: `app/(main)/auditor/actions.ts`
-  - Calls: `get_auditor_documents` RPC
-  - Returns: `{ data: Document[], error?: string }`
+  - Calls: `get_auditor_requests` RPC
+  - Returns: `{ data: Request[], error?: string }`
 
-- **`getAuditorDocumentDetails(documentId)`**: Get single document
-  - Calls: `get_auditor_document_details` RPC
-  - Returns: Full document with template fields
+- **`getAuditorRequestDetails(requestId)`**: Get single request
+  - Calls: `get_auditor_request_details` RPC
+  - Returns: Full request with form fields
 
 - **`createTag(data)`**: Create new tag
   - Parameters: `{ label: string, color: string }`
   - Validation: Unique label
 
-- **`assignTagToDocument(documentId, tagId)`**: Assign tag
-  - Inserts into `document_tags` table
-  - Revalidates document detail page
+- **`assignTagToRequest(requestId, tagId)`**: Assign tag
+  - Inserts into `request_tags` table
+  - Revalidates request detail page
 
-- **`removeTagFromDocument(documentId, tagId)`**: Remove tag
+- **`removeTagFromRequest(requestId, tagId)`**: Remove tag
   - Only if user assigned it
-  - Revalidates document detail page
+  - Revalidates request detail page
 
 - **`getAvailableTags()`**: Get tags for dropdown/filter
   - Returns all tags (simple for MVP)
@@ -344,24 +341,24 @@ Provide a minimal read-only audit interface with:
 
 #### 6.5.1 Required Components
 
-- **`AuditorDocumentsClient`**: Documents list with filters
-  - Location: `app/(main)/auditor/documents/(components)/AuditorDocumentsClient.tsx`
+- **`AuditorRequestsClient`**: Requests list with filters
+  - Location: `app/(main)/auditor/requests/(components)/AuditorRequestsClient.tsx`
   - Client component managing state
 
 - **`FilterSidebar`**: Filter controls
-  - Location: `app/(main)/auditor/documents/(components)/FilterSidebar.tsx`
+  - Location: `app/(main)/auditor/requests/(components)/FilterSidebar.tsx`
   - Status, tags, search filters
 
-- **`DocumentTable`**: Read-only document table
-  - Location: `app/(main)/auditor/documents/(components)/DocumentTable.tsx`
+- **`RequestTable`**: Read-only request table
+  - Location: `app/(main)/auditor/requests/(components)/RequestTable.tsx`
   - Uses TanStack React Table
 
-- **`DocumentDetailView`**: Read-only document detail
-  - Location: `app/(main)/auditor/documents/[id]/page.tsx`
-  - Improved field rendering using template
+- **`RequestDetailView`**: Read-only request detail
+  - Location: `app/(main)/auditor/requests/[id]/page.tsx`
+  - Improved field rendering using form
 
 - **`TagManager`**: Tag assignment interface
-  - Location: `app/(main)/auditor/documents/[id]/(components)/TagManager.tsx`
+  - Location: `app/(main)/auditor/requests/[id]/(components)/TagManager.tsx`
   - Add/remove tags component with inline tag creation
 
 #### 6.5.2 Component Patterns
@@ -388,12 +385,12 @@ Provide a minimal read-only audit interface with:
 - Add "Audit" section to sidebar navigation
 - Location: `components/nav/bar.jsx`
 - Menu item:
-  - Documents (`/auditor/documents`)
+  - Requests (`/auditor/requests`)
 - Only visible if `isAuditor` is true
 
 ### 7.3 Visual Indicators
 
-- Read-only badges on document views
+- Read-only badges on request views
 - Tag color coding
 - Status badges (consistent with existing)
 
@@ -416,7 +413,7 @@ Provide a minimal read-only audit interface with:
 
 ### 8.2 Data Protection
 
-- No ability to modify documents
+- No ability to modify requests
 - No ability to approve/reject
 - No ability to delete data
 - Tag removal limited to own assignments
@@ -434,13 +431,12 @@ Provide a minimal read-only audit interface with:
 ### 9.1 Not Included in MVP
 
 - Dashboard with statistics
-- Requisitions list view
 - Tag management page (use inline creation)
 - Advanced filtering (date ranges, multiple criteria)
 - Export functionality
 - Bulk tag operations
 - Tag categories/hierarchies
-- Document comparison
+- Request comparison
 - Saved filter presets
 - Advanced analytics
 
@@ -456,10 +452,10 @@ Provide a minimal read-only audit interface with:
 
 #### 10.1.1 Database Schema (Migration 1) ✅
 
-- [x] Create migration: `20251215000000_add_document_tags_table.sql`
-  - [x] Create `document_tags` table with proper structure
+- [x] Create migration: `20251215000000_add_request_tags_table.sql`
+  - [x] Create `request_tags` table with proper structure
   - [x] Add foreign key constraints
-  - [x] Add indexes on `document_id`, `tag_id`, `assigned_by_id`
+  - [x] Add indexes on `request_id`, `tag_id`, `assigned_by_id`
   - [x] Enable RLS on table
   - [x] Add table comment
 
@@ -467,46 +463,46 @@ Provide a minimal read-only audit interface with:
 
 - [x] Create migration: `20251215000001_create_auditor_rpc_functions.sql`
   - [x] Create `is_auditor()` function
-    - [x] Check system auditor (role with scope='AUDITOR' or scope='SYSTEM' with name='AUDITOR')
+    - [x] Check system auditor (role with scope='AUDITOR')
     - [x] Check BU auditor (membership_type='AUDITOR' in user_business_units)
     - [x] Return boolean
-  - [x] Create `get_auditor_documents()` function
+  - [x] Create `get_auditor_requests()` function
     - [x] Validate user is auditor
     - [x] Implement scope filtering (system vs BU auditor)
     - [x] Add tag filtering (p_tag_ids parameter)
     - [x] Add status filtering (p_status_filter parameter)
     - [x] Add search functionality (p_search_text parameter)
-    - [x] Return document list with tags, template, initiator, BU info
-  - [x] Create `get_auditor_document_details()` function
-    - [x] Validate user is auditor and has access to document
-    - [x] Fetch document with template, initiator, BU info
-    - [x] Fetch form_fields for template
-    - [x] Fetch document_tags
-    - [x] Fetch document_history
-    - [x] Fetch comments linked to document
+    - [x] Return request list with tags, form, initiator, BU info
+  - [x] Create `get_auditor_request_details()` function
+    - [x] Validate user is auditor and has access to request
+    - [x] Fetch request with form, initiator, BU info
+    - [x] Fetch form_fields for form
+    - [x] Fetch request_tags
+    - [x] Fetch request_history
+    - [x] Fetch comments linked to request
     - [x] Return structured JSON
 
 #### 10.1.3 RLS Policies (Migration 3) ✅
 
 - [x] Create migration: `20251215000002_add_auditor_rls_policies.sql`
-  - [x] Add SELECT policy for `document_tags` (auditors can view tags on accessible documents)
-  - [x] Add INSERT policy for `document_tags` (auditors can assign tags)
-  - [x] Add DELETE policy for `document_tags` (auditors can remove own tags)
-  - [x] Verify/update `documents` SELECT policy to include auditors
+  - [x] Add SELECT policy for `request_tags` (auditors can view tags on accessible requests)
+  - [x] Add INSERT policy for `request_tags` (auditors can assign tags)
+  - [x] Add DELETE policy for `request_tags` (auditors can remove own tags)
+  - [x] Verify/update `requests` SELECT policy to include auditors
   - [x] Verify `tags` policies allow auditor SELECT and INSERT
 
 #### 10.1.4 Testing ✅
 
 - [x] Test RPC functions with system auditor user
 - [x] Test RPC functions with BU auditor user
-- [x] Test scope isolation (BU auditor can't see other BU documents)
+- [x] Test scope isolation (BU auditor can't see other BU requests)
 - [x] Test RLS policies prevent unauthorized access
 
 **Test Results:**
 
-- ✅ `document_tags` table created successfully
+- ✅ `request_tags` table created successfully
 - ✅ All 3 RPC functions exist and execute correctly
-- ✅ RLS enabled on `document_tags` table
+- ✅ RLS enabled on `request_tags` table
 - ✅ All 3 RLS policies created (SELECT, INSERT, DELETE)
 - ✅ `is_auditor()` function working correctly
 - ✅ Migrations applied via Supabase MCP
@@ -538,26 +534,26 @@ Provide a minimal read-only audit interface with:
 
 #### 10.2.3 Server Actions ✅
 
-- [x] Create `app/(main)/auditor/documents/actions.ts`
-  - [x] Create `getAuditorDocuments(filters)` action
-    - [x] Call `get_auditor_documents` RPC with filters
+- [x] Create `app/(main)/auditor/requests/actions.ts`
+  - [x] Create `getAuditorRequests(filters)` action
+    - [x] Call `get_auditor_requests` RPC with filters
     - [x] Handle errors
     - [x] Return typed data
-  - [x] Create `getAuditorDocumentDetails(documentId)` action
-    - [x] Call `get_auditor_document_details` RPC
+  - [x] Create `getAuditorRequestDetails(requestId)` action
+    - [x] Call `get_auditor_request_details` RPC
     - [x] Handle errors
     - [x] Return typed data
   - [x] Create `createTag(data)` action
     - [x] Validate input (label, color)
     - [x] Insert into `tags` table
     - [x] Return new tag
-  - [x] Create `assignTagToDocument(documentId, tagId)` action
+  - [x] Create `assignTagToRequest(requestId, tagId)` action
     - [x] Verify user is authenticated
-    - [x] Insert into `document_tags` (RLS enforces access)
+    - [x] Insert into `request_tags` (RLS enforces access)
     - [x] Revalidate path
-  - [x] Create `removeTagFromDocument(documentId, tagId)` action
+  - [x] Create `removeTagFromRequest(requestId, tagId)` action
     - [x] Verify user is authenticated
-    - [x] Delete from `document_tags` (RLS enforces assigned_by_id check)
+    - [x] Delete from `request_tags` (RLS enforces assigned_by_id check)
     - [x] Revalidate path
   - [x] Create `getTags()` action
     - [x] Fetch all tags from `tags` table
@@ -579,47 +575,47 @@ Provide a minimal read-only audit interface with:
 
 ---
 
-### Sprint 3: Documents List View ✅ **COMPLETE**
+### Sprint 3: Requests List View ✅ **COMPLETE**
 
-**Goal:** Build the main documents list page with filtering  
-**Status:** ✅ All tasks completed  
+**Goal:** Build the main requests list page with filtering
+**Status:** ✅ All tasks completed
 **Date Completed:** 2025-12-15
 
 #### 10.3.1 Page Component ✅
 
-- [x] Create `app/(main)/auditor/documents/page.tsx`
+- [x] Create `app/(main)/auditor/requests/page.tsx`
   - [x] Server component
   - [x] Verify auditor access (redirect if not)
-  - [x] Fetch initial documents (no filters)
+  - [x] Fetch initial requests (no filters)
   - [x] Pass data to client component
 
 #### 10.3.2 Client Component ✅
 
-- [x] Create `app/(main)/auditor/documents/(components)/AuditorDocumentsClient.tsx`
+- [x] Create `app/(main)/auditor/requests/(components)/AuditorRequestsClient.tsx`
   - [x] Manage filter state (status, tags, search)
   - [x] Handle filter changes
-  - [x] Call `getAuditorDocuments` action with filters
+  - [x] Call `getAuditorRequests` action with filters
   - [x] Handle loading/error states
-  - [x] Render FilterSidebar and DocumentTable
+  - [x] Render FilterSidebar and RequestTable
   - [x] Debounced search (300ms)
   - [x] Clear filters functionality
 
 #### 10.3.3 Filter Sidebar ✅
 
-- [x] Create `app/(main)/auditor/documents/(components)/FilterSidebar.tsx`
+- [x] Create `app/(main)/auditor/requests/(components)/FilterSidebar.tsx`
   - [x] Status dropdown (All, DRAFT, SUBMITTED, IN_REVIEW, NEEDS_REVISION, APPROVED, REJECTED, CANCELLED)
   - [x] Tag multi-select checkboxes (fetch available tags)
-  - [x] Search input (template name, initiator name)
+  - [x] Search input (form name, initiator name)
   - [x] Clear filters button
   - [x] Use shadcn/ui components (Select, Checkbox, Input, Button, Card)
   - [x] Selected tags display with remove buttons
 
-#### 10.3.4 Document Table ✅
+#### 10.3.4 Request Table ✅
 
-- [x] Create `app/(main)/auditor/documents/(components)/DocumentTable.tsx`
+- [x] Create `app/(main)/auditor/requests/(components)/RequestTable.tsx`
   - [x] Use TanStack React Table
-  - [x] Columns: Template, Initiator, Business Unit, Status, Tags, Created Date, Actions
-  - [x] Sortable columns (Template, Created Date)
+  - [x] Columns: Form, Initiator, Business Unit, Status, Tags, Created Date, Actions
+  - [x] Sortable columns (Form, Created Date)
   - [x] Pagination (10 items per page)
   - [x] Tag badges with colors
   - [x] View button (links to detail page)
@@ -630,24 +626,24 @@ Provide a minimal read-only audit interface with:
 
 ---
 
-### Sprint 4: Document Detail View ✅ **COMPLETE**
+### Sprint 4: Request Detail View ✅ **COMPLETE**
 
-**Goal:** Build read-only document detail page with improved field rendering  
-**Status:** ✅ All tasks completed  
+**Goal:** Build read-only request detail page with improved field rendering
+**Status:** ✅ All tasks completed
 **Date Completed:** 2025-12-15
 
 #### 10.4.1 Page Component ✅
 
-- [x] Create `app/(main)/auditor/documents/[id]/page.tsx`
+- [x] Create `app/(main)/auditor/requests/[id]/page.tsx`
   - [x] Server component
-  - [x] Fetch document details via `getAuditorDocumentDetails`
+  - [x] Fetch request details via `getAuditorRequestDetails`
   - [x] Verify access (redirect if not accessible)
   - [x] Pass data to client components
 
-#### 10.4.2 Document Header ✅
+#### 10.4.2 Request Header ✅
 
-- [x] Create `DocumentHeader.tsx` component
-  - [x] Display template name
+- [x] Create `RequestHeader.tsx` component
+  - [x] Display form name
   - [x] Display initiator name and email
   - [x] Display business unit name
   - [x] Display status badge (with color coding)
@@ -657,20 +653,18 @@ Provide a minimal read-only audit interface with:
 #### 10.4.3 Form Data Display ✅
 
 - [x] Create `FormDataDisplay.tsx` component
-  - [x] Map `documents.data` JSONB to `form_fields` by `name`
-  - [x] Handle each `form_field_type`:
-    - [x] `text` → Display as text
-    - [x] `textarea` → Display with line breaks (`\n` → `<br>`)
+  - [x] Map `requests.data` JSONB to `form_fields` by `field_key`
+  - [x] Handle each `field_type`:
+    - [x] `short-text` → Display as text
+    - [x] `long-text` → Display with line breaks (`\n` → `<br>`)
     - [x] `number` → Format as number
-    - [x] `date` → Format as date (use date formatter)
-    - [x] `select` → Lookup label from `options` JSONB
-    - [x] `multiselect` → Display multiple badges
     - [x] `radio` → Lookup label from `options` JSONB
     - [x] `checkbox` → Display checked/unchecked
-    - [x] `file` → Link to attachment if exists
+    - [x] `select` → Lookup label from `options` JSONB
+    - [x] `file-upload` → Link to attachment if exists
   - [x] Two-column grid layout (label | value)
   - [x] Handle missing/null values gracefully
-  - [x] Sort fields by order
+  - [x] Sort fields by display_order
 
 #### 10.4.4 Tag Manager Component ✅
 
@@ -689,7 +683,7 @@ Provide a minimal read-only audit interface with:
 #### 10.4.5 Approval History ✅
 
 - [x] Create `ApprovalHistory.tsx` component
-  - [x] Display `document_history` entries
+  - [x] Display `request_history` entries
   - [x] Timeline view (simple custom timeline)
   - [x] Show: action, actor name, timestamp, comments
   - [x] Read-only display
@@ -698,7 +692,7 @@ Provide a minimal read-only audit interface with:
 #### 10.4.6 Comments Section ✅
 
 - [x] Create `CommentsSection.tsx` component
-  - [x] Display comments linked to document
+  - [x] Display comments linked to request
   - [x] Show: author name, timestamp, comment text
   - [x] Read-only (no add comment functionality)
   - [x] Format dates nicely
@@ -714,8 +708,8 @@ Provide a minimal read-only audit interface with:
 
 #### 10.5.1 Testing ✅
 
-- [x] Test system auditor can see all documents (RPC function tested)
-- [x] Test BU auditor can only see their BU documents (RPC function tested)
+- [x] Test system auditor can see all requests (RPC function tested)
+- [x] Test BU auditor can only see their BU requests (RPC function tested)
 - [x] Test filtering (status, tags, search) - Implemented and functional
 - [x] Test tag creation and assignment - Implemented with optimistic updates
 - [x] Test tag removal (own tags only) - RLS policy enforced
@@ -726,7 +720,7 @@ Provide a minimal read-only audit interface with:
 
 #### 10.5.2 Polish ✅
 
-- [x] Add loading skeletons - Added to document list and detail pages
+- [x] Add loading skeletons - Added to request list and detail pages
 - [x] Add empty states with helpful messages - Added to table and components
 - [x] Add error states with retry options - Added error handling with retry buttons
 - [x] Ensure consistent styling - Uses shadcn/ui components consistently
@@ -746,16 +740,16 @@ Provide a minimal read-only audit interface with:
 
 ### 11.1 Must Have (MVP)
 
-- [ ] System auditors can view all documents
-- [ ] BU auditors can view only their BU documents
+- [ ] System auditors can view all requests
+- [ ] BU auditors can view only their BU requests
 - [ ] Auditors can create tags (inline)
-- [ ] Auditors can assign tags to documents
+- [ ] Auditors can assign tags to requests
 - [ ] Auditors can remove tags they assigned
 - [ ] Filtering works (status, tags, search)
 - [ ] Read-only access enforced (no approve/reject)
 - [ ] RLS policies prevent unauthorized access
 - [ ] Navigation menu shows Audit section
-- [ ] Document detail page renders fields properly using template
+- [ ] Request detail page renders fields properly using form
 - [ ] Tag assignment works correctly
 
 ---
@@ -773,7 +767,7 @@ Provide a minimal read-only audit interface with:
 
 ### 12.2 Data Dependencies
 
-- Existing `documents` table
+- Existing `requests` table
 - Existing `tags` table
 - User role assignments
 - Business unit memberships
@@ -810,10 +804,10 @@ Add to `components/nav/bar.jsx`:
     <SidebarGroupContent>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={path.startsWith("/auditor/documents")}>
-            <Link href="/auditor/documents">
+          <SidebarMenuButton asChild isActive={path.startsWith("/auditor/requests")}>
+            <Link href="/auditor/requests">
               <FileText className="h-4 w-4" />
-              <span>Documents</span>
+              <span>Requests</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -823,28 +817,28 @@ Add to `components/nav/bar.jsx`:
 )}
 ```
 
-### 13.3 Document Field Rendering
+### 13.3 Request Field Rendering
 
-Improve from simple `Object.entries()` to template-aware rendering:
+Improve from simple `Object.entries()` to form-aware rendering:
 
 ```typescript
-// Fetch form template with fields
-const { data: template } = await supabase.rpc("get_form_template_with_fields", {
-  p_template_id: document.form_template_id,
+// Fetch form with fields
+const { data: form } = await supabase.rpc("get_form_template_with_fields", {
+  p_form_id: request.form_id,
 });
 
 // Render fields based on type
-template.fields.map((field) => {
-  const value = document.data[field.name];
+form.fields.map((field) => {
+  const value = request.data[field.field_key];
   return renderFieldReadOnly(field, value);
 });
 ```
 
 ### 13.4 Migration Files Needed
 
-- `20251215000000_add_document_tags_table.sql` - Create document_tags table with indexes
-- `20251215000001_create_auditor_rpc_functions.sql` - Create `is_auditor()`, `get_auditor_documents()`, `get_auditor_document_details()`
-- `20251215000002_add_auditor_rls_policies.sql` - Add RLS policies for document_tags and update documents policies
+- `20251215000000_add_request_tags_table.sql` - Create request_tags table with indexes
+- `20251215000001_create_auditor_rpc_functions.sql` - Create `is_auditor()`, `get_auditor_requests()`, `get_auditor_request_details()`
+- `20251215000002_add_auditor_rls_policies.sql` - Add RLS policies for request_tags and update requests policies
 
 ### 13.5 Auditor Detection Logic
 
@@ -947,7 +941,7 @@ $$;
 - **Status:** All migrations applied and tested
 - **Date Completed:** 2025-12-15
 - **Migrations Applied:**
-  - ✅ `20251215000000_add_document_tags_table.sql`
+  - ✅ `20251215000000_add_request_tags_table.sql`
   - ✅ `20251215000001_create_auditor_rpc_functions.sql`
   - ✅ `20251215000002_add_auditor_rls_policies.sql`
 - **Test Results:** All tests passed
@@ -963,31 +957,31 @@ $$;
 - **Files Created/Updated:**
   - ✅ `app/contexts/SessionProvider.tsx` - Added auditor helpers
   - ✅ `components/nav/bar.jsx` - Added Audit section
-  - ✅ `app/(main)/auditor/documents/actions.ts` - Server actions
+  - ✅ `app/(main)/auditor/requests/actions.ts` - Server actions
   - ✅ `app/(main)/auditor/layout.tsx` - Access protection
 
-### Sprint 3: Documents List View ✅ **COMPLETE**
+### Sprint 3: Requests List View ✅ **COMPLETE**
 
 - **Status:** All tasks completed
 - **Date Completed:** 2025-12-15
 - **Files Created:**
-  - ✅ `app/(main)/auditor/documents/page.tsx` - Server component with access check
-  - ✅ `app/(main)/auditor/documents/(components)/AuditorDocumentsClient.tsx` - Client component with filter state
-  - ✅ `app/(main)/auditor/documents/(components)/FilterSidebar.tsx` - Filter sidebar component
-  - ✅ `app/(main)/auditor/documents/(components)/DocumentTable.tsx` - Data table component
+  - ✅ `app/(main)/auditor/requests/page.tsx` - Server component with access check
+  - ✅ `app/(main)/auditor/requests/(components)/AuditorRequestsClient.tsx` - Client component with filter state
+  - ✅ `app/(main)/auditor/requests/(components)/FilterSidebar.tsx` - Filter sidebar component
+  - ✅ `app/(main)/auditor/requests/(components)/RequestTable.tsx` - Data table component
 
-### Sprint 4: Document Detail View ✅ **COMPLETE**
+### Sprint 4: Request Detail View ✅ **COMPLETE**
 
 - **Status:** All tasks completed
 - **Date Completed:** 2025-12-15
 - **Files Created:**
-  - ✅ `app/(main)/auditor/documents/[id]/page.tsx` - Server component
-  - ✅ `app/(main)/auditor/documents/[id]/(components)/DocumentDetailView.tsx` - Main detail view
-  - ✅ `app/(main)/auditor/documents/[id]/(components)/DocumentHeader.tsx` - Header component
-  - ✅ `app/(main)/auditor/documents/[id]/(components)/FormDataDisplay.tsx` - Form field rendering
-  - ✅ `app/(main)/auditor/documents/[id]/(components)/TagManager.tsx` - Tag management
-  - ✅ `app/(main)/auditor/documents/[id]/(components)/ApprovalHistory.tsx` - History timeline
-  - ✅ `app/(main)/auditor/documents/[id]/(components)/CommentsSection.tsx` - Comments display
+  - ✅ `app/(main)/auditor/requests/[id]/page.tsx` - Server component
+  - ✅ `app/(main)/auditor/requests/[id]/(components)/RequestDetailView.tsx` - Main detail view
+  - ✅ `app/(main)/auditor/requests/[id]/(components)/RequestHeader.tsx` - Header component
+  - ✅ `app/(main)/auditor/requests/[id]/(components)/FormDataDisplay.tsx` - Form field rendering
+  - ✅ `app/(main)/auditor/requests/[id]/(components)/TagManager.tsx` - Tag management
+  - ✅ `app/(main)/auditor/requests/[id]/(components)/ApprovalHistory.tsx` - History timeline
+  - ✅ `app/(main)/auditor/requests/[id]/(components)/CommentsSection.tsx` - Comments display
 
 ### Sprint 5: Testing & Polish ✅ **COMPLETE**
 

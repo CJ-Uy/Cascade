@@ -48,14 +48,14 @@ export default async function CreateRequestPage(props: {
 
   // Fetch drafts for the current user in this business unit
   const { data: drafts } = await supabase
-    .from("documents")
+    .from("requests")
     .select(
       `
       id,
       data,
       created_at,
       updated_at,
-      requisition_templates!inner(
+      forms!inner(
         id,
         name,
         description,

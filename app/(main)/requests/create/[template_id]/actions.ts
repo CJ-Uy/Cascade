@@ -4,13 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export async function saveRequestAsDraft(
-  templateId: string,
+  formId: string,
   formData: Record<string, any>,
   businessUnitId: string,
   draftId?: string,
 ) {
   return await saveOrSubmitRequest(
-    templateId,
+    formId,
     formData,
     businessUnitId,
     "DRAFT",
@@ -19,13 +19,13 @@ export async function saveRequestAsDraft(
 }
 
 export async function submitRequest(
-  templateId: string,
+  formId: string,
   formData: Record<string, any>,
   businessUnitId: string,
   draftId?: string,
 ) {
   return await saveOrSubmitRequest(
-    templateId,
+    formId,
     formData,
     businessUnitId,
     "SUBMITTED",
@@ -34,7 +34,7 @@ export async function submitRequest(
 }
 
 async function saveOrSubmitRequest(
-  templateId: string,
+  formId: string,
   formData: Record<string, any>,
   businessUnitId: string,
   status: "DRAFT" | "SUBMITTED",
@@ -64,7 +64,7 @@ async function saveOrSubmitRequest(
   // If updating an existing draft
   if (existingDraftId) {
     const { error: updateError } = await supabase
-      .from("documents")
+      .from("requests")
       .update({
         data: formData,
         status: status,
@@ -83,18 +83,18 @@ async function saveOrSubmitRequest(
 
     return {
       success: true,
-      documentId: existingDraftId,
+      requestId: existingDraftId,
       isDraft: status === "DRAFT",
     };
   }
 
-  // Create new document
-  const { data: newDocument, error: documentError } = await supabase
-    .from("documents")
+  // Create new request
+  const { data: newRequest, error: requestError } = await supabase
+    .from("requests")
     .insert({
       organization_id: businessUnit.organization_id,
       business_unit_id: businessUnitId,
-      template_id: templateId,
+      form_id: formId,
       initiator_id: user.id,
       status: status,
       data: formData,
@@ -102,19 +102,19 @@ async function saveOrSubmitRequest(
     .select("id")
     .single();
 
-  if (documentError || !newDocument) {
-    console.error("Error creating document:", documentError);
+  if (requestError || !newRequest) {
+    console.error("Error creating request:", requestError);
     throw new Error("Failed to save request.");
   }
 
-  const documentId = newDocument.id;
+  const requestId = newRequest.id;
 
-  // If submitting (not draft), create document history entry
+  // If submitting (not draft), create request history entry
   if (status === "SUBMITTED") {
     const { error: historyError } = await supabase
-      .from("document_history")
+      .from("request_history")
       .insert({
-        document_id: documentId,
+        request_id: requestId,
         actor_id: user.id,
         action: "SUBMIT",
         comments: "Request submitted",
@@ -127,7 +127,7 @@ async function saveOrSubmitRequest(
   }
 
   revalidatePath("/requests/create");
-  revalidatePath(`/requests/${documentId}`);
+  revalidatePath(`/requests/${requestId}`);
 
-  return { success: true, documentId, isDraft: status === "DRAFT" };
+  return { success: true, requestId, isDraft: status === "DRAFT" };
 }

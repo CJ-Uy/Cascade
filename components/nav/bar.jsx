@@ -93,7 +93,6 @@ const requestItems = [
 
 const approvalItems = [
   { title: "To Approve", url: "/approvals/to-approve", icon: CheckSquare },
-  { title: "Flagged", url: "/approvals/flagged", icon: Flag },
 ];
 
 const adminItems = [

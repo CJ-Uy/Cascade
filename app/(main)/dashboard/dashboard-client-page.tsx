@@ -92,7 +92,7 @@ export default function DashboardClientPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card
           className="hover:bg-muted/50 cursor-pointer"
-          onClick={() => navigateTo(`/requisitions/running/${buId}`)}
+          onClick={() => navigateTo(`/requests/pending`)}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -143,7 +143,7 @@ export default function DashboardClientPage() {
         </Card>
         <Card
           className="text-primary-foreground bg-primary hover:bg-primary/90 flex flex-col items-center justify-center"
-          onClick={() => navigateTo(`/requisitions/create/${buId}`)}
+          onClick={() => navigateTo(`/requests/create`)}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-lg font-bold">Create New</CardTitle>
@@ -179,9 +179,7 @@ export default function DashboardClientPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        navigateTo(`/requisitions/running/${buId}`)
-                      }
+                      onClick={() => navigateTo(`/requests/pending`)}
                     >
                       View <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
