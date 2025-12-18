@@ -262,7 +262,7 @@ export function MultiStepWorkflowBuilder({
             order: section.order,
             name: section.name,
             description: section.description || "",
-            formId: section.formTemplateId || undefined,
+            formId: section.formId || undefined,
             initiators: section.initiators || [],
             steps: section.steps || [],
             // Transition settings (for sections after the first)

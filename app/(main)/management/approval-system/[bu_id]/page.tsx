@@ -92,7 +92,7 @@ export default function ApprovalSystem() {
           order: index,
           name: section.name || `Section ${index + 1}`,
           description: section.description || null,
-          formTemplateId: section.formId || null,
+          formId: section.formId || null,
           triggerCondition: section.triggerCondition || null,
           initiatorType: section.initiatorType || null,
           initiatorRoleId: section.initiatorRoleId || null,

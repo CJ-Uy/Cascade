@@ -70,9 +70,9 @@ export default async function CreateRequestPage(props: {
 
   // Fetch templates for the selected business unit
   const { data: templates, error: templatesError } = await supabase.rpc(
-    "get_initiatable_templates",
+    "get_initiatable_forms",
     {
-      p_business_unit_id: selectedBuId,
+      p_user_id: user.id,
     },
   );
 

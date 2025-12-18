@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { Button } from "@/components/ui/button";
-import { getApproverDocuments } from "../../document/actions";
+import { getApproverRequests } from "../../document/actions";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -55,7 +55,7 @@ export default function ToApproveDocumentsPage() {
   const fetchDocuments = () => {
     startLoading(async () => {
       try {
-        const data = await getApproverDocuments(buId);
+        const data = await getApproverRequests(buId);
 
         // Fetch workflow progress for each document
         const supabase = createClient();

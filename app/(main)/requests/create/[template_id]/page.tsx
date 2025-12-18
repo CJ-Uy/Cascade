@@ -56,8 +56,8 @@ export default async function FillRequestFormPage({
   }
 
   // Fetch the specific template
-  const { data: templates } = await supabase.rpc("get_initiatable_templates", {
-    p_business_unit_id: businessUnitId,
+  const { data: templates } = await supabase.rpc("get_initiatable_forms", {
+    p_user_id: user.id,
   });
 
   const template = templates?.find((t: any) => t.id === templateId);
@@ -65,6 +65,82 @@ export default async function FillRequestFormPage({
   if (!template) {
     notFound();
   }
+
+  // Fetch form fields for this template (including nested fields)
+  const { data: formFields, error: fieldsError } = await supabase
+    .from("form_fields")
+    .select("*")
+    .eq("form_id", templateId)
+    .order("display_order");
+
+  if (fieldsError) {
+    console.error("Error fetching form fields:", fieldsError);
+  }
+
+  // Transform and nest form fields (same logic as FormList)
+  const nestFormFields = (fields: Record<string, unknown>[]) => {
+    if (!fields || fields.length === 0) {
+      return [];
+    }
+
+    const fieldsById = new Map(
+      fields.map((field) => {
+        const { field_config, is_required, ...rest } = field;
+        const transformedField = {
+          ...rest,
+          type: field.field_type,
+          required: is_required, // Map is_required to required
+          columns: [] as Record<string, unknown>[],
+        };
+
+        // Set gridConfig for grid-table fields
+        if (field.field_type === "grid-table" && field_config) {
+          (transformedField as Record<string, unknown>).gridConfig =
+            field_config;
+        }
+
+        // Set numberConfig for number fields
+        if (field.field_type === "number" && field_config) {
+          (transformedField as Record<string, unknown>).numberConfig =
+            field_config;
+        }
+
+        return [field.id, transformedField];
+      }),
+    );
+
+    const rootFields: Record<string, unknown>[] = [];
+
+    for (const field of fields) {
+      if (field.parent_list_field_id) {
+        const parent = fieldsById.get(field.parent_list_field_id as string);
+        if (parent) {
+          (parent.columns as Record<string, unknown>[]).push(
+            fieldsById.get(field.id as string)!,
+          );
+        }
+      } else {
+        rootFields.push(fieldsById.get(field.id as string)!);
+      }
+    }
+
+    // Sort root fields and nested columns by display_order
+    rootFields.sort(
+      (a, b) => (a.display_order as number) - (b.display_order as number),
+    );
+    fieldsById.forEach((field) => {
+      if ((field.columns as Record<string, unknown>[]).length > 0) {
+        (field.columns as Record<string, unknown>[]).sort(
+          (a, b) => (a.display_order as number) - (b.display_order as number),
+        );
+      }
+    });
+
+    return rootFields;
+  };
+
+  // Attach transformed fields to template
+  template.fields = nestFormFields(formFields || []);
 
   // Get business unit name
   const { data: businessUnit } = await supabase

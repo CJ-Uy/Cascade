@@ -192,13 +192,10 @@ export function RequestForm({
         </CardHeader>
         <CardContent>
           <FormFiller
-            formFields={template.fields || []}
-            onSubmit={handleSubmit}
-            isSubmitting={isSubmitting}
-            onChange={handleFormChange}
+            template={template}
+            initialData={draftData || {}}
+            onFormDataChange={handleFormChange}
             onValidationChange={handleValidationChange}
-            initialValues={draftData}
-            hideSubmitButton={true}
           />
         </CardContent>
       </Card>

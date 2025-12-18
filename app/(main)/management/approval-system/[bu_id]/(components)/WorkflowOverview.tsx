@@ -341,14 +341,14 @@ export default function WorkflowOverview({
                         className={`rounded-lg border p-4 ${idx === 0 ? "border-primary bg-primary/5" : "bg-muted/50"}`}
                       >
                         {/* Form */}
-                        {section.formTemplateId && (
+                        {section.formId && (
                           <div className="mb-3">
                             <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-blue-300">
                               <FileText className="h-3 w-3" />
                               Form Template
                             </p>
                             <Badge variant="outline" className="text-xs">
-                              {section.formTemplateName || "Form"}
+                              {section.formName || "Form"}
                             </Badge>
                           </div>
                         )}

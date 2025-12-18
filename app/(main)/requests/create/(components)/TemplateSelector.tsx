@@ -19,6 +19,7 @@ import {
   Workflow,
   Loader2,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { icons } from "lucide-react";
 
@@ -32,6 +33,9 @@ interface Template {
     stepNumber: number;
     approverRole: string;
   }>;
+  sectionOrder?: number;
+  sectionName?: string;
+  needsPriorSection?: boolean;
 }
 
 interface Draft {
@@ -39,7 +43,7 @@ interface Draft {
   data: Record<string, any>;
   created_at: string;
   updated_at: string;
-  requisition_templates: {
+  forms: {
     id: string;
     name: string;
     description: string;
@@ -73,7 +77,7 @@ export function TemplateSelector({
   const handleDraftSelect = (draft: Draft) => {
     setLoadingDraftId(draft.id);
     router.push(
-      `/requests/create/${draft.requisition_templates.id}?bu_id=${selectedBuId}&draft_id=${draft.id}`,
+      `/requests/create/${draft.forms.id}?bu_id=${selectedBuId}&draft_id=${draft.id}`,
     );
   };
 
@@ -98,8 +102,8 @@ export function TemplateSelector({
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {drafts.map((draft) => {
               const IconComponent =
-                draft.requisition_templates.icon &&
-                icons[draft.requisition_templates.icon as keyof typeof icons];
+                draft.forms?.icon &&
+                icons[draft.forms.icon as keyof typeof icons];
 
               return (
                 <Card
@@ -114,9 +118,9 @@ export function TemplateSelector({
                           <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-lg">
                             <IconComponent className="text-primary h-6 w-6" />
                           </div>
-                        ) : draft.requisition_templates.icon ? (
+                        ) : draft.forms?.icon ? (
                           <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-lg text-2xl">
-                            {draft.requisition_templates.icon}
+                            {draft.forms.icon}
                           </div>
                         ) : (
                           <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-lg">
@@ -125,7 +129,7 @@ export function TemplateSelector({
                         )}
                         <div className="flex-1">
                           <CardTitle className="text-lg">
-                            {draft.requisition_templates.name}
+                            {draft.forms?.name || "Draft"}
                           </CardTitle>
                         </div>
                       </div>
@@ -226,6 +230,32 @@ export function TemplateSelector({
 
                 <CardContent>
                   <div className="space-y-3">
+                    {/* Warning for forms from later sections */}
+                    {template.needsPriorSection && (
+                      <div className="flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 p-2 dark:border-yellow-900/50 dark:bg-yellow-900/20">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-500" />
+                        <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                          This form is from section{" "}
+                          {template.sectionOrder || "?"}
+                          {template.sectionName && ` (${template.sectionName})`}
+                          . Earlier sections may need to be completed first.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Section Info (if not section 1) */}
+                    {template.sectionOrder &&
+                      template.sectionOrder > 1 &&
+                      !template.needsPriorSection && (
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            Section {template.sectionOrder}
+                            {template.sectionName &&
+                              `: ${template.sectionName}`}
+                          </Badge>
+                        </div>
+                      )}
+
                     {/* Workflow Info */}
                     {template.workflowChainName && (
                       <div className="flex items-center gap-2 text-sm">

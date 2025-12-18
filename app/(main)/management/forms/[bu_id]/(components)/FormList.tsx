@@ -182,10 +182,11 @@ export function FormList({
 
         const fieldsById = new Map(
           form.form_fields.map((field: any) => {
-            const { field_type, field_config, ...rest } = field;
+            const { field_type, field_config, is_required, ...rest } = field;
             const transformedField: any = {
               ...rest,
               type: field_type,
+              required: is_required, // Map is_required to required
               columns: [],
             };
 
