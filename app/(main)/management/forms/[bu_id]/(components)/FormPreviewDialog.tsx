@@ -22,9 +22,6 @@ export function FormPreviewDialog({
 }: FormPreviewDialogProps) {
   if (!form) return null;
 
-  // The 'form' object passed from the list is now correctly shaped,
-  // so the old transformation logic is no longer needed.
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
@@ -35,7 +32,11 @@ export function FormPreviewDialog({
           <DialogTitle>{form.name}</DialogTitle>
         </DialogHeader>
         <div className="mt-4 overflow-y-auto">
-          <FormPreview name={form.name} fields={form.fields || []} />
+          <FormPreview
+            name={form.name}
+            description={form.description}
+            fields={form.fields || []}
+          />
         </div>
       </DialogContent>
     </Dialog>

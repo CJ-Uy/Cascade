@@ -22,9 +22,18 @@ export function FormPreview({
   fields = [],
 }: FormPreviewProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleValueChange = (fieldId: string, value: any) => {
     setFormData((prev) => ({ ...prev, [fieldId]: value }));
+    // Clear error when value changes
+    if (errors[fieldId]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[fieldId];
+        return newErrors;
+      });
+    }
   };
 
   const renderField = (field: FormField) => {
@@ -64,30 +73,140 @@ export function FormPreview({
           />,
         );
       case "number":
+        const numberConfig = field.numberConfig;
+        const step = numberConfig?.wholeNumbersOnly === true ? "1" : "any";
+        const error = errors[field.id];
+
+        const validateNumber = (val: string) => {
+          if (!val) return null;
+          const numVal = Number(val);
+
+          if (isNaN(numVal)) {
+            return "Please enter a valid number";
+          }
+
+          if (
+            numberConfig?.wholeNumbersOnly === true &&
+            !Number.isInteger(numVal)
+          ) {
+            return "Please enter a whole number";
+          }
+
+          if (numberConfig?.allowNegative === false && numVal < 0) {
+            return "Negative numbers are not allowed";
+          }
+
+          if (
+            numberConfig?.validationType === "min" &&
+            numberConfig.min !== undefined &&
+            numVal < numberConfig.min
+          ) {
+            return `Value must be at least ${numberConfig.min}`;
+          }
+
+          if (
+            numberConfig?.validationType === "max" &&
+            numberConfig.max !== undefined &&
+            numVal > numberConfig.max
+          ) {
+            return `Value must be at most ${numberConfig.max}`;
+          }
+
+          if (numberConfig?.validationType === "range") {
+            if (numberConfig.min !== undefined && numVal < numberConfig.min) {
+              return `Value must be at least ${numberConfig.min}`;
+            }
+            if (numberConfig.max !== undefined && numVal > numberConfig.max) {
+              return `Value must be at most ${numberConfig.max}`;
+            }
+          }
+
+          return null;
+        };
+
+        const handleNumberChange = (val: string) => {
+          handleValueChange(field.id, val);
+          const validationError = validateNumber(val);
+          if (validationError) {
+            setErrors((prev) => ({ ...prev, [field.id]: validationError }));
+          }
+        };
+
         return fieldWrapper(
           field.label,
-          <Input
-            {...commonProps}
-            type="number"
-            placeholder={field.placeholder}
-            value={formData[field.id] || ""}
-            onChange={(e) => handleValueChange(field.id, e.target.value)}
-          />,
+          <>
+            <Input
+              {...commonProps}
+              type="number"
+              step={step}
+              placeholder={field.placeholder}
+              value={formData[field.id] || ""}
+              onChange={(e) => handleNumberChange(e.target.value)}
+              className={error ? "border-red-500" : ""}
+              min={
+                numberConfig?.validationType === "min" ||
+                numberConfig?.validationType === "range"
+                  ? numberConfig.min
+                  : undefined
+              }
+              max={
+                numberConfig?.validationType === "max" ||
+                numberConfig?.validationType === "range"
+                  ? numberConfig.max
+                  : undefined
+              }
+            />
+            {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+            {numberConfig && (
+              <p className="text-muted-foreground mt-1 text-xs">
+                {numberConfig.wholeNumbersOnly === true &&
+                  "Whole numbers only. "}
+                {numberConfig.allowNegative === false &&
+                  "Positive numbers only. "}
+                {numberConfig.validationType === "min" &&
+                  numberConfig.min !== undefined &&
+                  `Minimum: ${numberConfig.min}. `}
+                {numberConfig.validationType === "max" &&
+                  numberConfig.max !== undefined &&
+                  `Maximum: ${numberConfig.max}. `}
+                {numberConfig.validationType === "range" &&
+                  numberConfig.min !== undefined &&
+                  numberConfig.max !== undefined &&
+                  `Range: ${numberConfig.min} - ${numberConfig.max}. `}
+              </p>
+            )}
+          </>,
         );
       case "radio":
-        return fieldWrapper(
-          field.label,
-          <RadioGroup
-            value={formData[field.id]}
-            onValueChange={(value) => handleValueChange(field.id, value)}
-          >
-            {field.options?.map((opt) => (
-              <div key={opt} className="flex items-center space-x-2">
-                <RadioGroupItem value={opt} id={`${field.id}-${opt}`} />
-                <Label htmlFor={`${field.id}-${opt}`}>{opt}</Label>
-              </div>
-            ))}
-          </RadioGroup>,
+        return (
+          <div key={field.id} className="mb-6">
+            <div className="mb-2 flex items-center justify-between">
+              <Label htmlFor={field.id} className="text-md block font-medium">
+                {field.label}{" "}
+                {field.required && <span className="text-red-500">*</span>}
+              </Label>
+              {formData[field.id] && (
+                <button
+                  type="button"
+                  onClick={() => handleValueChange(field.id, "")}
+                  className="text-muted-foreground hover:text-foreground text-xs underline"
+                >
+                  Clear selection
+                </button>
+              )}
+            </div>
+            <RadioGroup
+              value={formData[field.id]}
+              onValueChange={(value) => handleValueChange(field.id, value)}
+            >
+              {field.options?.map((opt) => (
+                <div key={opt} className="flex items-center space-x-2">
+                  <RadioGroupItem value={opt} id={`${field.id}-${opt}`} />
+                  <Label htmlFor={`${field.id}-${opt}`}>{opt}</Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
         );
       case "checkbox":
         return fieldWrapper(
@@ -161,7 +280,9 @@ export function FormPreview({
             <p className="text-muted-foreground mt-2 text-lg">{description}</p>
           )}
         </div>
-        {fields.map(renderField)}
+        {fields.map((field) => (
+          <div key={field.id}>{renderField(field)}</div>
+        ))}
       </div>
     </div>
   );
@@ -194,8 +315,8 @@ function RepeaterPreview({
   };
 
   return (
-    <div className="mb-6 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50/50 p-4">
-      <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-blue-800">
+    <div className="mb-6 rounded-lg border border-gray-300 bg-gray-50/50 p-4 shadow-sm">
+      <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-700">
         <Table className="h-5 w-5" />
         {field.label}
         {field.required && (
@@ -276,31 +397,82 @@ function ColumnPreview({
         />,
       );
     case "number":
+      const numberConfig = column.numberConfig;
+      const step = numberConfig?.wholeNumbersOnly === true ? "1" : "any";
+
       return fieldWrapper(
         column.label,
-        <Input
-          {...commonProps}
-          type="number"
-          placeholder={column.placeholder}
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-        />,
+        <>
+          <Input
+            {...commonProps}
+            type="number"
+            step={step}
+            placeholder={column.placeholder}
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            min={
+              numberConfig?.validationType === "min" ||
+              numberConfig?.validationType === "range"
+                ? numberConfig.min
+                : undefined
+            }
+            max={
+              numberConfig?.validationType === "max" ||
+              numberConfig?.validationType === "range"
+                ? numberConfig.max
+                : undefined
+            }
+          />
+          {numberConfig && (
+            <p className="text-muted-foreground mt-1 text-xs">
+              {numberConfig.wholeNumbersOnly === true && "Whole numbers only. "}
+              {numberConfig.allowNegative === false &&
+                "Positive numbers only. "}
+              {numberConfig.validationType === "min" &&
+                numberConfig.min !== undefined &&
+                `Minimum: ${numberConfig.min}. `}
+              {numberConfig.validationType === "max" &&
+                numberConfig.max !== undefined &&
+                `Maximum: ${numberConfig.max}. `}
+              {numberConfig.validationType === "range" &&
+                numberConfig.min !== undefined &&
+                numberConfig.max !== undefined &&
+                `Range: ${numberConfig.min} - ${numberConfig.max}. `}
+            </p>
+          )}
+        </>,
       );
     case "radio":
-      return fieldWrapper(
-        column.label,
-        <RadioGroup
-          value={value}
-          onValueChange={(val) => onChange(val)}
-          className="mt-2"
-        >
-          {column.options?.map((opt) => (
-            <div key={opt} className="flex items-center space-x-2">
-              <RadioGroupItem value={opt} id={`${column.id}-${opt}`} />
-              <Label htmlFor={`${column.id}-${opt}`}>{opt}</Label>
-            </div>
-          ))}
-        </RadioGroup>,
+      return (
+        <div key={column.id}>
+          <div className="mb-1 flex items-center justify-between">
+            <Label htmlFor={column.id} className="font-medium">
+              {column.label}{" "}
+              {column.required && <span className="text-red-500">*</span>}
+            </Label>
+            {value && (
+              <button
+                type="button"
+                onClick={() => onChange("")}
+                className="text-muted-foreground hover:text-foreground text-xs underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <RadioGroup
+            value={value}
+            onValueChange={(val) => onChange(val)}
+            className="mt-2"
+          >
+            {column.options?.map((opt) => (
+              <div key={opt} className="flex items-center space-x-2">
+                <RadioGroupItem value={opt} id={`${column.id}-${opt}`} />
+                <Label htmlFor={`${column.id}-${opt}`}>{opt}</Label>
+              </div>
+            ))}
+          </RadioGroup>
+        </div>
       );
     case "checkbox":
       return fieldWrapper(
@@ -401,16 +573,52 @@ function GridTablePreview({
           />
         );
       case "number":
+        const numberConfig = cellConfig.numberConfig;
+        const step = numberConfig?.wholeNumbersOnly === true ? "1" : "any";
+
         return (
-          <Input
-            type="number"
-            value={cellValue || ""}
-            onChange={(e) =>
-              handleCellChange(rowIndex, colIndex, e.target.value)
-            }
-            className="border-0 focus-visible:ring-1"
-            placeholder=""
-          />
+          <div className="space-y-1">
+            <Input
+              type="number"
+              step={step}
+              value={cellValue || ""}
+              onChange={(e) =>
+                handleCellChange(rowIndex, colIndex, e.target.value)
+              }
+              className="border-0 focus-visible:ring-1"
+              placeholder=""
+              min={
+                numberConfig?.validationType === "min" ||
+                numberConfig?.validationType === "range"
+                  ? numberConfig.min
+                  : undefined
+              }
+              max={
+                numberConfig?.validationType === "max" ||
+                numberConfig?.validationType === "range"
+                  ? numberConfig.max
+                  : undefined
+              }
+            />
+            {numberConfig && (
+              <p className="text-muted-foreground text-[10px] leading-tight">
+                {numberConfig.wholeNumbersOnly === true &&
+                  "Whole numbers only. "}
+                {numberConfig.allowNegative === false &&
+                  "Positive numbers only. "}
+                {numberConfig.validationType === "min" &&
+                  numberConfig.min !== undefined &&
+                  `Min: ${numberConfig.min}. `}
+                {numberConfig.validationType === "max" &&
+                  numberConfig.max !== undefined &&
+                  `Max: ${numberConfig.max}. `}
+                {numberConfig.validationType === "range" &&
+                  numberConfig.min !== undefined &&
+                  numberConfig.max !== undefined &&
+                  `Range: ${numberConfig.min}-${numberConfig.max}. `}
+              </p>
+            )}
+          </div>
         );
       case "radio":
         return (
@@ -569,8 +777,8 @@ function GridTablePreview({
   };
 
   return (
-    <div className="mb-6 rounded-lg border-2 border-dashed border-purple-300 bg-purple-50/50 p-4">
-      <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-purple-800">
+    <div className="mb-6 rounded-lg border border-gray-300 bg-gray-50/50 p-4 shadow-sm">
+      <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-700">
         <Table className="h-5 w-5" />
         {field.label}
         {field.required && (

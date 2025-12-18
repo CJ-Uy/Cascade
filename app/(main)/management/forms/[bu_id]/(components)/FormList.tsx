@@ -183,15 +183,23 @@ export function FormList({
         const fieldsById = new Map(
           form.form_fields.map((field: any) => {
             const { field_type, field_config, ...rest } = field;
-            return [
-              field.id,
-              {
-                ...rest,
-                type: field_type,
-                gridConfig: field_config,
-                columns: [],
-              },
-            ];
+            const transformedField: any = {
+              ...rest,
+              type: field_type,
+              columns: [],
+            };
+
+            // Set gridConfig for grid-table fields
+            if (field_type === "grid-table" && field_config) {
+              transformedField.gridConfig = field_config;
+            }
+
+            // Set numberConfig for number fields
+            if (field_type === "number" && field_config) {
+              transformedField.numberConfig = field_config;
+            }
+
+            return [field.id, transformedField];
           }),
         );
 

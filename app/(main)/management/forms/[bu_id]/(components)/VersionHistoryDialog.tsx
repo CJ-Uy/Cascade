@@ -52,10 +52,10 @@ export function VersionHistoryDialog({
     const fetchVersionHistory = async () => {
       setLoading(true);
 
-      // First, find the parent_template_id of the current form to identify the entire family.
+      // First, find the parent_form_id of the current form to identify the entire family.
       const { data: currentForm, error: fetchCurrentError } = await supabase
-        .from("requisition_templates")
-        .select("parent_template_id")
+        .from("forms")
+        .select("parent_form_id")
         .eq("id", formId)
         .single();
 
@@ -65,13 +65,13 @@ export function VersionHistoryDialog({
         return;
       }
 
-      const familyId = currentForm.parent_template_id || formId;
+      const familyId = currentForm.parent_form_id || formId;
 
       // Now, fetch all versions in that family.
       const { data, error } = await supabase
-        .from("requisition_templates")
+        .from("forms")
         .select("*")
-        .or(`id.eq.${familyId},parent_template_id.eq.${familyId}`)
+        .or(`id.eq.${familyId},parent_form_id.eq.${familyId}`)
         .order("version", { ascending: false });
 
       if (error) {
@@ -115,7 +115,11 @@ export function VersionHistoryDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent
+        className="max-w-2xl"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         <DialogHeader>
           <DialogTitle>Version History for &quot;{formName}&quot;</DialogTitle>
           <DialogDescription>

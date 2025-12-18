@@ -44,14 +44,69 @@ export function FormCardView({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const nestFormFields = (forms: any[]) => {
+      if (!forms) return [];
+      return forms.map((form) => {
+        if (!form.form_fields || form.form_fields.length === 0) {
+          return { ...form, fields: [] };
+        }
+
+        const fieldsById = new Map(
+          form.form_fields.map((field: any) => {
+            const { field_type, field_config, ...rest } = field;
+            const transformedField: any = {
+              ...rest,
+              type: field_type,
+              columns: [],
+            };
+
+            // Set gridConfig for grid-table fields
+            if (field_type === "grid-table" && field_config) {
+              transformedField.gridConfig = field_config;
+            }
+
+            // Set numberConfig for number fields
+            if (field_type === "number" && field_config) {
+              transformedField.numberConfig = field_config;
+            }
+
+            return [field.id, transformedField];
+          }),
+        );
+
+        const rootFields: any[] = [];
+
+        for (const field of form.form_fields) {
+          if (field.parent_list_field_id) {
+            const parent = fieldsById.get(field.parent_list_field_id);
+            if (parent) {
+              parent.columns.push(fieldsById.get(field.id)!);
+            }
+          } else {
+            rootFields.push(fieldsById.get(field.id)!);
+          }
+        }
+
+        // Sort root fields and nested columns by display_order
+        rootFields.sort((a, b) => a.display_order - b.display_order);
+        fieldsById.forEach((field) => {
+          if (field.columns.length > 0) {
+            field.columns.sort((a, b) => a.display_order - b.display_order);
+          }
+        });
+
+        // Replace form_fields with the nested fields structure
+        const { form_fields, ...restOfForm } = form;
+        return { ...restOfForm, fields: rootFields };
+      });
+    };
+
     const fetchForms = async () => {
       setLoading(true);
 
       let query = supabase
-        .from("requisition_templates")
-        .select(
-          "*, template_fields(*, field_options(*), columns:template_fields(*, field_options(*)))",
-        )
+        .from("forms")
+        .select("*, form_fields(*)")
         .eq("business_unit_id", businessUnitId)
         .eq("is_latest", true)
         .order("created_at", { ascending: false });
@@ -66,9 +121,10 @@ export function FormCardView({
 
       if (error) {
         console.error("Error fetching forms:", error);
-        // Handle error appropriately
+        setForms([]);
       } else {
-        setForms(data);
+        const nestedData = nestFormFields(data);
+        setForms(nestedData);
       }
       setLoading(false);
     };

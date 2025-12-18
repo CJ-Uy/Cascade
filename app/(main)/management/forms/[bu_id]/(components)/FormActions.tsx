@@ -19,6 +19,7 @@ import {
   Loader2,
   CheckCircle,
   Trash2,
+  FileEdit,
 } from "lucide-react";
 import {
   type Form,
@@ -29,6 +30,7 @@ import {
   unarchiveTemplateFamilyAction,
   activateFormAction,
   deleteFormAction,
+  convertActiveToDraftAction,
 } from "@/app/(main)/management/forms/actions";
 import { toast } from "sonner";
 import { VersionHistoryDialog } from "./VersionHistoryDialog";
@@ -69,25 +71,49 @@ export function FormActions({
       return fields.map((field) => {
         const transformedField: FormField = {
           id: field.id,
-          type: field.field_type,
-          label: field.label,
-          required: field.is_required,
+          type: field.type || field.field_type,
+          label: field.label || field.field_label,
+          required: field.required ?? field.is_required,
           placeholder: field.placeholder || "",
-          options: field.field_options?.map((opt: any) => opt.label) || [],
+          options:
+            field.options ||
+            field.field_options?.map((opt: any) => opt.label) ||
+            [],
           columns: field.columns ? transformFields(field.columns) : [],
         };
 
+        // Preserve field_key for existing fields
+        if (field.field_key) {
+          (transformedField as any).key = field.field_key;
+        }
+
         // Add gridConfig for grid-table fields
-        if (field.field_type === "grid-table" && field.field_config) {
-          transformedField.gridConfig = field.field_config;
+        if (
+          (field.type === "grid-table" || field.field_type === "grid-table") &&
+          (field.gridConfig || field.field_config)
+        ) {
+          transformedField.gridConfig = field.gridConfig || field.field_config;
+        }
+
+        // Add numberConfig for number fields
+        if (
+          (field.type === "number" || field.field_type === "number") &&
+          (field.numberConfig || field.field_config)
+        ) {
+          transformedField.numberConfig =
+            field.numberConfig || field.field_config;
         }
 
         return transformedField;
       });
     };
 
-    const topLevelFields = form.template_fields.filter(
-      (field: any) => field.parent_list_field_id === null,
+    // Handle both template_fields and form_fields naming
+    // Also handle if the form already has transformed 'fields' property
+    const allFields =
+      form.fields || form.template_fields || form.form_fields || [];
+    const topLevelFields = allFields.filter(
+      (field: any) => !field.parent_list_field_id && !field.parent_field_id,
     );
 
     const formToEdit: Form = {
@@ -154,6 +180,18 @@ export function FormActions({
     }
     setIsWorking(false);
     setShowDeleteConfirm(false);
+  };
+
+  const handleConvertToDraft = async () => {
+    setIsWorking(true);
+    try {
+      await convertActiveToDraftAction(form.id, pathname);
+      toast.success("Form converted to draft successfully!");
+      onArchive(); // Re-triggers fetch
+    } catch (error: any) {
+      toast.error(error.message || "Failed to convert form to draft.");
+    }
+    setIsWorking(false);
   };
 
   return (
@@ -223,6 +261,18 @@ export function FormActions({
                 >
                   <CheckCircle className="mr-2 h-4 w-4" />
                   <span>Activate</span>
+                </DropdownMenuItem>
+              )}
+              {form.status === "active" && !isArchivedView && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleConvertToDraft();
+                  }}
+                  disabled={isWorking}
+                >
+                  <FileEdit className="mr-2 h-4 w-4" />
+                  <span>Convert to Draft</span>
                 </DropdownMenuItem>
               )}
               {form.status === "draft" && !isArchivedView ? (

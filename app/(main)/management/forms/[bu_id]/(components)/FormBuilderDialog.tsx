@@ -63,6 +63,8 @@ export function FormBuilderDialog({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [initialState, setInitialState] = useState<string>("");
+  const [hasChanges, setHasChanges] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -74,6 +76,17 @@ export function FormBuilderDialog({
       setDescription(initialForm.description || "");
       setIcon(initialForm.icon || "");
       setFields(initialForm.fields);
+
+      // Store initial state for comparison
+      setInitialState(
+        JSON.stringify({
+          name: initialForm.name,
+          description: initialForm.description || "",
+          icon: initialForm.icon || "",
+          fields: initialForm.fields,
+        }),
+      );
+      setHasChanges(false);
     }
   }, [isOpen, form]);
 
@@ -89,6 +102,20 @@ export function FormBuilderDialog({
 
     validate();
   }, [name, fields]);
+
+  // Detect changes by comparing current state with initial state
+  useEffect(() => {
+    if (!initialState) return;
+
+    const currentState = JSON.stringify({
+      name,
+      description,
+      icon,
+      fields,
+    });
+
+    setHasChanges(currentState !== initialState);
+  }, [name, description, icon, fields, initialState]);
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
     setIcon(emojiData.emoji);
@@ -217,7 +244,7 @@ export function FormBuilderDialog({
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={isSaving || !!validationError}
+                disabled={isSaving || !!validationError || !hasChanges}
                 className="bg-primary hover:bg-primary/90"
               >
                 {isSaving ? (

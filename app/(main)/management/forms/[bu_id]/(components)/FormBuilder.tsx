@@ -23,6 +23,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // --- TYPES AND CONSTANTS ---
 export type FieldType =
@@ -48,12 +55,21 @@ export interface GridCellConfig {
   type: GridCellType;
   options?: string[]; // For radio/checkbox
   columns?: FormField[]; // For repeater within cells
+  numberConfig?: NumberFieldConfig; // For number cells
 }
 
 export interface GridTableConfig {
   rows: string[]; // Row labels (e.g., ["9:00 AM", "10:00 AM"])
   columns: string[]; // Column labels (e.g., ["Monday", "Tuesday"])
   cellConfig: GridCellConfig; // Configuration for each cell
+}
+
+export interface NumberFieldConfig {
+  wholeNumbersOnly?: boolean; // If true, only allow integers
+  allowNegative?: boolean; // Allow negative numbers
+  validationType?: "none" | "min" | "max" | "range"; // Validation type
+  min?: number; // Minimum value (for min/range validation)
+  max?: number; // Maximum value (for max/range validation)
 }
 
 export interface FormField {
@@ -65,6 +81,7 @@ export interface FormField {
   options?: string[];
   columns?: FormField[]; // For repeater fields
   gridConfig?: GridTableConfig; // For grid-table fields
+  numberConfig?: NumberFieldConfig; // For number fields
 }
 
 export interface Form {
@@ -320,6 +337,133 @@ function SortableFieldCard({
           <Input placeholder="Long answer text" disabled className="bg-muted" />
         );
 
+      case "number":
+        const numberConfig = field.numberConfig || {
+          wholeNumbersOnly: false,
+          allowNegative: true,
+          validationType: "none",
+        };
+
+        return (
+          <div className="space-y-4">
+            <Input
+              type="number"
+              placeholder="Number"
+              disabled
+              className="bg-muted"
+            />
+
+            <div className="space-y-3 rounded-md border bg-gray-50 p-3">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id={`whole-numbers-${field.id}`}
+                  checked={numberConfig.wholeNumbersOnly === true}
+                  onCheckedChange={(checked) =>
+                    onUpdate(field.id, {
+                      numberConfig: {
+                        ...numberConfig,
+                        wholeNumbersOnly: checked,
+                      },
+                    })
+                  }
+                />
+                <Label
+                  htmlFor={`whole-numbers-${field.id}`}
+                  className="text-sm font-normal"
+                >
+                  Whole Numbers Only
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id={`allow-negative-${field.id}`}
+                  checked={numberConfig.allowNegative !== false}
+                  onCheckedChange={(checked) =>
+                    onUpdate(field.id, {
+                      numberConfig: { ...numberConfig, allowNegative: checked },
+                    })
+                  }
+                />
+                <Label
+                  htmlFor={`allow-negative-${field.id}`}
+                  className="text-sm font-normal"
+                >
+                  Allow Negative Numbers
+                </Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Validation</Label>
+                <Select
+                  value={numberConfig.validationType || "none"}
+                  onValueChange={(value: "none" | "min" | "max" | "range") =>
+                    onUpdate(field.id, {
+                      numberConfig: { ...numberConfig, validationType: value },
+                    })
+                  }
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Validation</SelectItem>
+                    <SelectItem value="min">Minimum Value</SelectItem>
+                    <SelectItem value="max">Maximum Value</SelectItem>
+                    <SelectItem value="range">Range (Min-Max)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {(numberConfig.validationType === "min" ||
+                numberConfig.validationType === "range") && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Minimum Value</Label>
+                  <Input
+                    type="number"
+                    value={numberConfig.min ?? ""}
+                    onChange={(e) =>
+                      onUpdate(field.id, {
+                        numberConfig: {
+                          ...numberConfig,
+                          min: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        },
+                      })
+                    }
+                    placeholder="Enter minimum value"
+                    className="bg-white"
+                  />
+                </div>
+              )}
+
+              {(numberConfig.validationType === "max" ||
+                numberConfig.validationType === "range") && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Maximum Value</Label>
+                  <Input
+                    type="number"
+                    value={numberConfig.max ?? ""}
+                    onChange={(e) =>
+                      onUpdate(field.id, {
+                        numberConfig: {
+                          ...numberConfig,
+                          max: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        },
+                      })
+                    }
+                    placeholder="Enter maximum value"
+                    className="bg-white"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
       case "radio":
 
       case "checkbox":
@@ -363,14 +507,14 @@ function SortableFieldCard({
 
       case "repeater":
         return (
-          <div className="border-primary/30 bg-primary/5 mt-4 space-y-3 rounded-lg border-2 border-dashed p-4">
-            <div className="text-primary flex items-center gap-2">
+          <div className="mt-4 space-y-3 rounded-lg border border-gray-300 bg-gray-50/50 p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-gray-700">
               <Table className="h-5 w-5" />
 
               <h3 className="text-base font-semibold">Repeater</h3>
             </div>
 
-            <p className="text-primary/90 text-sm">
+            <p className="text-sm text-gray-600">
               Define columns for the repeater. Users can add multiple rows of
               this data.
             </p>
@@ -388,7 +532,7 @@ function SortableFieldCard({
             </div>
 
             <div className="pt-2">
-              <h4 className="text-primary mb-2 text-sm font-semibold">
+              <h4 className="mb-2 text-sm font-semibold text-gray-700">
                 Add New Column
               </h4>
 
@@ -475,21 +619,21 @@ function SortableFieldCard({
         };
 
         return (
-          <div className="mt-4 space-y-4 rounded-lg border-2 border-dashed border-purple-300 bg-purple-50 p-4">
-            <div className="flex items-center justify-between text-purple-700">
+          <div className="mt-4 space-y-4 rounded-lg border border-gray-300 bg-gray-50/50 p-4 shadow-sm">
+            <div className="flex items-center justify-between text-gray-700">
               <div className="flex items-center gap-2">
                 <Table className="h-5 w-5" />
                 <h3 className="text-base font-semibold">Grid Table</h3>
               </div>
             </div>
 
-            <p className="text-sm text-purple-600">
+            <p className="text-sm text-gray-600">
               Define rows and columns for a grid. Users will fill in each cell.
             </p>
 
             {/* Cell configuration */}
-            <div className="space-y-4 rounded-md border-2 border-purple-200 bg-purple-100/50 p-4">
-              <Label className="text-sm font-semibold text-purple-700">
+            <div className="space-y-4 rounded-md border border-gray-300 bg-white p-4">
+              <Label className="text-sm font-semibold text-gray-700">
                 Cell Input Type
               </Label>
               <select
@@ -530,7 +674,7 @@ function SortableFieldCard({
               {(gridConfig.cellConfig.type === "radio" ||
                 gridConfig.cellConfig.type === "checkbox") && (
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-purple-600">
+                  <Label className="text-xs font-semibold text-gray-700">
                     Options
                   </Label>
                   {(gridConfig.cellConfig.options || []).map((opt, index) => (
@@ -604,13 +748,210 @@ function SortableFieldCard({
                 </div>
               )}
 
+              {/* Number configuration editor */}
+              {gridConfig.cellConfig.type === "number" && (
+                <div className="space-y-3">
+                  <Label className="text-xs font-semibold text-gray-700">
+                    Number Settings
+                  </Label>
+
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id={`whole-numbers-grid-${field.id}`}
+                      checked={
+                        gridConfig.cellConfig.numberConfig?.wholeNumbersOnly ===
+                        true
+                      }
+                      onCheckedChange={(checked) => {
+                        const currentConfig = gridConfig.cellConfig
+                          .numberConfig || {
+                          wholeNumbersOnly: false,
+                          allowNegative: true,
+                          validationType: "none",
+                        };
+                        onUpdate(field.id, {
+                          gridConfig: {
+                            ...gridConfig,
+                            cellConfig: {
+                              ...gridConfig.cellConfig,
+                              numberConfig: {
+                                ...currentConfig,
+                                wholeNumbersOnly: checked,
+                              },
+                            },
+                          },
+                        });
+                      }}
+                    />
+                    <Label
+                      htmlFor={`whole-numbers-grid-${field.id}`}
+                      className="text-xs"
+                    >
+                      Whole Numbers Only
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id={`allow-negative-grid-${field.id}`}
+                      checked={
+                        gridConfig.cellConfig.numberConfig?.allowNegative !==
+                        false
+                      }
+                      onCheckedChange={(checked) => {
+                        const currentConfig = gridConfig.cellConfig
+                          .numberConfig || {
+                          wholeNumbersOnly: false,
+                          allowNegative: true,
+                          validationType: "none",
+                        };
+                        onUpdate(field.id, {
+                          gridConfig: {
+                            ...gridConfig,
+                            cellConfig: {
+                              ...gridConfig.cellConfig,
+                              numberConfig: {
+                                ...currentConfig,
+                                allowNegative: checked,
+                              },
+                            },
+                          },
+                        });
+                      }}
+                    />
+                    <Label
+                      htmlFor={`allow-negative-grid-${field.id}`}
+                      className="text-xs"
+                    >
+                      Allow Negative
+                    </Label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">Validation</Label>
+                    <Select
+                      value={
+                        gridConfig.cellConfig.numberConfig?.validationType ||
+                        "none"
+                      }
+                      onValueChange={(
+                        value: "none" | "min" | "max" | "range",
+                      ) => {
+                        const currentConfig = gridConfig.cellConfig
+                          .numberConfig || {
+                          wholeNumbersOnly: false,
+                          allowNegative: true,
+                          validationType: "none",
+                        };
+                        onUpdate(field.id, {
+                          gridConfig: {
+                            ...gridConfig,
+                            cellConfig: {
+                              ...gridConfig.cellConfig,
+                              numberConfig: {
+                                ...currentConfig,
+                                validationType: value,
+                              },
+                            },
+                          },
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-8 bg-white text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Validation</SelectItem>
+                        <SelectItem value="min">Minimum</SelectItem>
+                        <SelectItem value="max">Maximum</SelectItem>
+                        <SelectItem value="range">Range</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {(gridConfig.cellConfig.numberConfig?.validationType ===
+                    "min" ||
+                    gridConfig.cellConfig.numberConfig?.validationType ===
+                      "range") && (
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Min Value</Label>
+                      <Input
+                        type="number"
+                        value={gridConfig.cellConfig.numberConfig?.min ?? ""}
+                        onChange={(e) => {
+                          const currentConfig = gridConfig.cellConfig
+                            .numberConfig || {
+                            wholeNumbersOnly: false,
+                            allowNegative: true,
+                            validationType: "none",
+                          };
+                          onUpdate(field.id, {
+                            gridConfig: {
+                              ...gridConfig,
+                              cellConfig: {
+                                ...gridConfig.cellConfig,
+                                numberConfig: {
+                                  ...currentConfig,
+                                  min: e.target.value
+                                    ? Number(e.target.value)
+                                    : undefined,
+                                },
+                              },
+                            },
+                          });
+                        }}
+                        placeholder="Min"
+                        className="h-8 bg-white text-sm"
+                      />
+                    </div>
+                  )}
+
+                  {(gridConfig.cellConfig.numberConfig?.validationType ===
+                    "max" ||
+                    gridConfig.cellConfig.numberConfig?.validationType ===
+                      "range") && (
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Max Value</Label>
+                      <Input
+                        type="number"
+                        value={gridConfig.cellConfig.numberConfig?.max ?? ""}
+                        onChange={(e) => {
+                          const currentConfig = gridConfig.cellConfig
+                            .numberConfig || {
+                            wholeNumbersOnly: false,
+                            allowNegative: true,
+                            validationType: "none",
+                          };
+                          onUpdate(field.id, {
+                            gridConfig: {
+                              ...gridConfig,
+                              cellConfig: {
+                                ...gridConfig.cellConfig,
+                                numberConfig: {
+                                  ...currentConfig,
+                                  max: e.target.value
+                                    ? Number(e.target.value)
+                                    : undefined,
+                                },
+                              },
+                            },
+                          });
+                        }}
+                        placeholder="Max"
+                        className="h-8 bg-white text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Column editor for repeater */}
               {gridConfig.cellConfig.type === "repeater" && (
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-purple-600">
+                  <Label className="text-xs font-semibold text-gray-700">
                     Repeater Columns
                   </Label>
-                  <p className="text-xs text-purple-500">
+                  <p className="text-xs text-gray-600">
                     Define the columns that will appear in each cell&apos;s
                     repeater
                   </p>
@@ -618,7 +959,7 @@ function SortableFieldCard({
                     (col, colIndex) => (
                       <div
                         key={col.id}
-                        className="space-y-2 rounded border border-purple-200 bg-white p-2"
+                        className="space-y-2 rounded border border-gray-300 bg-white p-2"
                       >
                         <div className="flex items-center gap-2">
                           <Input
@@ -731,7 +1072,7 @@ function SortableFieldCard({
               variant="outline"
               size="sm"
               onClick={swapRowsAndColumns}
-              className="bg-white text-purple-600 hover:bg-purple-100"
+              className="bg-white text-gray-700 hover:bg-gray-50"
               title="Swap rows and columns"
             >
               Columns
@@ -741,7 +1082,7 @@ function SortableFieldCard({
 
             {/* Row labels editor */}
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-purple-700">
+              <h4 className="text-sm font-semibold text-gray-700">
                 Row Labels
               </h4>
               {gridConfig.rows.map((row, index) => (
@@ -774,7 +1115,7 @@ function SortableFieldCard({
 
             {/* Column labels editor */}
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-purple-700">
+              <h4 className="text-sm font-semibold text-gray-700">
                 Column Labels
               </h4>
               {gridConfig.columns.map((column, index) => (
@@ -808,11 +1149,11 @@ function SortableFieldCard({
             {/* Preview of grid */}
             {gridConfig.rows.length > 0 && gridConfig.columns.length > 0 && (
               <div className="mt-4">
-                <h4 className="mb-2 text-sm font-semibold text-purple-700">
+                <h4 className="mb-2 text-sm font-semibold text-gray-700">
                   Preview
                 </h4>
-                <div className="mb-2 rounded bg-purple-50 px-3 py-2">
-                  <span className="text-xs font-medium text-purple-600">
+                <div className="mb-2 rounded bg-gray-100 px-3 py-2">
+                  <span className="text-xs font-medium text-gray-700">
                     Cell Type:{" "}
                     {gridConfig.cellConfig.type === "short-text" &&
                       "Short Text"}
@@ -827,13 +1168,13 @@ function SortableFieldCard({
                   {(gridConfig.cellConfig.type === "radio" ||
                     gridConfig.cellConfig.type === "checkbox") &&
                     gridConfig.cellConfig.options && (
-                      <span className="ml-3 text-xs text-purple-500">
+                      <span className="ml-3 text-xs text-gray-600">
                         ({gridConfig.cellConfig.options.length} options)
                       </span>
                     )}
                   {gridConfig.cellConfig.type === "repeater" &&
                     gridConfig.cellConfig.columns && (
-                      <span className="ml-3 text-xs text-purple-500">
+                      <span className="ml-3 text-xs text-gray-600">
                         ({gridConfig.cellConfig.columns.length} columns per
                         entry)
                       </span>
@@ -1071,6 +1412,144 @@ function ColumnField({
 
   const renderColumnContent = () => {
     switch (field.type) {
+      case "number":
+        const numberConfig = field.numberConfig || {
+          wholeNumbersOnly: false,
+          allowNegative: true,
+          validationType: "none",
+        };
+
+        return (
+          <div className="mt-3 space-y-3 border-t pt-3">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id={`whole-numbers-col-${field.id}`}
+                checked={numberConfig.wholeNumbersOnly === true}
+                onCheckedChange={(checked) =>
+                  onUpdate(
+                    field.id,
+                    {
+                      numberConfig: {
+                        ...numberConfig,
+                        wholeNumbersOnly: checked,
+                      },
+                    },
+                    parentId,
+                  )
+                }
+              />
+              <Label
+                htmlFor={`whole-numbers-col-${field.id}`}
+                className="text-xs font-normal"
+              >
+                Whole Numbers Only
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id={`allow-negative-col-${field.id}`}
+                checked={numberConfig.allowNegative !== false}
+                onCheckedChange={(checked) =>
+                  onUpdate(
+                    field.id,
+                    {
+                      numberConfig: { ...numberConfig, allowNegative: checked },
+                    },
+                    parentId,
+                  )
+                }
+              />
+              <Label
+                htmlFor={`allow-negative-col-${field.id}`}
+                className="text-xs font-normal"
+              >
+                Allow Negative
+              </Label>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Validation</Label>
+              <Select
+                value={numberConfig.validationType || "none"}
+                onValueChange={(value: "none" | "min" | "max" | "range") =>
+                  onUpdate(
+                    field.id,
+                    {
+                      numberConfig: { ...numberConfig, validationType: value },
+                    },
+                    parentId,
+                  )
+                }
+              >
+                <SelectTrigger className="h-8 bg-white text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Validation</SelectItem>
+                  <SelectItem value="min">Minimum</SelectItem>
+                  <SelectItem value="max">Maximum</SelectItem>
+                  <SelectItem value="range">Range</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(numberConfig.validationType === "min" ||
+              numberConfig.validationType === "range") && (
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Min Value</Label>
+                <Input
+                  type="number"
+                  value={numberConfig.min ?? ""}
+                  onChange={(e) =>
+                    onUpdate(
+                      field.id,
+                      {
+                        numberConfig: {
+                          ...numberConfig,
+                          min: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        },
+                      },
+                      parentId,
+                    )
+                  }
+                  placeholder="Min"
+                  className="h-8 bg-white text-sm"
+                />
+              </div>
+            )}
+
+            {(numberConfig.validationType === "max" ||
+              numberConfig.validationType === "range") && (
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Max Value</Label>
+                <Input
+                  type="number"
+                  value={numberConfig.max ?? ""}
+                  onChange={(e) =>
+                    onUpdate(
+                      field.id,
+                      {
+                        numberConfig: {
+                          ...numberConfig,
+                          max: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        },
+                      },
+                      parentId,
+                    )
+                  }
+                  placeholder="Max"
+                  className="h-8 bg-white text-sm"
+                />
+              </div>
+            )}
+          </div>
+        );
+
       case "radio":
       case "checkbox":
         const Icon = field.type === "radio" ? Circle : CheckSquare;

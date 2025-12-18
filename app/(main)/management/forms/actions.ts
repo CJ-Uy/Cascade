@@ -190,22 +190,29 @@ async function upsertField(
   order: number,
   parentId: string | null = null,
 ) {
-  const baseKey = field.label
-    .toLowerCase()
-    .replace(/\s+/g, "_")
-    .replace(/[^a-z0-9_]/g, "")
-    .slice(0, 50);
+  // Determine if this is a new field or existing field
+  const isNewField = field.id.startsWith("field_");
 
-  let finalKey = (field as any).key || baseKey;
+  // For existing fields, preserve their field_key
+  // For new fields, generate a unique key
+  let finalKey: string;
 
-  // If it's a new field, ensure the key is unique to prevent collisions
-  if (field.id.startsWith("field_")) {
+  if (!isNewField && (field as any).key) {
+    // Existing field - use the preserved field_key
+    finalKey = (field as any).key;
+  } else {
+    // New field - generate a unique key
+    const baseKey = field.label
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .replace(/[^a-z0-9_]/g, "")
+      .slice(0, 50);
+
     const tempIdSuffix = field.id.split("_")[1] || "";
     finalKey = `${baseKey || "field"}_${tempIdSuffix}`;
   }
 
   const fieldData: any = {
-    id: field.id.startsWith("field_") ? undefined : field.id,
     form_id: templateId,
     label: field.label,
     field_key: finalKey,
@@ -217,14 +224,24 @@ async function upsertField(
     parent_list_field_id: parentId,
   };
 
+  // Only include id for existing fields
+  if (!isNewField) {
+    fieldData.id = field.id;
+  }
+
   // Store gridConfig for grid-table fields
   if (field.type === "grid-table" && field.gridConfig) {
     fieldData.field_config = field.gridConfig;
   }
 
+  // Store numberConfig for number fields
+  if (field.type === "number" && field.numberConfig) {
+    fieldData.field_config = field.numberConfig;
+  }
+
   const { data: dbField, error: fieldError } = await supabase
     .from("form_fields")
-    .upsert(fieldData, { onConflict: "form_id, field_key" })
+    .upsert(fieldData, { onConflict: isNewField ? "form_id, field_key" : "id" })
     .select("id")
     .single();
 
@@ -474,6 +491,87 @@ export async function restoreFormVersionAction(
   if (activateError) {
     console.error("Error activating target version:", activateError);
     throw new Error("Failed to activate target version.");
+  }
+
+  revalidatePath(pathname);
+}
+
+export async function convertActiveToDraftAction(
+  formId: string,
+  pathname: string,
+) {
+  const supabase = await createClient();
+
+  // Check if the form exists and is active
+  const { data: form, error: fetchError } = await supabase
+    .from("forms")
+    .select("id, status")
+    .eq("id", formId)
+    .single();
+
+  if (fetchError || !form) {
+    console.error("Error fetching form:", fetchError);
+    throw new Error("Could not find the form.");
+  }
+
+  if (form.status !== "active") {
+    throw new Error("Only active forms can be converted to draft.");
+  }
+
+  // Check if the form is being used in any active workflow chains
+  // We need to check:
+  // 1. workflow_sections that reference this form
+  // 2. workflow_chains that contain those sections and are status 'active'
+  const { data: workflowSections, error: sectionsError } = await supabase
+    .from("workflow_sections")
+    .select(
+      `
+      id,
+      chain_id,
+      workflow_chains!inner(id, name, status)
+    `,
+    )
+    .eq("form_id", formId);
+
+  if (sectionsError) {
+    console.error("Error checking workflow sections:", sectionsError);
+    throw new Error("Failed to check if form is in use.");
+  }
+
+  // Filter to only active workflow chains
+  const activeWorkflows =
+    workflowSections?.filter((section) => {
+      const chain = Array.isArray(section.workflow_chains)
+        ? section.workflow_chains[0]
+        : section.workflow_chains;
+      return chain?.status === "active";
+    }) || [];
+
+  if (activeWorkflows.length > 0) {
+    const workflowNames = activeWorkflows
+      .map((section) => {
+        const chain = Array.isArray(section.workflow_chains)
+          ? section.workflow_chains[0]
+          : section.workflow_chains;
+        return chain?.name;
+      })
+      .filter((name) => name)
+      .join(", ");
+
+    throw new Error(
+      `Cannot convert to draft. This form is being used in ${activeWorkflows.length} active workflow chain(s): ${workflowNames}`,
+    );
+  }
+
+  // If no active workflows use this form, convert it to draft
+  const { error: updateError } = await supabase
+    .from("forms")
+    .update({ status: "draft" })
+    .eq("id", formId);
+
+  if (updateError) {
+    console.error("Error converting form to draft:", updateError);
+    throw new Error("Failed to convert form to draft.");
   }
 
   revalidatePath(pathname);

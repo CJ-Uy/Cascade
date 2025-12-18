@@ -15,6 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface NumberFieldConfig {
+  wholeNumbersOnly?: boolean;
+  allowNegative?: boolean;
+  validationType?: "none" | "min" | "max" | "range";
+  min?: number;
+  max?: number;
+}
+
 interface FormField {
   id: string;
   field_key: string;
@@ -23,6 +31,7 @@ interface FormField {
   is_required: boolean;
   placeholder?: string;
   options?: { label: string; value: string }[];
+  field_config?: NumberFieldConfig | any; // Can be numberConfig or gridConfig
   section_order?: number;
   step_order?: number;
 }
@@ -129,6 +138,82 @@ export function FormFiller({
         );
 
       case "number":
+        const numberConfig = field.field_config as
+          | NumberFieldConfig
+          | undefined;
+        const step = numberConfig?.wholeNumbersOnly === true ? "1" : "any";
+
+        const validateNumber = (val: string) => {
+          if (!val) return;
+
+          const numVal = Number(val);
+
+          // Check if it's a valid number
+          if (isNaN(numVal)) {
+            return "Please enter a valid number";
+          }
+
+          // Check whole number requirement
+          if (
+            numberConfig?.wholeNumbersOnly === true &&
+            !Number.isInteger(numVal)
+          ) {
+            return "Please enter a whole number";
+          }
+
+          // Check negative number restriction
+          if (numberConfig?.allowNegative === false && numVal < 0) {
+            return "Negative numbers are not allowed";
+          }
+
+          // Check min/max validation
+          if (
+            numberConfig?.validationType === "min" &&
+            numberConfig.min !== undefined
+          ) {
+            if (numVal < numberConfig.min) {
+              return `Value must be at least ${numberConfig.min}`;
+            }
+          }
+
+          if (
+            numberConfig?.validationType === "max" &&
+            numberConfig.max !== undefined
+          ) {
+            if (numVal > numberConfig.max) {
+              return `Value must be at most ${numberConfig.max}`;
+            }
+          }
+
+          if (numberConfig?.validationType === "range") {
+            if (numberConfig.min !== undefined && numVal < numberConfig.min) {
+              return `Value must be at least ${numberConfig.min}`;
+            }
+            if (numberConfig.max !== undefined && numVal > numberConfig.max) {
+              return `Value must be at most ${numberConfig.max}`;
+            }
+          }
+
+          return null;
+        };
+
+        const handleNumberChange = (val: string) => {
+          handleInputChange(field.field_key, val);
+          const validationError = validateNumber(val);
+          if (validationError) {
+            setErrors((prev) => ({
+              ...prev,
+              [field.field_key]: validationError,
+            }));
+          } else {
+            setErrors((prev) => {
+              const newErrors = { ...prev };
+              delete newErrors[field.field_key];
+              return newErrors;
+            });
+          }
+        };
+
         return (
           <div key={field.id} className="space-y-2">
             <Label htmlFor={field.field_key}>
@@ -140,26 +225,66 @@ export function FormFiller({
             <Input
               id={field.field_key}
               type="number"
+              step={step}
               value={value || ""}
-              onChange={(e) =>
-                handleInputChange(field.field_key, e.target.value)
-              }
+              onChange={(e) => handleNumberChange(e.target.value)}
               placeholder={field.placeholder}
               className={error ? "border-red-500" : ""}
+              min={
+                numberConfig?.validationType === "min" ||
+                numberConfig?.validationType === "range"
+                  ? numberConfig.min
+                  : undefined
+              }
+              max={
+                numberConfig?.validationType === "max" ||
+                numberConfig?.validationType === "range"
+                  ? numberConfig.max
+                  : undefined
+              }
             />
             {error && <p className="text-sm text-red-500">{error}</p>}
+            {numberConfig && (
+              <p className="text-muted-foreground text-xs">
+                {numberConfig.wholeNumbersOnly === true &&
+                  "Whole numbers only. "}
+                {numberConfig.allowNegative === false &&
+                  "Positive numbers only. "}
+                {numberConfig.validationType === "min" &&
+                  numberConfig.min !== undefined &&
+                  `Minimum: ${numberConfig.min}. `}
+                {numberConfig.validationType === "max" &&
+                  numberConfig.max !== undefined &&
+                  `Maximum: ${numberConfig.max}. `}
+                {numberConfig.validationType === "range" &&
+                  numberConfig.min !== undefined &&
+                  numberConfig.max !== undefined &&
+                  `Range: ${numberConfig.min} - ${numberConfig.max}. `}
+              </p>
+            )}
           </div>
         );
 
       case "radio":
         return (
           <div key={field.id} className="space-y-2">
-            <Label>
-              {field.field_label}
-              {field.is_required && (
-                <span className="ml-1 text-red-500">*</span>
+            <div className="flex items-center justify-between">
+              <Label>
+                {field.field_label}
+                {field.is_required && (
+                  <span className="ml-1 text-red-500">*</span>
+                )}
+              </Label>
+              {value && (
+                <button
+                  type="button"
+                  onClick={() => handleInputChange(field.field_key, "")}
+                  className="text-muted-foreground hover:text-foreground text-xs underline"
+                >
+                  Clear selection
+                </button>
               )}
-            </Label>
+            </div>
             <RadioGroup
               value={value || ""}
               onValueChange={(val) => handleInputChange(field.field_key, val)}
