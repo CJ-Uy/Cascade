@@ -36,18 +36,26 @@ export function FieldRenderer({
     case "number":
       return <p className="text-foreground text-sm">{String(value)}</p>;
 
-    case "radio":
+    case "radio": {
+      const option = field.options?.find((opt: any) => opt.value === value);
+      const label = option ? option.label : String(value);
       return (
         <div className="flex items-center gap-2">
-          <Badge variant="secondary">{String(value)}</Badge>
+          <Badge variant="secondary">{label}</Badge>
         </div>
       );
+    }
 
     case "checkbox":
       if (typeof value === "object" && value !== null) {
         const selectedOptions = Object.entries(value)
           .filter(([_, isChecked]) => isChecked)
-          .map(([option]) => option);
+          .map(([optionValue]) => {
+            const option = field.options?.find(
+              (opt: any) => opt.value === optionValue,
+            );
+            return option ? option.label : optionValue;
+          });
 
         if (selectedOptions.length === 0) {
           return (
@@ -103,9 +111,11 @@ export function FieldRenderer({
                   <TableRow>
                     <TableHead className="w-12 text-center">#</TableHead>
                     {columnFields
-                      .sort((a: any, b: any) => a.order - b.order)
+                      .sort(
+                        (a: any, b: any) => a.display_order - b.display_order,
+                      )
                       .map((col: any) => (
-                        <TableHead key={col.id}>{col.label}</TableHead>
+                        <TableHead key={col.id}>{col.field_label}</TableHead>
                       ))}
                   </TableRow>
                 </TableHeader>
@@ -116,12 +126,14 @@ export function FieldRenderer({
                         {rowIndex + 1}
                       </TableCell>
                       {columnFields
-                        .sort((a: any, b: any) => a.order - b.order)
+                        .sort(
+                          (a: any, b: any) => a.display_order - b.display_order,
+                        )
                         .map((col: any) => (
                           <TableCell key={col.id}>
                             <RepeaterCellRenderer
                               column={col}
-                              value={row[col.id]}
+                              value={row[col.field_key]}
                             />
                           </TableCell>
                         ))}
@@ -242,18 +254,26 @@ function RepeaterCellRenderer({ column, value }: { column: any; value: any }) {
     case "number":
       return <span className="text-sm">{String(value)}</span>;
 
-    case "radio":
+    case "radio": {
+      const option = column.options?.find((opt: any) => opt.value === value);
+      const label = option ? option.label : String(value);
       return (
         <Badge variant="outline" className="text-xs">
-          {String(value)}
+          {label}
         </Badge>
       );
+    }
 
     case "checkbox":
       if (typeof value === "object" && value !== null) {
         const selectedOptions = Object.entries(value)
           .filter(([_, isChecked]) => isChecked)
-          .map(([option]) => option);
+          .map(([optionValue]) => {
+            const option = column.options?.find(
+              (opt: any) => opt.value === optionValue,
+            );
+            return option ? option.label : optionValue;
+          });
 
         if (selectedOptions.length === 0) {
           return (
@@ -309,18 +329,28 @@ function GridCellRenderer({
     case "number":
       return <span className="text-sm">{String(value)}</span>;
 
-    case "radio":
+    case "radio": {
+      const option = cellConfig?.options?.find(
+        (opt: any) => opt.value === value,
+      );
+      const label = option ? option.label : String(value);
       return (
         <Badge variant="outline" className="text-xs">
-          {String(value)}
+          {label}
         </Badge>
       );
+    }
 
     case "checkbox":
       if (typeof value === "object" && value !== null) {
         const selectedOptions = Object.entries(value)
           .filter(([_, isChecked]) => isChecked)
-          .map(([option]) => option);
+          .map(([optionValue]) => {
+            const option = cellConfig?.options?.find(
+              (opt: any) => opt.value === optionValue,
+            );
+            return option ? option.label : optionValue;
+          });
 
         if (selectedOptions.length === 0) {
           return (
@@ -371,8 +401,8 @@ function GridCellRenderer({
                 cellConfig.columns.map((col: any, colIdx: number) => (
                   <span key={col.id}>
                     {colIdx > 0 && ", "}
-                    <span className="font-medium">{col.label}:</span>{" "}
-                    {row[col.id] || "-"}
+                    <span className="font-medium">{col.field_label}:</span>{" "}
+                    {row[col.field_key] || "-"}
                   </span>
                 ))}
             </div>

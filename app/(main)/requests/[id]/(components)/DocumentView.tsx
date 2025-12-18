@@ -29,14 +29,13 @@ import { icons } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { FieldRenderer } from "./FieldRenderer";
-import { WorkflowProgress } from "../../(components)/WorkflowProgressBar";
 
 interface DocumentViewProps {
   document: any;
   history: any[];
   comments: any[];
   currentUserId: string;
-  workflowProgress: WorkflowProgress | null;
+  workflowProgress: any; // Updated to any for now
 }
 
 export function DocumentView({
@@ -161,20 +160,20 @@ export function DocumentView({
             <CardHeader>
               <CardTitle>Request Details</CardTitle>
               <CardDescription>
-                Information submitted with this request
+                Information submitted with this document
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {form?.form_fields && form.form_fields.length > 0 ? (
                 form.form_fields
                   .filter((field: any) => !field.parent_list_field_id) // Only show top-level fields
-                  .sort((a: any, b: any) => a.order - b.order)
+                  .sort((a: any, b: any) => a.display_order - b.display_order)
                   .map((field: any) => {
-                    const value = formData[field.id];
+                    const value = formData[field.field_key];
                     return (
                       <div key={field.id} className="space-y-2">
                         <label className="text-sm font-medium">
-                          {field.label}
+                          {field.field_label}
                           {field.is_required && (
                             <span className="text-destructive ml-1">*</span>
                           )}
@@ -197,123 +196,24 @@ export function DocumentView({
             </CardContent>
           </Card>
 
-          {/* Workflow Progress Section */}
+          {/* Workflow Progress Section (Temporarily simplified) */}
+          {/* 
           {workflowProgress && workflowProgress.has_workflow && (
             <Card>
               <CardHeader>
                 <CardTitle>Approval Workflow</CardTitle>
                 <CardDescription>
-                  {workflowProgress.chain_name} - Step{" "}
-                  {workflowProgress.current_step} of{" "}
-                  {workflowProgress.sections?.reduce(
-                    (total, section) => total + (section.steps?.length || 0),
-                    0,
-                  )}
+                  {workflowProgress.workflow_name}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Current Status */}
-                <div className="bg-muted flex items-center justify-between rounded-lg p-4">
-                  <div>
-                    <p className="text-sm font-medium">Current Stage</p>
-                    <p className="text-2xl font-bold">
-                      Section {workflowProgress.current_section} of{" "}
-                      {workflowProgress.total_sections}
-                    </p>
-                  </div>
-                  {workflowProgress.waiting_on && (
-                    <div className="text-right">
-                      <p className="text-sm font-medium">Waiting On</p>
-                      <Badge variant="outline" className="mt-1">
-                        {workflowProgress.waiting_on}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-
-                {/* Section Details */}
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Workflow Stages</h4>
-                  {workflowProgress.sections?.map((section, index) => (
-                    <div
-                      key={section.section_id}
-                      className={`rounded-lg border-2 p-4 ${
-                        section.is_completed
-                          ? "border-green-500 bg-green-50 dark:bg-green-950/30"
-                          : section.is_current
-                            ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-                            : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/30"
-                      }`}
-                    >
-                      <div className="mb-3 flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground text-lg font-bold">
-                            {section.section_order + 1}.
-                          </span>
-                          <div>
-                            <h3 className="text-lg font-semibold">
-                              {section.section_name}
-                            </h3>
-                            {section.is_form && (
-                              <Badge variant="secondary" className="mt-1">
-                                Form Section
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div>
-                          {section.is_completed ? (
-                            <Badge className="bg-green-600 text-white">
-                              <CheckCircle2 className="mr-1 h-3 w-3" />
-                              Completed
-                            </Badge>
-                          ) : section.is_current ? (
-                            <Badge className="bg-blue-600 text-white">
-                              <Clock className="mr-1 h-3 w-3" />
-                              In Progress
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">
-                              <Circle className="mr-1 h-3 w-3" />
-                              Pending
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Approval Steps */}
-                      {section.steps && section.steps.length > 0 && (
-                        <div className="mt-3 space-y-2 pl-6">
-                          {section.steps.map((step) => (
-                            <div
-                              key={step.step_id}
-                              className="flex items-center gap-2 text-sm"
-                            >
-                              {step.is_completed ? (
-                                <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-600" />
-                              ) : step.is_current ? (
-                                <Clock className="h-4 w-4 flex-shrink-0 text-blue-600" />
-                              ) : (
-                                <Clock className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                              )}
-                              <span
-                                className={
-                                  step.is_current ? "font-semibold" : ""
-                                }
-                              >
-                                Step {step.step_number}:{" "}
-                                {step.approver_role_name}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+              <CardContent className="space-y-4">
+                 <p className="text-muted-foreground text-center">
+                    Workflow visualization coming soon.
+                 </p>
               </CardContent>
             </Card>
           )}
+          */}
 
           {/* Comments Section */}
           {comments.length > 0 && (

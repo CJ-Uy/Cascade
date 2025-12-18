@@ -62,6 +62,22 @@ const getStatusColor = (status: string) => {
   }
 };
 
+const getWaitingOn = (progress: WorkflowProgress | undefined) => {
+  if (!progress || !progress.has_workflow) {
+    return null;
+  }
+
+  for (const section of progress.sections || []) {
+    for (const step of section.steps || []) {
+      if (step.status !== "APPROVED") {
+        return step.role_name;
+      }
+    }
+  }
+
+  return null;
+};
+
 export const requestsColumns: ColumnDef<RequestDocument>[] = [
   {
     accessorKey: "forms.name",
@@ -133,15 +149,29 @@ export const requestsColumns: ColumnDef<RequestDocument>[] = [
     id: "waiting_on",
     header: "Waiting On",
     cell: ({ row }) => {
-      const progress = row.original.workflow_progress;
+      const request = row.original;
+      if (request.status === "DRAFT") {
+        return <Badge variant="outline">Draft</Badge>;
+      }
+      if (request.status === "APPROVED" || request.status === "REJECTED") {
+        return (
+          <Badge
+            variant={request.status === "APPROVED" ? "default" : "destructive"}
+          >
+            {request.status}
+          </Badge>
+        );
+      }
 
-      if (!progress?.waiting_on) {
+      const waitingOn = getWaitingOn(request.workflow_progress);
+
+      if (!waitingOn) {
         return <span className="text-muted-foreground text-sm">-</span>;
       }
 
       return (
         <Badge variant="outline" className="font-normal">
-          {progress.waiting_on}
+          {waitingOn}
         </Badge>
       );
     },
@@ -150,9 +180,9 @@ export const requestsColumns: ColumnDef<RequestDocument>[] = [
     id: "wait_time",
     header: "Wait Time",
     cell: ({ row }) => {
-      const progress = row.original.workflow_progress;
+      const request = row.original;
 
-      if (!progress?.waiting_since) {
+      if (request.status === "DRAFT") {
         return <span className="text-muted-foreground text-sm">-</span>;
       }
 
@@ -160,7 +190,7 @@ export const requestsColumns: ColumnDef<RequestDocument>[] = [
         <div className="flex items-center gap-2">
           <Clock className="text-muted-foreground h-4 w-4" />
           <span className="text-sm">
-            {formatDistanceToNow(new Date(progress.waiting_since), {
+            {formatDistanceToNow(new Date(request.updated_at), {
               addSuffix: false,
             })}
           </span>

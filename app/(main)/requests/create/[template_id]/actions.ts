@@ -8,6 +8,7 @@ export async function saveRequestAsDraft(
   formData: Record<string, any>,
   businessUnitId: string,
   draftId?: string,
+  workflowChainId?: string,
 ) {
   return await saveOrSubmitRequest(
     formId,
@@ -15,6 +16,7 @@ export async function saveRequestAsDraft(
     businessUnitId,
     "DRAFT",
     draftId,
+    workflowChainId,
   );
 }
 
@@ -23,6 +25,7 @@ export async function submitRequest(
   formData: Record<string, any>,
   businessUnitId: string,
   draftId?: string,
+  workflowChainId?: string,
 ) {
   return await saveOrSubmitRequest(
     formId,
@@ -30,6 +33,7 @@ export async function submitRequest(
     businessUnitId,
     "SUBMITTED",
     draftId,
+    workflowChainId,
   );
 }
 
@@ -39,6 +43,7 @@ async function saveOrSubmitRequest(
   businessUnitId: string,
   status: "DRAFT" | "SUBMITTED",
   existingDraftId?: string,
+  workflowChainId?: string,
 ) {
   const supabase = await createClient();
 
@@ -68,6 +73,7 @@ async function saveOrSubmitRequest(
       .update({
         data: formData,
         status: status,
+        workflow_chain_id: workflowChainId, // Also update on draft -> submission
         updated_at: new Date().toISOString(),
       })
       .eq("id", existingDraftId)
@@ -95,6 +101,7 @@ async function saveOrSubmitRequest(
       organization_id: businessUnit.organization_id,
       business_unit_id: businessUnitId,
       form_id: formId,
+      workflow_chain_id: workflowChainId,
       initiator_id: user.id,
       status: status,
       data: formData,

@@ -52,20 +52,16 @@ export default async function RequestDetailPage({ params }: PageProps) {
           description,
           icon,
           workflow_chain_id,
-          form_fields!form_fields_form_id_fkey(
+          form_fields(
             id,
+            field_key,
+            field_label,
             field_type,
-            label,
             is_required,
             placeholder,
-            order,
-            parent_list_field_id,
-            field_options(
-              id,
-              label,
-              value,
-              order
-            )
+            display_order,
+            options,
+            parent_list_field_id
           )
         ),
         business_units(
@@ -123,8 +119,8 @@ export default async function RequestDetailPage({ params }: PageProps) {
 
   // Fetch workflow progress
   const { data: workflowProgress } = await supabase.rpc(
-    "get_document_workflow_progress",
-    { p_document_id: requestId },
+    "get_request_workflow_progress",
+    { p_request_id: requestId },
   );
 
   return (

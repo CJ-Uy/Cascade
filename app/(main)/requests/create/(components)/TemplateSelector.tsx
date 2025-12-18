@@ -1,27 +1,30 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import {
+  ArrowRight,
+  Loader2,
+  Clock,
+  Search,
+  FileText,
+  AlertTriangle,
+  Workflow,
+} from "lucide-react";
+
 import {
   Card,
-  CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
+  CardDescription,
+  CardContent,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Search,
-  FileText,
-  ArrowRight,
-  Workflow,
-  Loader2,
-  Clock,
-  AlertTriangle,
-} from "lucide-react";
-import { icons } from "lucide-react";
+
+// Placeholder for icons, assuming it's defined elsewhere or will be provided.
+// If you have a specific icon mapping, please provide it.
+const icons: { [key: string]: any } = {};
 
 interface Template {
   id: string;
@@ -29,6 +32,7 @@ interface Template {
   description: string;
   icon: string;
   workflowChainName: string;
+  workflow_chain_id?: string;
   workflowSteps: Array<{
     stepNumber: number;
     approverRole: string;
@@ -69,9 +73,13 @@ export function TemplateSelector({
   );
   const [loadingDraftId, setLoadingDraftId] = useState<string | null>(null);
 
-  const handleTemplateSelect = (templateId: string) => {
-    setLoadingTemplateId(templateId);
-    router.push(`/requests/create/${templateId}?bu_id=${selectedBuId}`);
+  const handleTemplateSelect = (template: Template) => {
+    setLoadingTemplateId(template.id);
+    let url = `/requests/create/${template.id}?bu_id=${selectedBuId}`;
+    if (template.workflow_chain_id) {
+      url += `&workflow_chain_id=${template.workflow_chain_id}`;
+    }
+    router.push(url);
   };
 
   const handleDraftSelect = (draft: Draft) => {
@@ -193,7 +201,7 @@ export function TemplateSelector({
               <Card
                 key={template.id}
                 className="group hover:ring-primary cursor-pointer transition-all hover:shadow-lg hover:ring-2"
-                onClick={() => handleTemplateSelect(template.id)}
+                onClick={() => handleTemplateSelect(template)}
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">

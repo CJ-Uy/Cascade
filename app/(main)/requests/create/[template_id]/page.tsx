@@ -33,7 +33,11 @@ export default async function FillRequestFormPage({
   }
 
   const { template_id: templateId } = await params;
-  const { bu_id: businessUnitId, draft_id: draftId } = await searchParams;
+  const {
+    bu_id: businessUnitId,
+    draft_id: draftId,
+    workflow_chain_id: workflowChainId,
+  } = await searchParams;
 
   if (!businessUnitId) {
     redirect("/requests/create");
@@ -157,6 +161,7 @@ export default async function FillRequestFormPage({
         businessUnitName={businessUnit?.name || ""}
         draftId={draftId}
         draftData={draftData}
+        workflowChainId={workflowChainId}
       />
     </div>
   );

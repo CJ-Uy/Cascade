@@ -198,20 +198,33 @@ COMMENT ON FUNCTION get_initiatable_forms(UUID) IS 'Get all forms that a user ca
 -- ============================================================================
 
 DROP FUNCTION IF EXISTS submit_request(UUID, JSONB, UUID);
+DROP FUNCTION IF EXISTS submit_request(UUID, JSONB, UUID, UUID);
 
 CREATE OR REPLACE FUNCTION submit_request(
   p_form_id UUID,
   p_data JSONB,
-  p_business_unit_id UUID
+  p_business_unit_id UUID,
+  p_workflow_chain_id UUID DEFAULT NULL
 )
 RETURNS UUID AS $$
 DECLARE
   v_request_id UUID;
   v_user_id UUID;
   v_org_id UUID;
+  v_workflow_chain_id UUID;
 BEGIN
   -- Get current user
   v_user_id := auth.uid();
+
+  -- Use provided workflow or find the primary one if not provided
+  IF p_workflow_chain_id IS NOT NULL THEN
+    v_workflow_chain_id := p_workflow_chain_id;
+  ELSE
+    SELECT wfm.workflow_chain_id INTO v_workflow_chain_id
+    FROM workflow_form_mappings wfm
+    WHERE wfm.form_id = p_form_id AND wfm.is_primary = true
+    LIMIT 1;
+  END IF;
 
   -- Get organization from business unit
   SELECT organization_id INTO v_org_id
@@ -221,6 +234,7 @@ BEGIN
   -- Create request
   INSERT INTO requests (
     form_id,
+    workflow_chain_id,
     business_unit_id,
     organization_id,
     initiator_id,
@@ -228,6 +242,7 @@ BEGIN
     data
   ) VALUES (
     p_form_id,
+    v_workflow_chain_id,
     p_business_unit_id,
     v_org_id,
     v_user_id,
@@ -252,7 +267,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION submit_request(UUID, JSONB, UUID) IS 'Submit a new request with form data';
+COMMENT ON FUNCTION submit_request(UUID, JSONB, UUID, UUID) IS 'Submit a new request with form data, optionally specifying a workflow chain.';
 
 -- ============================================================================
 -- 5. APPROVE REQUEST ACTION
