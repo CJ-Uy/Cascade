@@ -217,11 +217,15 @@ CREATE TABLE request_history (
 
 ### Supporting Tables
 
-#### `form_initiator_access`
+#### `form_initiator_access` (⚠️ DEPRECATED)
 
-Controls who can create requests from which forms.
+**Status:** DEPRECATED as of 2024-12-18
+**Replacement:** Use `workflow_section_initiators` instead
+
+Previously controlled who could create requests from which forms. This functionality is now managed at the workflow section level via the `workflow_section_initiators` table, providing finer-grained control over form initiation.
 
 ```sql
+-- DEPRECATED - DO NOT USE IN NEW CODE
 CREATE TABLE form_initiator_access (
   id UUID PRIMARY KEY,
   form_id UUID NOT NULL REFERENCES forms(id) ON DELETE CASCADE,
@@ -231,20 +235,30 @@ CREATE TABLE form_initiator_access (
 );
 ```
 
-#### `workflow_form_mappings`
+**Migration Path:**
+Use `workflow_section_initiators` to define which roles can initiate each workflow section. The system now controls access based on workflow sections rather than individual forms.
 
-Many-to-many relationship: forms can be used in multiple workflows.
+#### `workflow_form_mappings` (⚠️ DEPRECATED)
+
+**Status:** DEPRECATED as of 2024-12-18
+**Replacement:** Use `workflow_sections.form_id` instead
+
+Previously provided a many-to-many relationship between forms and workflows. This is now redundant because forms are linked to workflows at the section level via `workflow_sections.form_id`.
 
 ```sql
+-- DEPRECATED - DO NOT USE IN NEW CODE
 CREATE TABLE workflow_form_mappings (
   id UUID PRIMARY KEY,
   workflow_chain_id UUID NOT NULL REFERENCES workflow_chains(id) ON DELETE CASCADE,
   form_id UUID NOT NULL REFERENCES forms(id) ON DELETE CASCADE,
-  is_primary BOOLEAN DEFAULT false, -- Primary workflow for this form
+  is_primary BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(workflow_chain_id, form_id)
 );
 ```
+
+**Migration Path:**
+Forms are now assigned directly to workflow sections via the `form_id` column in `workflow_sections`. Each section has exactly one form, and workflows are composed of multiple sections.
 
 ## Database Enums
 

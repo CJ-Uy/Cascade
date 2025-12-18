@@ -11,7 +11,16 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Send, Loader2, FileText, Save } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  ArrowLeft,
+  Send,
+  Loader2,
+  FileText,
+  Save,
+  AlertTriangle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { FormFiller } from "./FormFiller";
 import { submitRequest, saveRequestAsDraft } from "../actions";
@@ -21,18 +30,20 @@ interface RequestFormProps {
   template: any;
   businessUnitId: string;
   businessUnitName: string;
+  workflowChainId: string;
+  sectionOrder: number;
   draftId?: string;
   draftData?: Record<string, any>;
-  workflowChainId?: string;
 }
 
 export function RequestForm({
   template,
   businessUnitId,
   businessUnitName,
+  workflowChainId,
+  sectionOrder,
   draftId,
   draftData,
-  workflowChainId,
 }: RequestFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,6 +52,10 @@ export function RequestForm({
   const [currentFormData, setCurrentFormData] = useState<Record<string, any>>(
     draftData || {},
   );
+  const [skipReason, setSkipReason] = useState<string>("");
+
+  // Check if starting from a later section (skipping sections)
+  const isSkippingSection = sectionOrder > 0;
 
   const handleFormChange = (formData: Record<string, any>) => {
     setCurrentFormData(formData);
@@ -112,8 +127,16 @@ export function RequestForm({
       toast.error("Please fill in all required fields");
       return;
     }
-    // Trigger form submission with current form data
-    handleSubmit(currentFormData);
+    // Check if skipping sections and reason is required
+    if (isSkippingSection && !skipReason.trim()) {
+      toast.error("Please provide a reason for skipping earlier sections");
+      return;
+    }
+    // Trigger form submission with current form data and skip reason
+    const dataWithSkipReason = isSkippingSection
+      ? { ...currentFormData, _skipReason: skipReason }
+      : currentFormData;
+    handleSubmit(dataWithSkipReason);
   };
 
   const handleCancel = () => {
@@ -162,6 +185,51 @@ export function RequestForm({
           )}
         </div>
       </div>
+
+      {/* Warning for Skipped Sections */}
+      {isSkippingSection && (
+        <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-900/50 dark:bg-yellow-900/20">
+          <CardHeader>
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-500" />
+              <div className="flex-1">
+                <CardTitle className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">
+                  Skipping Earlier Sections
+                </CardTitle>
+                <CardDescription className="mt-1 text-yellow-800 dark:text-yellow-200">
+                  You are starting from Section {sectionOrder + 1}
+                  {template.section_name && ` (${template.section_name})`} of
+                  the {template.workflow_name} workflow. This will bypass{" "}
+                  {sectionOrder === 1
+                    ? "the first section"
+                    : `the first ${sectionOrder} sections`}
+                  .
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label htmlFor="skip-reason" className="text-sm font-medium">
+                Reason for Skipping Earlier Sections{" "}
+                <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="skip-reason"
+                placeholder="Explain why you're starting from this section (e.g., manual handoff, special circumstance, etc.)"
+                value={skipReason}
+                onChange={(e) => setSkipReason(e.target.value)}
+                className="min-h-[80px]"
+                required
+              />
+              <p className="text-muted-foreground text-xs">
+                This explanation will be included in the request history for
+                auditing purposes.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Workflow Preview */}
       {template.workflowSteps && template.workflowSteps.length > 0 && (

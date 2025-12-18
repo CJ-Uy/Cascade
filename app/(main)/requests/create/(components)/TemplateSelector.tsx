@@ -9,7 +9,6 @@ import {
   Search,
   FileText,
   AlertTriangle,
-  Workflow,
 } from "lucide-react";
 
 import {
@@ -17,7 +16,6 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardContent,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -31,15 +29,11 @@ interface Template {
   name: string;
   description: string;
   icon: string;
-  workflowChainName: string;
-  workflow_chain_id?: string;
-  workflowSteps: Array<{
-    stepNumber: number;
-    approverRole: string;
-  }>;
-  sectionOrder?: number;
-  sectionName?: string;
-  needsPriorSection?: boolean;
+  workflow_chain_id: string;
+  workflow_name: string;
+  section_order: number;
+  section_name: string;
+  needs_prior_section: boolean;
 }
 
 interface Draft {
@@ -73,26 +67,34 @@ export function TemplateSelector({
   );
   const [loadingDraftId, setLoadingDraftId] = useState<string | null>(null);
 
-  const handleTemplateSelect = (template: Template) => {
+  const handleTemplateSelect = (template: Template, sectionOrder: number) => {
     setLoadingTemplateId(template.id);
-    let url = `/requests/create/${template.id}?bu_id=${selectedBuId}`;
-    if (template.workflow_chain_id) {
-      url += `&workflow_chain_id=${template.workflow_chain_id}`;
-    }
-    router.push(url);
+    // Use route parameters instead of query params
+    router.push(
+      `/requests/create/${template.workflow_chain_id}/${sectionOrder}/${template.id}/${selectedBuId}`,
+    );
   };
 
   const handleDraftSelect = (draft: Draft) => {
     setLoadingDraftId(draft.id);
-    router.push(
-      `/requests/create/${draft.forms.id}?bu_id=${selectedBuId}&draft_id=${draft.id}`,
-    );
+    // For drafts, we need to fetch the workflow info from the draft's request record
+    // For now, redirect to a simpler URL - we'll handle draft loading in the form page
+    router.push(`/requests/draft/${draft.id}`);
   };
 
   const filteredTemplates = templates.filter(
     (template) =>
       template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.description?.toLowerCase().includes(searchQuery.toLowerCase()),
+      template.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.workflow_name?.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  // Separate first-section forms from later-section forms
+  const firstSectionForms = filteredTemplates.filter(
+    (t) => t.section_order === 0,
+  );
+  const laterSectionForms = filteredTemplates.filter(
+    (t) => t.section_order > 0,
   );
 
   return (
@@ -192,121 +194,155 @@ export function TemplateSelector({
           </div>
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredTemplates.map((template) => {
-            const IconComponent =
-              template.icon && icons[template.icon as keyof typeof icons];
+        <>
+          {/* First Section Forms */}
+          {firstSectionForms.length > 0 && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-xl font-semibold">Available Forms</h2>
+                <p className="text-muted-foreground text-sm">
+                  Start a new workflow by selecting a form
+                </p>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {firstSectionForms.map((template) => {
+                  const IconComponent =
+                    template.icon && icons[template.icon as keyof typeof icons];
 
-            return (
-              <Card
-                key={template.id}
-                className="group hover:ring-primary cursor-pointer transition-all hover:shadow-lg hover:ring-2"
-                onClick={() => handleTemplateSelect(template)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      {IconComponent ? (
-                        <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-lg">
-                          <IconComponent className="text-primary h-6 w-6" />
-                        </div>
-                      ) : template.icon ? (
-                        <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-lg text-2xl">
-                          {template.icon}
-                        </div>
-                      ) : (
-                        <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-lg">
-                          <FileText className="text-muted-foreground h-6 w-6" />
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">
-                          {template.name}
-                        </CardTitle>
-                      </div>
-                    </div>
-                    {loadingTemplateId === template.id ? (
-                      <Loader2 className="text-primary h-5 w-5 animate-spin" />
-                    ) : (
-                      <ArrowRight className="text-muted-foreground h-5 w-5 transition-transform group-hover:translate-x-1" />
-                    )}
-                  </div>
-                  <CardDescription className="mt-2 line-clamp-2">
-                    {template.description || "No description"}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent>
-                  <div className="space-y-3">
-                    {/* Warning for forms from later sections */}
-                    {template.needsPriorSection && (
-                      <div className="flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 p-2 dark:border-yellow-900/50 dark:bg-yellow-900/20">
-                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-500" />
-                        <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                          This form is from section{" "}
-                          {template.sectionOrder || "?"}
-                          {template.sectionName && ` (${template.sectionName})`}
-                          . Earlier sections may need to be completed first.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Section Info (if not section 1) */}
-                    {template.sectionOrder &&
-                      template.sectionOrder > 1 &&
-                      !template.needsPriorSection && (
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            Section {template.sectionOrder}
-                            {template.sectionName &&
-                              `: ${template.sectionName}`}
-                          </Badge>
-                        </div>
-                      )}
-
-                    {/* Workflow Info */}
-                    {template.workflowChainName && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Workflow className="text-muted-foreground h-4 w-4" />
-                        <span className="text-muted-foreground">
-                          {template.workflowChainName}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Approval Steps */}
-                    {template.workflowSteps &&
-                      template.workflowSteps.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-muted-foreground text-xs font-medium">
-                            Approval Steps:
-                          </p>
-                          <div className="flex flex-wrap gap-1">
-                            {template.workflowSteps
-                              .slice(0, 3)
-                              .map((step, idx) => (
-                                <Badge
-                                  key={idx}
-                                  variant="secondary"
-                                  className="text-xs"
-                                >
-                                  {step.stepNumber}. {step.approverRole}
-                                </Badge>
-                              ))}
-                            {template.workflowSteps.length > 3 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{template.workflowSteps.length - 3} more
-                              </Badge>
+                  return (
+                    <Card
+                      key={`${template.id}-${template.section_order}`}
+                      className="group hover:ring-primary cursor-pointer transition-all hover:shadow-lg hover:ring-2"
+                      onClick={() =>
+                        handleTemplateSelect(template, template.section_order)
+                      }
+                    >
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            {IconComponent ? (
+                              <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-lg">
+                                <IconComponent className="text-primary h-6 w-6" />
+                              </div>
+                            ) : template.icon ? (
+                              <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-lg text-2xl">
+                                {template.icon}
+                              </div>
+                            ) : (
+                              <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-lg">
+                                <FileText className="text-muted-foreground h-6 w-6" />
+                              </div>
                             )}
+                            <div className="flex-1">
+                              {/* Show workflow name above form name */}
+                              {template.workflow_name && (
+                                <p className="text-muted-foreground mb-1 text-xs font-medium">
+                                  {template.workflow_name}
+                                </p>
+                              )}
+                              <CardTitle className="text-lg">
+                                {template.name}
+                              </CardTitle>
+                            </div>
                           </div>
+                          {loadingTemplateId === template.id ? (
+                            <Loader2 className="text-primary h-5 w-5 animate-spin" />
+                          ) : (
+                            <ArrowRight className="text-muted-foreground h-5 w-5 transition-transform group-hover:translate-x-1" />
+                          )}
                         </div>
-                      )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                        <CardDescription className="mt-2 line-clamp-2">
+                          {template.description || "No description"}
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Later Section Forms with Warning */}
+          {laterSectionForms.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900/50 dark:bg-yellow-900/20">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-500" />
+                <div>
+                  <h3 className="font-semibold text-yellow-900 dark:text-yellow-100">
+                    Mid-Workflow Forms
+                  </h3>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    These forms are from later sections of workflows. Use these
+                    only if you need to skip earlier sections (e.g., manual
+                    handoff, special circumstances). When submitting,
+                    you&apos;ll be asked to provide a reason for skipping
+                    previous sections.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {laterSectionForms.map((template) => {
+                  const IconComponent =
+                    template.icon && icons[template.icon as keyof typeof icons];
+
+                  return (
+                    <Card
+                      key={`${template.id}-${template.section_order}`}
+                      className="group hover:ring-primary cursor-pointer transition-all hover:shadow-lg hover:ring-2"
+                      onClick={() =>
+                        handleTemplateSelect(template, template.section_order)
+                      }
+                    >
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            {IconComponent ? (
+                              <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-lg">
+                                <IconComponent className="text-primary h-6 w-6" />
+                              </div>
+                            ) : template.icon ? (
+                              <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-lg text-2xl">
+                                {template.icon}
+                              </div>
+                            ) : (
+                              <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-lg">
+                                <FileText className="text-muted-foreground h-6 w-6" />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              {/* Show workflow name above form name */}
+                              {template.workflow_name && (
+                                <p className="text-muted-foreground mb-1 text-xs font-medium">
+                                  {template.workflow_name}
+                                </p>
+                              )}
+                              <CardTitle className="text-lg">
+                                {template.name}
+                              </CardTitle>
+                              <Badge variant="outline" className="mt-1 text-xs">
+                                Section {template.section_order + 1}
+                                {template.section_name &&
+                                  `: ${template.section_name}`}
+                              </Badge>
+                            </div>
+                          </div>
+                          {loadingTemplateId === template.id ? (
+                            <Loader2 className="text-primary h-5 w-5 animate-spin" />
+                          ) : (
+                            <ArrowRight className="text-muted-foreground h-5 w-5 transition-transform group-hover:translate-x-1" />
+                          )}
+                        </div>
+                        <CardDescription className="mt-2 line-clamp-2">
+                          {template.description || "No description"}
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

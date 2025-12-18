@@ -55,6 +55,8 @@ export default async function CreateRequestPage(props: {
       data,
       created_at,
       updated_at,
+      workflow_chain_id,
+      business_unit_id,
       forms!inner(
         id,
         name,

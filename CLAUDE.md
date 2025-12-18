@@ -100,13 +100,13 @@ app/
 │   │   ├── layout.tsx       # Access protection (redirects non-auditors)
 │   │   └── documents/       # Document list and detail views
 │   ├── dashboard/           # User dashboard with invitations card
-│   ├── requisitions/        # LEGACY: Requisition workflows
-│   │   ├── create/[bu_id]  # Form selector & filler
-│   │   ├── running/[bu_id] # Active requisitions
-│   │   └── history/[bu_id] # Completed requisitions
-│   ├── documents/           # NEW: Dynamic document system
-│   │   ├── create/          # Template selector & form submission
-│   │   └── create/[template_id] # Dynamic form filler
+│   ├── requests/            # Request management system
+│   │   ├── create/          # Form selector (shows workflow names)
+│   │   ├── create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id] # Form filler
+│   │   ├── [id]/            # View request details
+│   │   ├── pending/         # Pending requests list
+│   │   ├── history/         # Completed requests
+│   │   └── draft/[draft_id] # Continue draft request
 │   ├── approvals/          # Approval queue
 │   │   ├── to-approve/[bu_id] # Pending approvals
 │   │   ├── flagged/[bu_id]    # Flagged items
@@ -154,130 +154,159 @@ app/
 
 ### Core Domain Models
 
-**⚠️ IMPORTANT: Dual Schema System**
+**Current Architecture (December 2024):**
 
-The application currently maintains **two parallel systems**:
-
-1. **LEGACY: Requisitions** - Original implementation (still functional)
-2. **NEW: Dynamic Documents** - Modern flexible system (recommended for new features)
-
-Both systems coexist for backwards compatibility. All new development should use the Dynamic Documents system.
+The system uses a **unified request-based architecture** with workflow chains composed of sections.
 
 ---
 
-#### Dynamic Documents (NEW - Recommended)
+#### Requests System
 
-**Database Tables** (Migration: `20251201000000_finalize_dynamic_schema.sql`):
+**Database Tables:**
 
-- `form_templates` - Form definitions with custom fields
-- `form_fields` - Field specifications (type, validation, options)
-- `workflow_templates` - Approval workflow definitions
-- `workflow_steps` - Individual steps in workflows
-- `documents` - Document submissions (data stored as JSONB)
-- `document_history` - Audit trail of all document actions
+- `forms` - Form templates with scope (BU/ORGANIZATION/SYSTEM)
+- `form_fields` - Field definitions for forms
+- `workflow_chains` - Workflow definitions
+- `workflow_sections` - Sections within workflows (each with ONE form)
+- `workflow_section_initiators` - Roles that can initiate each section
+- `workflow_section_steps` - Approval steps within sections
+- `requests` - User-submitted requests (data stored as JSONB)
+- `request_history` - Complete audit trail of request actions
 
-**Document Lifecycle:**
+**Request Lifecycle:**
 
-1. User selects form template at [/documents/create/](<app/(main)/documents/create/>)
-2. Fills out dynamic form at [/documents/create/[template_id]/](<app/(main)/documents/create/[template_id]/>)
-3. Submission creates `documents` record with JSONB data
-4. Triggers workflow based on template's `workflow_template_id`
-5. Approvers review at [/approvals/document/[id]/](<app/(main)/approvals/document/[id]/>)
-6. All actions logged in `document_history`
+1. User navigates to `/requests/create`
+2. Selects a form (showing workflow name above form name)
+3. Fills out form at `/requests/create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id]`
+4. Submission creates `requests` record with JSONB data and `workflow_chain_id`
+5. Flows through workflow sections and approval steps
+6. Approvers review at `/approvals/document/[id]/`
+7. All actions logged in `request_history`
 
-**Document Actions:**
+**Request Statuses:**
 
-- `SUBMIT`, `APPROVE`, `REJECT`, `REQUEST_REVISION`, `REQUEST_CLARIFICATION`, `COMMENT`
+- `DRAFT` - Saved but not submitted
+- `SUBMITTED` - Submitted and awaiting approval
+- `IN_REVIEW` - Currently being reviewed
+- `NEEDS_REVISION` - Sent back for changes
+- `APPROVED` - Fully approved
+- `REJECTED` - Rejected
+- `CANCELLED` - Cancelled by initiator
 
-**RPC Functions:**
+**Request Actions:**
 
-- `create_form_submission_rpc.sql` - Submission logic
-- `create_document_approval_rpc.sql` - Approval operations
-- `create_dashboard_rpc.sql` - Dashboard queries
+- `SUBMIT`, `APPROVE`, `REJECT`, `REQUEST_REVISION`, `REQUEST_CLARIFICATION`, `COMMENT`, `CANCEL`
 
 **Key Files:**
 
-- Template selector: [app/(main)/documents/create/page.tsx](<app/(main)/documents/create/page.tsx>)
-- Form filler: [app/(main)/documents/create/[template_id]/page.tsx](<app/(main)/documents/create/[template_id]/page.tsx>)
-- Approval view: [app/(main)/approvals/document/[id]/page.tsx](<app/(main)/approvals/document/[id]/page.tsx>)
-- API routes: [app/api/form-templates/](app/api/form-templates/), [app/api/workflow-templates/](app/api/workflow-templates/)
+- Form selector: `app/(main)/requests/create/page.tsx`
+- Template selector: `app/(main)/requests/create/(components)/TemplateSelector.tsx`
+- Form filler: `app/(main)/requests/create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id]/page.tsx`
+- Request view: `app/(main)/requests/[id]/page.tsx`
+- Actions: `app/(main)/requests/create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id]/actions.ts`
+
+**Mid-Workflow Form Support:**
+
+Users can initiate requests from later workflow sections (Section 1, 2, etc.) if they have the initiator role for that section:
+
+- Forms are separated into "Available Forms" (Section 0) and "Mid-Workflow Forms" (Section 1+)
+- Mid-workflow forms display a warning and require a skip reason
+- Skip reason is stored in `_skipReason` field for auditing
+- Useful for manual handoffs, emergency approvals, or special circumstances
+
+**Example:** User with "Approver A3" role can initiate "Funds Release Form" (Section 2) directly, skipping Section 1.
 
 ---
 
-#### Requisitions (LEGACY - Backwards Compatibility)
+#### Workflow Chain Architecture
 
-Defined in [lib/types/requisition.ts](lib/types/requisition.ts):
+A **Workflow Chain** is composed of multiple **Sections** that execute in order:
 
-- Has a form template with custom fields
-- Goes through multi-step approval workflow
-- **Requisition Statuses**: `DRAFT`, `PENDING`, `NEEDS_CLARIFICATION`, `IN_REVISION`, `APPROVED`, `CANCELED`
-- **Approval Step Statuses**: `WAITING`, `PENDING`, `APPROVED`, `REQUESTED_CLARIFICATION`, `REQUESTED_REVISION`
-- **Action Types**: `SUBMIT`, `APPROVE`, `REQUEST_REVISION`, `REQUEST_CLARIFICATION`, `CLARIFY`, `RESUBMIT`, `COMMENT`, `CANCEL`
+**Structure:**
 
-**Key Files:**
+```
+Workflow Chain
+  ├── Section 0 (Order: 0)
+  │   ├── form_id → links to ONE form
+  │   ├── Initiator Roles (via workflow_section_initiators)
+  │   └── Approval Steps (via workflow_section_steps)
+  │       ├── Step 1: Role A
+  │       ├── Step 2: Role B
+  │       └── Step 3: Role C
+  ├── Section 1 (Order: 1)
+  │   ├── form_id → links to ONE form
+  │   ├── Initiator Roles
+  │   └── Approval Steps
+  └── Section 2 (Order: 2)
+      └── ...
+```
 
-- Form filler: [app/(main)/requisitions/create/(components)/FormFiller.tsx](<app/(main)/requisitions/create/(components)/FormFiller.tsx>)
-- Create actions: [app/(main)/requisitions/create/actions.ts](<app/(main)/requisitions/create/actions.ts>)
-- Approval actions: [app/(main)/approvals/actions.ts](<app/(main)/approvals/actions.ts>)
+**Key Concepts:**
 
-**Note:** This system is maintained for backwards compatibility but new features should use the Dynamic Documents system.
+- **Sections** are ordered (0-indexed: 0, 1, 2...)
+- Each section has **exactly ONE form** (`workflow_sections.form_id`)
+- Each section has **multiple initiator roles** (`workflow_section_initiators`)
+- Each section has **multiple approval steps** (`workflow_section_steps`)
+- Forms can be reused across different sections and workflows
+- Access control is per-section, not per-form
+
+**Workflow Builder:**
+
+- Location: `/management/approval-system/[bu_id]`
+- Multi-step workflow builder with drag-and-drop
+- Create workflow chains with multiple sections
+- Assign forms, initiators, and approvers to each section
+- Visualizer shows complete workflow flow
 
 ---
 
-#### Form Templates
+#### Forms System
 
-The system has **dual template management**:
+**Database Tables:**
 
-1. **Legacy BU-Specific Forms** (`/management/forms/[bu_id]`):
-   - Business unit-level form management
-   - Form builder: [app/(main)/management/forms/[bu_id]/(components)/FormBuilder.tsx](<app/(main)/management/forms/[bu_id]/(components)/FormBuilder.tsx>)
-   - Actions: [app/(main)/management/forms/actions.ts](<app/(main)/management/forms/actions.ts>)
+- `forms` - Form templates
+- `form_fields` - Field definitions
 
-2. **System-Wide Templates** (`/management/form-templates/`):
-   - Centralized template management (Super Admin only)
-   - Global template library
-   - Create/Edit pages with visual builder
-   - Actions: [app/(main)/management/form-templates/actions.ts](<app/(main)/management/form-templates/actions.ts>)
+**Scope Levels:**
+
+- **BU**: Business unit specific (created by BU Admins at `/management/forms/[bu_id]`)
+- **ORGANIZATION**: Organization-wide (created by Org Admins)
+- **SYSTEM**: System-wide (created by Super Admins)
 
 **Field Types Supported:**
 
-- `short-text`, `long-text`, `number`, `radio`, `checkbox`, `table`, `file-upload`
+- `short-text`, `long-text`, `number`, `radio`, `checkbox`, `select`, `file-upload`
+- `repeater` - Repeatable field groups
+- `table` - Legacy table fields
+- `grid-table` - Modern grid-based tables with custom configuration
 
 **Features:**
 
 - Drag-and-drop form builder using `@dnd-kit`
-- Table fields with nested columns
-- Version control via `parent_template_id` and `version` fields
-- Template lifecycle: `draft`, `active`, `archived`
-- Role-based template access via `template_initiator_access` table
+- Nested fields for table/repeater columns
+- Version control via `parent_form_id` and `version` fields
+- Form lifecycle: `draft`, `active`, `archived`
+- Forms linked to workflows at section level (not via deprecated `form_initiator_access`)
 
-#### Approval Workflows
+**Form Builder Location:**
 
-The system has **dual workflow management**:
+- BU-specific forms: `/management/forms/[bu_id]`
 
-1. **Legacy Approval System** (`/management/approval-system/[bu_id]`):
-   - BU-specific workflow configuration
-   - Actions: [app/(main)/management/approval-system/actions.ts](<app/(main)/management/approval-system/actions.ts>)
+---
 
-2. **System-Wide Workflows** (`/management/approval-workflows/`):
-   - Centralized workflow management (Super Admin only)
-   - Visual workflow builder with drag-and-drop
-   - Create: [app/(main)/management/approval-workflows/create/](<app/(main)/management/approval-workflows/create/>)
-   - Edit: [app/(main)/management/approval-workflows/edit/[id]/](<app/(main)/management/approval-workflows/edit/[id]/>)
-   - Actions: [app/(main)/management/approval-workflows/actions.ts](<app/(main)/management/approval-workflows/actions.ts>)
+#### Deprecated Tables (Do Not Use)
 
-**Database Tables:**
+⚠️ **The following tables are deprecated and should not be used in new code:**
 
-- `approval_workflows` - Workflow definitions with versioning
-- `approval_step_definitions` - Workflow steps
+1. **`workflow_form_mappings`** - DEPRECATED
+   - **Replacement:** Use `workflow_sections.form_id`
+   - **Reason:** Forms are now linked at the section level, not workflow level
 
-**Workflow Structure:**
+2. **`form_initiator_access`** - DEPRECATED
+   - **Replacement:** Use `workflow_section_initiators`
+   - **Reason:** Access control is now per-section, providing finer-grained control
 
-- Multi-step approval chains with roles
-- Each step has an `approver_role_id`
-- Step numbers define execution order
-- Workflow versioning with `parent_workflow_id`
-- Lifecycle statuses: `draft`, `active`, `archived`
+See `docs/CHANGES_20251218.md` for detailed deprecation information and migration paths.
 
 #### Notification System
 

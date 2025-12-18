@@ -51,17 +51,17 @@ export default async function RequestDetailPage({ params }: PageProps) {
           name,
           description,
           icon,
-          workflow_chain_id,
           form_fields(
             id,
             field_key,
-            field_label,
+            label,
             field_type,
             is_required,
             placeholder,
             display_order,
             options,
-            parent_list_field_id
+            parent_list_field_id,
+            field_config
           )
         ),
         business_units(

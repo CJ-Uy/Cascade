@@ -62,14 +62,15 @@ A **Workflow Chain** contains multiple ordered **Sections**:
 
 - `forms` - Form templates with scope (BU/ORGANIZATION/SYSTEM)
 - `form_fields` - Field definitions for forms
-- `form_initiator_access` - Controls who can create requests from which forms
+- ~~`form_initiator_access`~~ - **DEPRECATED** (use `workflow_section_initiators` instead)
 
 #### Workflow System
 
 - `workflow_chains` - Workflow definitions
-- `workflow_sections` - Sections within workflows (each with ONE form)
+- `workflow_sections` - Sections within workflows (each with ONE form via `form_id`)
+- `workflow_section_initiators` - Roles that can initiate each section
 - `workflow_section_steps` - Approval steps within sections
-- `workflow_form_mappings` - Many-to-many: forms ↔ workflows
+- ~~`workflow_form_mappings`~~ - **DEPRECATED** (use `workflow_sections.form_id` instead)
 
 #### Request System
 

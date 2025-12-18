@@ -20,131 +20,98 @@ drop policy "Users can update requisitions in their own BU" on "public"."requisi
 
 drop policy "Users can view requisitions from their own BU" on "public"."requisitions";
 
-drop policy "Auditors can assign tags to accessible documents" on "public"."document_tags";
+-- Safely drop policies on document_tags if table exists
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'document_tags' AND table_schema = 'public') THEN
+    DROP POLICY IF EXISTS "Auditors can assign tags to accessible documents" ON "public"."document_tags";
+    DROP POLICY IF EXISTS "Auditors can view tags on accessible documents" ON "public"."document_tags";
+  END IF;
+END $$;
 
-drop policy "Auditors can view tags on accessible documents" on "public"."document_tags";
+-- Safely drop policy on documents if table exists
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents' AND table_schema = 'public') THEN
+    DROP POLICY IF EXISTS "Users and auditors can see documents in their scope" ON "public"."documents";
+  END IF;
+END $$;
 
-drop policy "Users and auditors can see documents in their scope" on "public"."documents";
+-- Safely revoke permissions on document_history if table exists
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'document_history' AND table_schema = 'public') THEN
+    EXECUTE 'revoke delete on table public.document_history from anon';
+    EXECUTE 'revoke insert on table public.document_history from anon';
+    EXECUTE 'revoke references on table public.document_history from anon';
+    EXECUTE 'revoke select on table public.document_history from anon';
+    EXECUTE 'revoke trigger on table public.document_history from anon';
+    EXECUTE 'revoke truncate on table public.document_history from anon';
+    EXECUTE 'revoke update on table public.document_history from anon';
+    EXECUTE 'revoke delete on table public.document_history from authenticated';
+    EXECUTE 'revoke insert on table public.document_history from authenticated';
+    EXECUTE 'revoke references on table public.document_history from authenticated';
+    EXECUTE 'revoke select on table public.document_history from authenticated';
+    EXECUTE 'revoke trigger on table public.document_history from authenticated';
+    EXECUTE 'revoke truncate on table public.document_history from authenticated';
+    EXECUTE 'revoke update on table public.document_history from authenticated';
+    EXECUTE 'revoke delete on table public.document_history from service_role';
+    EXECUTE 'revoke insert on table public.document_history from service_role';
+    EXECUTE 'revoke references on table public.document_history from service_role';
+    EXECUTE 'revoke select on table public.document_history from service_role';
+    EXECUTE 'revoke trigger on table public.document_history from service_role';
+    EXECUTE 'revoke truncate on table public.document_history from service_role';
+    EXECUTE 'revoke update on table public.document_history from service_role';
+  END IF;
+END $$;
 
-revoke delete on table "public"."document_history" from "anon";
+-- Safely revoke permissions on document_tags if table exists
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'document_tags' AND table_schema = 'public') THEN
+    EXECUTE 'revoke delete on table public.document_tags from anon';
+    EXECUTE 'revoke insert on table public.document_tags from anon';
+    EXECUTE 'revoke references on table public.document_tags from anon';
+    EXECUTE 'revoke select on table public.document_tags from anon';
+    EXECUTE 'revoke trigger on table public.document_tags from anon';
+    EXECUTE 'revoke truncate on table public.document_tags from anon';
+    EXECUTE 'revoke update on table public.document_tags from anon';
+    EXECUTE 'revoke references on table public.document_tags from authenticated';
+    EXECUTE 'revoke trigger on table public.document_tags from authenticated';
+    EXECUTE 'revoke truncate on table public.document_tags from authenticated';
+    EXECUTE 'revoke update on table public.document_tags from authenticated';
+    EXECUTE 'revoke delete on table public.document_tags from service_role';
+    EXECUTE 'revoke insert on table public.document_tags from service_role';
+    EXECUTE 'revoke references on table public.document_tags from service_role';
+    EXECUTE 'revoke select on table public.document_tags from service_role';
+    EXECUTE 'revoke trigger on table public.document_tags from service_role';
+    EXECUTE 'revoke truncate on table public.document_tags from service_role';
+    EXECUTE 'revoke update on table public.document_tags from service_role';
+  END IF;
+END $$;
 
-revoke insert on table "public"."document_history" from "anon";
-
-revoke references on table "public"."document_history" from "anon";
-
-revoke select on table "public"."document_history" from "anon";
-
-revoke trigger on table "public"."document_history" from "anon";
-
-revoke truncate on table "public"."document_history" from "anon";
-
-revoke update on table "public"."document_history" from "anon";
-
-revoke delete on table "public"."document_history" from "authenticated";
-
-revoke insert on table "public"."document_history" from "authenticated";
-
-revoke references on table "public"."document_history" from "authenticated";
-
-revoke select on table "public"."document_history" from "authenticated";
-
-revoke trigger on table "public"."document_history" from "authenticated";
-
-revoke truncate on table "public"."document_history" from "authenticated";
-
-revoke update on table "public"."document_history" from "authenticated";
-
-revoke delete on table "public"."document_history" from "service_role";
-
-revoke insert on table "public"."document_history" from "service_role";
-
-revoke references on table "public"."document_history" from "service_role";
-
-revoke select on table "public"."document_history" from "service_role";
-
-revoke trigger on table "public"."document_history" from "service_role";
-
-revoke truncate on table "public"."document_history" from "service_role";
-
-revoke update on table "public"."document_history" from "service_role";
-
-revoke delete on table "public"."document_tags" from "anon";
-
-revoke insert on table "public"."document_tags" from "anon";
-
-revoke references on table "public"."document_tags" from "anon";
-
-revoke select on table "public"."document_tags" from "anon";
-
-revoke trigger on table "public"."document_tags" from "anon";
-
-revoke truncate on table "public"."document_tags" from "anon";
-
-revoke update on table "public"."document_tags" from "anon";
-
-revoke references on table "public"."document_tags" from "authenticated";
-
-revoke trigger on table "public"."document_tags" from "authenticated";
-
-revoke truncate on table "public"."document_tags" from "authenticated";
-
-revoke update on table "public"."document_tags" from "authenticated";
-
-revoke delete on table "public"."document_tags" from "service_role";
-
-revoke insert on table "public"."document_tags" from "service_role";
-
-revoke references on table "public"."document_tags" from "service_role";
-
-revoke select on table "public"."document_tags" from "service_role";
-
-revoke trigger on table "public"."document_tags" from "service_role";
-
-revoke truncate on table "public"."document_tags" from "service_role";
-
-revoke update on table "public"."document_tags" from "service_role";
-
-revoke delete on table "public"."documents" from "anon";
-
-revoke insert on table "public"."documents" from "anon";
-
-revoke references on table "public"."documents" from "anon";
-
-revoke select on table "public"."documents" from "anon";
-
-revoke trigger on table "public"."documents" from "anon";
-
-revoke truncate on table "public"."documents" from "anon";
-
-revoke update on table "public"."documents" from "anon";
-
-revoke delete on table "public"."documents" from "authenticated";
-
-revoke insert on table "public"."documents" from "authenticated";
-
-revoke references on table "public"."documents" from "authenticated";
-
-revoke select on table "public"."documents" from "authenticated";
-
-revoke trigger on table "public"."documents" from "authenticated";
-
-revoke truncate on table "public"."documents" from "authenticated";
-
-revoke update on table "public"."documents" from "authenticated";
-
-revoke delete on table "public"."documents" from "service_role";
-
-revoke insert on table "public"."documents" from "service_role";
-
-revoke references on table "public"."documents" from "service_role";
-
-revoke select on table "public"."documents" from "service_role";
-
-revoke trigger on table "public"."documents" from "service_role";
-
-revoke truncate on table "public"."documents" from "service_role";
-
-revoke update on table "public"."documents" from "service_role";
+-- Safely revoke permissions on documents if table exists
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents' AND table_schema = 'public') THEN
+    EXECUTE 'revoke delete on table public.documents from anon';
+    EXECUTE 'revoke insert on table public.documents from anon';
+    EXECUTE 'revoke references on table public.documents from anon';
+    EXECUTE 'revoke select on table public.documents from anon';
+    EXECUTE 'revoke trigger on table public.documents from anon';
+    EXECUTE 'revoke truncate on table public.documents from anon';
+    EXECUTE 'revoke update on table public.documents from anon';
+    EXECUTE 'revoke delete on table public.documents from authenticated';
+    EXECUTE 'revoke insert on table public.documents from authenticated';
+    EXECUTE 'revoke references on table public.documents from authenticated';
+    EXECUTE 'revoke select on table public.documents from authenticated';
+    EXECUTE 'revoke trigger on table public.documents from authenticated';
+    EXECUTE 'revoke truncate on table public.documents from authenticated';
+    EXECUTE 'revoke update on table public.documents from authenticated';
+    EXECUTE 'revoke delete on table public.documents from service_role';
+    EXECUTE 'revoke insert on table public.documents from service_role';
+    EXECUTE 'revoke references on table public.documents from service_role';
+    EXECUTE 'revoke select on table public.documents from service_role';
+    EXECUTE 'revoke trigger on table public.documents from service_role';
+    EXECUTE 'revoke truncate on table public.documents from service_role';
+    EXECUTE 'revoke update on table public.documents from service_role';
+  END IF;
+END $$;
 
 revoke delete on table "public"."form_fields" from "anon";
 
@@ -188,47 +155,32 @@ revoke truncate on table "public"."form_fields" from "service_role";
 
 revoke update on table "public"."form_fields" from "service_role";
 
-revoke delete on table "public"."form_templates" from "anon";
-
-revoke insert on table "public"."form_templates" from "anon";
-
-revoke references on table "public"."form_templates" from "anon";
-
-revoke select on table "public"."form_templates" from "anon";
-
-revoke trigger on table "public"."form_templates" from "anon";
-
-revoke truncate on table "public"."form_templates" from "anon";
-
-revoke update on table "public"."form_templates" from "anon";
-
-revoke delete on table "public"."form_templates" from "authenticated";
-
-revoke insert on table "public"."form_templates" from "authenticated";
-
-revoke references on table "public"."form_templates" from "authenticated";
-
-revoke select on table "public"."form_templates" from "authenticated";
-
-revoke trigger on table "public"."form_templates" from "authenticated";
-
-revoke truncate on table "public"."form_templates" from "authenticated";
-
-revoke update on table "public"."form_templates" from "authenticated";
-
-revoke delete on table "public"."form_templates" from "service_role";
-
-revoke insert on table "public"."form_templates" from "service_role";
-
-revoke references on table "public"."form_templates" from "service_role";
-
-revoke select on table "public"."form_templates" from "service_role";
-
-revoke trigger on table "public"."form_templates" from "service_role";
-
-revoke truncate on table "public"."form_templates" from "service_role";
-
-revoke update on table "public"."form_templates" from "service_role";
+-- Safely revoke permissions on form_templates if table exists
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'form_templates' AND table_schema = 'public') THEN
+    EXECUTE 'revoke delete on table public.form_templates from anon';
+    EXECUTE 'revoke insert on table public.form_templates from anon';
+    EXECUTE 'revoke references on table public.form_templates from anon';
+    EXECUTE 'revoke select on table public.form_templates from anon';
+    EXECUTE 'revoke trigger on table public.form_templates from anon';
+    EXECUTE 'revoke truncate on table public.form_templates from anon';
+    EXECUTE 'revoke update on table public.form_templates from anon';
+    EXECUTE 'revoke delete on table public.form_templates from authenticated';
+    EXECUTE 'revoke insert on table public.form_templates from authenticated';
+    EXECUTE 'revoke references on table public.form_templates from authenticated';
+    EXECUTE 'revoke select on table public.form_templates from authenticated';
+    EXECUTE 'revoke trigger on table public.form_templates from authenticated';
+    EXECUTE 'revoke truncate on table public.form_templates from authenticated';
+    EXECUTE 'revoke update on table public.form_templates from authenticated';
+    EXECUTE 'revoke delete on table public.form_templates from service_role';
+    EXECUTE 'revoke insert on table public.form_templates from service_role';
+    EXECUTE 'revoke references on table public.form_templates from service_role';
+    EXECUTE 'revoke select on table public.form_templates from service_role';
+    EXECUTE 'revoke trigger on table public.form_templates from service_role';
+    EXECUTE 'revoke truncate on table public.form_templates from service_role';
+    EXECUTE 'revoke update on table public.form_templates from service_role';
+  END IF;
+END $$;
 
 revoke delete on table "public"."requisitions" from "authenticated";
 
@@ -406,89 +358,59 @@ revoke truncate on table "public"."workflow_sections" from "service_role";
 
 revoke update on table "public"."workflow_sections" from "service_role";
 
-revoke delete on table "public"."workflow_steps" from "anon";
+-- Safely revoke permissions on workflow_steps if table exists
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'workflow_steps' AND table_schema = 'public') THEN
+    EXECUTE 'revoke delete on table public.workflow_steps from anon';
+    EXECUTE 'revoke insert on table public.workflow_steps from anon';
+    EXECUTE 'revoke references on table public.workflow_steps from anon';
+    EXECUTE 'revoke select on table public.workflow_steps from anon';
+    EXECUTE 'revoke trigger on table public.workflow_steps from anon';
+    EXECUTE 'revoke truncate on table public.workflow_steps from anon';
+    EXECUTE 'revoke update on table public.workflow_steps from anon';
+    EXECUTE 'revoke delete on table public.workflow_steps from authenticated';
+    EXECUTE 'revoke insert on table public.workflow_steps from authenticated';
+    EXECUTE 'revoke references on table public.workflow_steps from authenticated';
+    EXECUTE 'revoke select on table public.workflow_steps from authenticated';
+    EXECUTE 'revoke trigger on table public.workflow_steps from authenticated';
+    EXECUTE 'revoke truncate on table public.workflow_steps from authenticated';
+    EXECUTE 'revoke update on table public.workflow_steps from authenticated';
+    EXECUTE 'revoke delete on table public.workflow_steps from service_role';
+    EXECUTE 'revoke insert on table public.workflow_steps from service_role';
+    EXECUTE 'revoke references on table public.workflow_steps from service_role';
+    EXECUTE 'revoke select on table public.workflow_steps from service_role';
+    EXECUTE 'revoke trigger on table public.workflow_steps from service_role';
+    EXECUTE 'revoke truncate on table public.workflow_steps from service_role';
+    EXECUTE 'revoke update on table public.workflow_steps from service_role';
+  END IF;
+END $$;
 
-revoke insert on table "public"."workflow_steps" from "anon";
-
-revoke references on table "public"."workflow_steps" from "anon";
-
-revoke select on table "public"."workflow_steps" from "anon";
-
-revoke trigger on table "public"."workflow_steps" from "anon";
-
-revoke truncate on table "public"."workflow_steps" from "anon";
-
-revoke update on table "public"."workflow_steps" from "anon";
-
-revoke delete on table "public"."workflow_steps" from "authenticated";
-
-revoke insert on table "public"."workflow_steps" from "authenticated";
-
-revoke references on table "public"."workflow_steps" from "authenticated";
-
-revoke select on table "public"."workflow_steps" from "authenticated";
-
-revoke trigger on table "public"."workflow_steps" from "authenticated";
-
-revoke truncate on table "public"."workflow_steps" from "authenticated";
-
-revoke update on table "public"."workflow_steps" from "authenticated";
-
-revoke delete on table "public"."workflow_steps" from "service_role";
-
-revoke insert on table "public"."workflow_steps" from "service_role";
-
-revoke references on table "public"."workflow_steps" from "service_role";
-
-revoke select on table "public"."workflow_steps" from "service_role";
-
-revoke trigger on table "public"."workflow_steps" from "service_role";
-
-revoke truncate on table "public"."workflow_steps" from "service_role";
-
-revoke update on table "public"."workflow_steps" from "service_role";
-
-revoke delete on table "public"."workflow_templates" from "anon";
-
-revoke insert on table "public"."workflow_templates" from "anon";
-
-revoke references on table "public"."workflow_templates" from "anon";
-
-revoke select on table "public"."workflow_templates" from "anon";
-
-revoke trigger on table "public"."workflow_templates" from "anon";
-
-revoke truncate on table "public"."workflow_templates" from "anon";
-
-revoke update on table "public"."workflow_templates" from "anon";
-
-revoke delete on table "public"."workflow_templates" from "authenticated";
-
-revoke insert on table "public"."workflow_templates" from "authenticated";
-
-revoke references on table "public"."workflow_templates" from "authenticated";
-
-revoke select on table "public"."workflow_templates" from "authenticated";
-
-revoke trigger on table "public"."workflow_templates" from "authenticated";
-
-revoke truncate on table "public"."workflow_templates" from "authenticated";
-
-revoke update on table "public"."workflow_templates" from "authenticated";
-
-revoke delete on table "public"."workflow_templates" from "service_role";
-
-revoke insert on table "public"."workflow_templates" from "service_role";
-
-revoke references on table "public"."workflow_templates" from "service_role";
-
-revoke select on table "public"."workflow_templates" from "service_role";
-
-revoke trigger on table "public"."workflow_templates" from "service_role";
-
-revoke truncate on table "public"."workflow_templates" from "service_role";
-
-revoke update on table "public"."workflow_templates" from "service_role";
+-- Safely revoke permissions on workflow_templates if table exists
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'workflow_templates' AND table_schema = 'public') THEN
+    EXECUTE 'revoke delete on table public.workflow_templates from anon';
+    EXECUTE 'revoke insert on table public.workflow_templates from anon';
+    EXECUTE 'revoke references on table public.workflow_templates from anon';
+    EXECUTE 'revoke select on table public.workflow_templates from anon';
+    EXECUTE 'revoke trigger on table public.workflow_templates from anon';
+    EXECUTE 'revoke truncate on table public.workflow_templates from anon';
+    EXECUTE 'revoke update on table public.workflow_templates from anon';
+    EXECUTE 'revoke delete on table public.workflow_templates from authenticated';
+    EXECUTE 'revoke insert on table public.workflow_templates from authenticated';
+    EXECUTE 'revoke references on table public.workflow_templates from authenticated';
+    EXECUTE 'revoke select on table public.workflow_templates from authenticated';
+    EXECUTE 'revoke trigger on table public.workflow_templates from authenticated';
+    EXECUTE 'revoke truncate on table public.workflow_templates from authenticated';
+    EXECUTE 'revoke update on table public.workflow_templates from authenticated';
+    EXECUTE 'revoke delete on table public.workflow_templates from service_role';
+    EXECUTE 'revoke insert on table public.workflow_templates from service_role';
+    EXECUTE 'revoke references on table public.workflow_templates from service_role';
+    EXECUTE 'revoke select on table public.workflow_templates from service_role';
+    EXECUTE 'revoke trigger on table public.workflow_templates from service_role';
+    EXECUTE 'revoke truncate on table public.workflow_templates from service_role';
+    EXECUTE 'revoke update on table public.workflow_templates from service_role';
+  END IF;
+END $$;
 
 alter table "public"."attachments" drop constraint "attachments_requisition_id_fkey";
 
@@ -589,51 +511,57 @@ $function$
 ;
 
 
-  create policy "Auditors can assign tags to accessible documents"
-  on "public"."document_tags"
-  as permissive
-  for insert
-  to public
-with check ((public.is_auditor() AND (EXISTS ( SELECT 1
-   FROM public.documents doc
-  WHERE ((doc.id = document_tags.document_id) AND ((EXISTS ( SELECT 1
-           FROM (public.user_role_assignments ura
-             JOIN public.roles r ON ((r.id = ura.role_id)))
-          WHERE ((ura.user_id = auth.uid()) AND ((r.scope = 'AUDITOR'::public.role_scope) OR ((r.scope = 'SYSTEM'::public.role_scope) AND (r.name = 'AUDITOR'::text)))))) OR (EXISTS ( SELECT 1
-           FROM public.user_business_units ubu
-          WHERE ((ubu.user_id = auth.uid()) AND (ubu.business_unit_id = doc.business_unit_id) AND (ubu.membership_type = 'AUDITOR'::public.bu_membership_type))))))))));
+-- Safely create policies on document_tags if table exists
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'document_tags' AND table_schema = 'public') THEN
+    CREATE POLICY "Auditors can assign tags to accessible documents"
+      ON "public"."document_tags"
+      AS PERMISSIVE
+      FOR INSERT
+      TO public
+      WITH CHECK ((public.is_auditor() AND (EXISTS ( SELECT 1
+         FROM public.documents doc
+        WHERE ((doc.id = document_tags.document_id) AND ((EXISTS ( SELECT 1
+                 FROM (public.user_role_assignments ura
+                   JOIN public.roles r ON ((r.id = ura.role_id)))
+                WHERE ((ura.user_id = auth.uid()) AND ((r.scope = 'AUDITOR'::public.role_scope) OR ((r.scope = 'SYSTEM'::public.role_scope) AND (r.name = 'AUDITOR'::text)))))) OR (EXISTS ( SELECT 1
+                 FROM public.user_business_units ubu
+                WHERE ((ubu.user_id = auth.uid()) AND (ubu.business_unit_id = doc.business_unit_id) AND (ubu.membership_type = 'AUDITOR'::public.bu_membership_type))))))))));
 
+    CREATE POLICY "Auditors can view tags on accessible documents"
+      ON "public"."document_tags"
+      AS PERMISSIVE
+      FOR SELECT
+      TO public
+      USING ((public.is_auditor() AND (EXISTS ( SELECT 1
+         FROM public.documents doc
+        WHERE ((doc.id = document_tags.document_id) AND ((EXISTS ( SELECT 1
+                 FROM (public.user_role_assignments ura
+                   JOIN public.roles r ON ((r.id = ura.role_id)))
+                WHERE ((ura.user_id = auth.uid()) AND ((r.scope = 'AUDITOR'::public.role_scope) OR ((r.scope = 'SYSTEM'::public.role_scope) AND (r.name = 'AUDITOR'::text)))))) OR (EXISTS ( SELECT 1
+                 FROM public.user_business_units ubu
+                WHERE ((ubu.user_id = auth.uid()) AND (ubu.business_unit_id = doc.business_unit_id) AND (ubu.membership_type = 'AUDITOR'::public.bu_membership_type))))))))));
+  END IF;
+END $$;
 
-
-  create policy "Auditors can view tags on accessible documents"
-  on "public"."document_tags"
-  as permissive
-  for select
-  to public
-using ((public.is_auditor() AND (EXISTS ( SELECT 1
-   FROM public.documents doc
-  WHERE ((doc.id = document_tags.document_id) AND ((EXISTS ( SELECT 1
-           FROM (public.user_role_assignments ura
-             JOIN public.roles r ON ((r.id = ura.role_id)))
-          WHERE ((ura.user_id = auth.uid()) AND ((r.scope = 'AUDITOR'::public.role_scope) OR ((r.scope = 'SYSTEM'::public.role_scope) AND (r.name = 'AUDITOR'::text)))))) OR (EXISTS ( SELECT 1
-           FROM public.user_business_units ubu
-          WHERE ((ubu.user_id = auth.uid()) AND (ubu.business_unit_id = doc.business_unit_id) AND (ubu.membership_type = 'AUDITOR'::public.bu_membership_type))))))))));
-
-
-
-  create policy "Users and auditors can see documents in their scope"
-  on "public"."documents"
-  as permissive
-  for select
-  to public
-using (((EXISTS ( SELECT 1
-   FROM public.user_business_units ubu
-  WHERE ((ubu.user_id = auth.uid()) AND (ubu.business_unit_id = documents.business_unit_id)))) OR (EXISTS ( SELECT 1
-   FROM (public.user_role_assignments ura
-     JOIN public.roles r ON ((r.id = ura.role_id)))
-  WHERE ((ura.user_id = auth.uid()) AND ((r.scope = 'AUDITOR'::public.role_scope) OR ((r.scope = 'SYSTEM'::public.role_scope) AND (r.name = 'AUDITOR'::text)))))) OR (EXISTS ( SELECT 1
-   FROM public.user_business_units ubu
-  WHERE ((ubu.user_id = auth.uid()) AND (ubu.business_unit_id = documents.business_unit_id) AND (ubu.membership_type = 'AUDITOR'::public.bu_membership_type))))));
+-- Safely create policy on documents if table exists
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents' AND table_schema = 'public') THEN
+    CREATE POLICY "Users and auditors can see documents in their scope"
+      ON "public"."documents"
+      AS PERMISSIVE
+      FOR SELECT
+      TO public
+      USING (((EXISTS ( SELECT 1
+         FROM public.user_business_units ubu
+        WHERE ((ubu.user_id = auth.uid()) AND (ubu.business_unit_id = documents.business_unit_id)))) OR (EXISTS ( SELECT 1
+         FROM (public.user_role_assignments ura
+           JOIN public.roles r ON ((r.id = ura.role_id)))
+        WHERE ((ura.user_id = auth.uid()) AND ((r.scope = 'AUDITOR'::public.role_scope) OR ((r.scope = 'SYSTEM'::public.role_scope) AND (r.name = 'AUDITOR'::text)))))) OR (EXISTS ( SELECT 1
+         FROM public.user_business_units ubu
+        WHERE ((ubu.user_id = auth.uid()) AND (ubu.business_unit_id = documents.business_unit_id) AND (ubu.membership_type = 'AUDITOR'::public.bu_membership_type))))));
+  END IF;
+END $$;
 
 
 

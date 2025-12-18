@@ -9,10 +9,12 @@ export const metadata = {
 
 interface PageProps {
   params: Promise<{
+    workflow_chain_id: string;
+    section_order: string;
     template_id: string;
+    bu_id: string;
   }>;
   searchParams: Promise<{
-    bu_id?: string;
     draft_id?: string;
   }>;
 }
@@ -32,19 +34,19 @@ export default async function FillRequestFormPage({
     redirect("/auth/login");
   }
 
-  const { template_id: templateId } = await params;
   const {
-    bu_id: businessUnitId,
-    draft_id: draftId,
     workflow_chain_id: workflowChainId,
-  } = await searchParams;
+    section_order: sectionOrderStr,
+    template_id: templateId,
+    bu_id: businessUnitId,
+  } = await params;
 
-  if (!businessUnitId) {
-    redirect("/requests/create");
-  }
+  const { draft_id: draftId } = await searchParams;
 
-  // Fetch draft data if draft_id is provided
-  let draftData = null;
+  const sectionOrder = parseInt(sectionOrderStr, 10);
+
+  // Load draft data if draft_id is provided
+  let draftData: Record<string, any> | undefined;
   if (draftId) {
     const { data: draft } = await supabase
       .from("requests")
@@ -64,7 +66,12 @@ export default async function FillRequestFormPage({
     p_user_id: user.id,
   });
 
-  const template = templates?.find((t: any) => t.id === templateId);
+  const template = templates?.find(
+    (t: any) =>
+      t.id === templateId &&
+      t.workflow_chain_id === workflowChainId &&
+      t.section_order === sectionOrder,
+  );
 
   if (!template) {
     notFound();
@@ -159,9 +166,10 @@ export default async function FillRequestFormPage({
         template={template}
         businessUnitId={businessUnitId}
         businessUnitName={businessUnit?.name || ""}
+        workflowChainId={workflowChainId}
+        sectionOrder={sectionOrder}
         draftId={draftId}
         draftData={draftData}
-        workflowChainId={workflowChainId}
       />
     </div>
   );
