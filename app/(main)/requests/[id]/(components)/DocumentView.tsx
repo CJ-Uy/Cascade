@@ -29,13 +29,17 @@ import { icons } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { FieldRenderer } from "./FieldRenderer";
+import { WorkflowChainDetails } from "./WorkflowChainDetails";
+import { CommentThread } from "./CommentThread";
 
 interface DocumentViewProps {
   document: any;
   history: any[];
   comments: any[];
   currentUserId: string;
-  workflowProgress: any; // Updated to any for now
+  workflowProgress: any;
+  requestId: string; // Add requestId here
+  onCommentsRefreshed: () => void;
 }
 
 export function DocumentView({
@@ -44,6 +48,8 @@ export function DocumentView({
   comments,
   currentUserId,
   workflowProgress,
+  requestId,
+  onCommentsRefreshed,
 }: DocumentViewProps) {
   const [activeTab, setActiveTab] = useState("details");
 
@@ -151,112 +157,80 @@ export function DocumentView({
 
       <Separator />
 
-      {/* Main Content */}
+      {/* Main Content with Tabs */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left Column - Request Details */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Form Data */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Request Details</CardTitle>
-              <CardDescription>
-                Information submitted with this document
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {form?.form_fields && form.form_fields.length > 0 ? (
-                form.form_fields
-                  .filter((field: any) => !field.parent_list_field_id) // Only show top-level fields
-                  .sort((a: any, b: any) => a.display_order - b.display_order)
-                  .map((field: any) => {
-                    const value = formData[field.field_key];
-                    return (
-                      <div key={field.id} className="space-y-2">
-                        <label className="text-sm font-medium">
-                          {field.field_label}
-                          {field.is_required && (
-                            <span className="text-destructive ml-1">*</span>
-                          )}
-                        </label>
-                        <div>
-                          <FieldRenderer
-                            field={field}
-                            value={value}
-                            allFields={form.form_fields}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
-              ) : (
-                <p className="text-muted-foreground py-8 text-center">
-                  No form fields defined for this form
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Workflow Progress Section (Temporarily simplified) */}
-          {/* 
-          {workflowProgress && workflowProgress.has_workflow && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Approval Workflow</CardTitle>
-                <CardDescription>
-                  {workflowProgress.workflow_name}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                 <p className="text-muted-foreground text-center">
-                    Workflow visualization coming soon.
-                 </p>
-              </CardContent>
-            </Card>
-          )}
-          */}
-
-          {/* Comments Section */}
-          {comments.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Comments ({comments.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {comments.map((comment: any) => (
-                  <div key={comment.id} className="flex gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={comment.author?.image_url} />
-                      <AvatarFallback>
-                        {comment.author?.first_name?.[0]}
-                        {comment.author?.last_name?.[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">
-                          {comment.author?.first_name}{" "}
-                          {comment.author?.last_name}
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                          {formatDistanceToNow(new Date(comment.created_at), {
-                            addSuffix: true,
-                          })}
-                        </span>
-                      </div>
-                      <p className="text-sm">{comment.content}</p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+        {/* Left Column - Tabs for Details and Comments */}
+        <div className="lg:col-span-2">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="comments">Comments</TabsTrigger>
+            </TabsList>
+            <TabsContent value="details" className="mt-6 space-y-6">
+              {/* Form Data */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Request Details</CardTitle>
+                  <CardDescription>
+                    Information submitted with this document
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {form?.form_fields && form.form_fields.length > 0 ? (
+                    form.form_fields
+                      .filter((field: any) => !field.parent_list_field_id) // Only show top-level fields
+                      .sort(
+                        (a: any, b: any) => a.display_order - b.display_order,
+                      )
+                      .map((field: any) => {
+                        const value = formData[field.field_key];
+                        return (
+                          <div key={field.id} className="space-y-2">
+                            <label className="text-sm font-semibold">
+                              {field.label}
+                              {field.is_required && (
+                                <span className="text-destructive ml-1">*</span>
+                              )}
+                            </label>
+                            <div>
+                              <FieldRenderer
+                                field={field}
+                                value={value}
+                                allFields={form.form_fields}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                  ) : (
+                    <p className="text-muted-foreground py-8 text-center">
+                      No form fields defined for this form
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="comments" className="mt-6 space-y-6">
+              <CommentThread
+                comments={comments}
+                currentUserId={currentUserId}
+                requestId={requestId}
+                onCommentAdded={onCommentsRefreshed}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
 
-        {/* Right Column - Metadata & History */}
+        {/* Right Column - Workflow, Metadata & History */}
         <div className="space-y-6">
+          {/* Workflow Chain Details */}
+          {workflowProgress && workflowProgress.has_workflow && (
+            <WorkflowChainDetails workflowProgress={workflowProgress} />
+          )}
           {/* Request Info Card */}
           <Card>
             <CardHeader>

@@ -55,21 +55,90 @@ export default function ToApproveDocumentsPage() {
   const fetchDocuments = () => {
     startLoading(async () => {
       try {
-        const data = await getApproverRequests(buId);
+        const data = await getApproverRequests();
 
         // Fetch workflow progress for each document
         const supabase = createClient();
         const enrichWithProgress = async (docs: any[]) => {
           return await Promise.all(
             docs.map(async (doc) => {
-              const { data: progress } = await supabase.rpc(
-                "get_document_workflow_progress",
-                { p_document_id: doc.id },
+              const { data: rawProgress } = await supabase.rpc(
+                "get_request_workflow_progress",
+                { p_request_id: doc.id },
               );
+
+              // Transform workflow progress
+              let workflowProgress = null;
+              if (rawProgress && rawProgress.has_workflow) {
+                const sections = rawProgress.sections || [];
+                const totalSections = sections.length;
+                let currentSectionOrder = 0;
+                let currentStepNumber = 1;
+
+                const transformedSections = sections.map((section: any) => {
+                  const isCurrentSection =
+                    section.section_order === currentSectionOrder;
+                  const isCompletedSection =
+                    section.section_order < currentSectionOrder;
+
+                  const transformedSteps = (section.steps || []).map(
+                    (step: any) => ({
+                      step_id: `${section.section_order}-${step.step_number}`,
+                      step_number: step.step_number,
+                      approver_role_name: step.role_name,
+                      is_current:
+                        isCurrentSection &&
+                        step.step_number === currentStepNumber,
+                      is_completed:
+                        isCompletedSection ||
+                        (isCurrentSection &&
+                          step.step_number < currentStepNumber),
+                    }),
+                  );
+
+                  return {
+                    section_id:
+                      section.form_id || `section-${section.section_order}`,
+                    section_order: section.section_order,
+                    section_name: section.section_name,
+                    is_form: section.form_id !== null,
+                    is_current: isCurrentSection,
+                    is_completed: isCompletedSection,
+                    steps: transformedSteps,
+                  };
+                });
+
+                let waitingOn = null;
+                if (doc.status === "SUBMITTED" || doc.status === "IN_REVIEW") {
+                  const currentSection = transformedSections.find(
+                    (s: any) => s.is_current,
+                  );
+                  if (currentSection) {
+                    const currentStep = currentSection.steps.find(
+                      (st: any) => st.is_current,
+                    );
+                    if (currentStep) {
+                      waitingOn = currentStep.approver_role_name;
+                    }
+                  }
+                }
+
+                workflowProgress = {
+                  has_workflow: true,
+                  chain_id: doc.workflow_chain_id,
+                  chain_name: rawProgress.workflow_name,
+                  total_sections: totalSections,
+                  current_section: currentSectionOrder + 1,
+                  current_step: currentStepNumber,
+                  sections: transformedSections,
+                  waiting_on: waitingOn,
+                  waiting_since: doc.updated_at,
+                };
+              }
 
               return {
                 ...doc,
-                workflow_progress: progress || {
+                workflow_progress: workflowProgress || {
                   has_workflow: false,
                   sections: [],
                 },

@@ -55,83 +55,84 @@ export function WorkflowProgressBar({ progress }: WorkflowProgressBarProps) {
 
   return (
     <>
-      {/* Chevron Progress Bar */}
+      {/* Compact Section-based Progress Bar */}
       <div
-        className="flex cursor-pointer items-center transition-opacity hover:opacity-80"
+        className="flex cursor-pointer items-center gap-2"
         onClick={() => setIsDialogOpen(true)}
       >
         {progress.sections.map((section, sectionIndex) => {
           const sectionCompleted = section.is_completed;
           const sectionCurrent = section.is_current;
-
-          // Calculate how many steps are completed in this section
           const completedSteps = section.steps.filter(
             (s) => s.is_completed,
           ).length;
           const totalSteps = section.steps.length;
-          const currentStepInSection = section.steps.find((s) => s.is_current);
+
+          const sectionTitle = `Section ${section.section_order + 1}: ${section.section_name} (${completedSteps}/${totalSteps} steps)`;
 
           return (
-            <div key={section.section_id} className="flex items-center">
-              {/* Chevron Block */}
-              <div className="relative">
-                {/* Main chevron body */}
-                <div className="flex items-center">
-                  {/* Left part of chevron */}
+            <div key={section.section_id} className="flex items-center gap-2">
+              {/* Section Container */}
+              <div
+                className={`rounded-lg border-2 p-1.5 transition-all ${
+                  sectionCompleted
+                    ? "border-green-600 bg-green-50 dark:bg-green-950"
+                    : sectionCurrent
+                      ? "border-blue-600 bg-blue-50 dark:bg-blue-950"
+                      : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800"
+                }`}
+                title={sectionTitle}
+              >
+                <div className="flex items-center gap-1">
+                  {/* Form/Section Indicator */}
                   <div
-                    className={`h-8 ${sectionIndex === 0 ? "rounded-l pl-3" : "pl-2"} relative flex items-center pr-1 ${
+                    className={`flex h-5 w-5 items-center justify-center rounded ${
                       sectionCompleted
                         ? "bg-green-600 text-white"
                         : sectionCurrent
                           ? "bg-blue-600 text-white"
-                          : "bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-300"
-                    } border-2 border-black dark:border-white`}
-                    style={{
-                      clipPath:
-                        sectionIndex === 0
-                          ? "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)"
-                          : "polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%)",
-                      marginLeft: sectionIndex === 0 ? "0" : "-10px",
-                      paddingRight: "12px",
-                    }}
+                          : "bg-gray-400 text-white dark:bg-gray-500"
+                    }`}
                   >
-                    {/* Section content */}
-                    <div className="flex items-center gap-1.5 text-xs font-medium whitespace-nowrap">
-                      {section.is_form ? (
-                        <span>📝</span>
-                      ) : sectionCompleted ? (
-                        <CheckCircle2 className="h-3 w-3" />
-                      ) : sectionCurrent ? (
-                        <Clock className="h-3 w-3" />
-                      ) : (
-                        <Circle className="h-3 w-3" />
-                      )}
-                      <span className="max-w-[100px] truncate">
-                        {section.section_name}
-                      </span>
-                    </div>
+                    {section.is_form ? (
+                      <span className="text-xs">📝</span>
+                    ) : sectionCompleted ? (
+                      <CheckCircle2 className="h-3 w-3" />
+                    ) : sectionCurrent ? (
+                      <Clock className="h-3 w-3" />
+                    ) : (
+                      <Circle className="h-3 w-3" />
+                    )}
                   </div>
-                </div>
 
-                {/* Step indicators below chevron */}
-                {totalSteps > 0 && (
-                  <div className="absolute right-0 -bottom-2 left-0 flex justify-center gap-0.5">
-                    {section.steps.map((step, stepIdx) => (
-                      <div
-                        key={step.step_id}
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          step.is_completed
-                            ? "bg-green-600"
-                            : step.is_current
-                              ? "bg-blue-600"
-                              : "bg-gray-400 dark:bg-gray-500"
-                        }`}
-                        title={`Step ${step.step_number}: ${step.approver_role_name}`}
-                      />
-                    ))}
-                  </div>
-                )}
+                  {/* Approval Steps */}
+                  {totalSteps > 0 && (
+                    <>
+                      <div className="bg-border h-3 w-px" />
+                      <div className="flex gap-0.5">
+                        {section.steps.map((step, stepIndex) => (
+                          <div
+                            key={step.step_id || `step-${stepIndex}`}
+                            className={`h-5 w-5 rounded-full transition-all ${
+                              step.is_completed
+                                ? "bg-green-600"
+                                : step.is_current
+                                  ? "bg-blue-600 ring-2 ring-blue-400 ring-offset-1"
+                                  : "bg-gray-300 dark:bg-gray-600"
+                            }`}
+                            title={`Step ${step.step_number}: ${step.approver_role_name}`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
+
+              {/* Arrow between sections */}
+              {sectionIndex < progress.sections.length - 1 && (
+                <div className="text-muted-foreground text-sm">→</div>
+              )}
             </div>
           );
         })}

@@ -34,7 +34,8 @@
       "Bash(powershell -Command \"Remove-Item -Force ''app\\(main)\\management\\approval-workflows\\actions.ts''\")",
       "Bash(powershell -Command:*)",
       "Bash(npm run build:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(xargs -I {} sh -c 'grep -l \"\"get_request_workflow_progress\"\" {} 2>/dev/null')"
     ],
     "deny": [],
     "ask": []

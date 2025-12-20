@@ -115,7 +115,7 @@ export function FieldRenderer({
                         (a: any, b: any) => a.display_order - b.display_order,
                       )
                       .map((col: any) => (
-                        <TableHead key={col.id}>{col.field_label}</TableHead>
+                        <TableHead key={col.id}>{col.label}</TableHead>
                       ))}
                   </TableRow>
                 </TableHeader>
@@ -159,9 +159,10 @@ export function FieldRenderer({
         );
       }
 
-      // Assuming gridConfig structure from FormFiller
-      const rows = field.gridConfig?.rows || [];
-      const columns = field.gridConfig?.columns || [];
+      // Grid config can be in field.gridConfig or field.field_config
+      const gridConfig = field.gridConfig || field.field_config;
+      const rows = gridConfig?.rows || [];
+      const columns = gridConfig?.columns || [];
 
       if (rows.length === 0 || columns.length === 0) {
         return (
@@ -201,7 +202,7 @@ export function FieldRenderer({
                         return (
                           <TableCell key={colIndex}>
                             <GridCellRenderer
-                              cellConfig={field.gridConfig?.cellConfig}
+                              cellConfig={gridConfig?.cellConfig}
                               value={cellValue}
                             />
                           </TableCell>
@@ -217,15 +218,28 @@ export function FieldRenderer({
       );
 
     case "file-upload":
-      if (typeof value === "object" && value.name) {
+      // Check for file object with name
+      if (typeof value === "object" && value !== null && value.name) {
         return (
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            <span className="text-sm">{value.name}</span>
+          <div className="border-border bg-muted/50 flex items-center gap-2 rounded-md border px-3 py-2">
+            <FileText className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium">{value.name}</span>
           </div>
         );
       }
-      return <p className="text-sm">{String(value)}</p>;
+      // Check for any truthy value (file was uploaded but no name)
+      if (value) {
+        return (
+          <div className="border-border bg-muted/50 flex items-center gap-2 rounded-md border px-3 py-2">
+            <FileText className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium">File uploaded</span>
+          </div>
+        );
+      }
+      // No file uploaded
+      return (
+        <p className="text-muted-foreground text-sm italic">No file uploaded</p>
+      );
 
     default:
       // Fallback for unknown types - show as JSON if object, otherwise as string
@@ -401,7 +415,7 @@ function GridCellRenderer({
                 cellConfig.columns.map((col: any, colIdx: number) => (
                   <span key={col.id}>
                     {colIdx > 0 && ", "}
-                    <span className="font-medium">{col.field_label}:</span>{" "}
+                    <span className="font-medium">{col.label}:</span>{" "}
                     {row[col.field_key] || "-"}
                   </span>
                 ))}

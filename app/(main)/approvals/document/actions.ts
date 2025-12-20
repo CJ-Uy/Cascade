@@ -37,33 +37,19 @@ export async function approveDocument(requestId: string, comment?: string) {
     return { success: false, error: "User not authenticated" };
   }
 
-  // TODO: Implement actual approval logic with request_history
-  // For now, just update the request status
-  const { error } = await supabase
-    .from("requests")
-    .update({ status: "APPROVED", updated_at: new Date().toISOString() })
-    .eq("id", requestId);
+  // Use the approve_request RPC function
+  const { data, error } = await supabase.rpc("approve_request", {
+    p_request_id: requestId,
+    p_comments: comment || null,
+  });
 
   if (error) {
     console.error("Error approving request:", error);
     return { success: false, error: error.message };
   }
 
-  // Add to request history
-  const { error: historyError } = await supabase
-    .from("request_history")
-    .insert({
-      request_id: requestId,
-      actor_id: user.id,
-      action: "APPROVE",
-      comments: comment || "Approved",
-    });
-
-  if (historyError) {
-    console.error("Error creating history entry:", historyError);
-  }
-
   revalidatePath("/approvals");
+  revalidatePath(`/requests/${requestId}`);
   return { success: true };
 }
 
@@ -78,32 +64,19 @@ export async function rejectDocument(requestId: string, comment: string) {
     return { success: false, error: "User not authenticated" };
   }
 
-  // Update request status to REJECTED
-  const { error } = await supabase
-    .from("requests")
-    .update({ status: "REJECTED", updated_at: new Date().toISOString() })
-    .eq("id", requestId);
+  // Use the reject_request RPC function
+  const { data, error } = await supabase.rpc("reject_request", {
+    p_request_id: requestId,
+    p_comments: comment,
+  });
 
   if (error) {
     console.error("Error rejecting request:", error);
     return { success: false, error: error.message };
   }
 
-  // Add to request history
-  const { error: historyError } = await supabase
-    .from("request_history")
-    .insert({
-      request_id: requestId,
-      actor_id: user.id,
-      action: "REJECT",
-      comments: comment,
-    });
-
-  if (historyError) {
-    console.error("Error creating history entry:", historyError);
-  }
-
   revalidatePath("/approvals");
+  revalidatePath(`/requests/${requestId}`);
   return { success: true };
 }
 

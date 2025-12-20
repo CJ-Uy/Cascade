@@ -67,12 +67,9 @@ const getWaitingOn = (progress: WorkflowProgress | undefined) => {
     return null;
   }
 
-  for (const section of progress.sections || []) {
-    for (const step of section.steps || []) {
-      if (step.status !== "APPROVED") {
-        return step.role_name;
-      }
-    }
+  // Use the waiting_on field from the transformed progress
+  if (progress.waiting_on) {
+    return progress.waiting_on;
   }
 
   return null;
