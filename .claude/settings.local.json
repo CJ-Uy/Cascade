@@ -35,7 +35,8 @@
       "Bash(powershell -Command:*)",
       "Bash(npm run build:*)",
       "Bash(find:*)",
-      "Bash(xargs -I {} sh -c 'grep -l \"\"get_request_workflow_progress\"\" {} 2>/dev/null')"
+      "Bash(xargs -I {} sh -c 'grep -l \"\"get_request_workflow_progress\"\" {} 2>/dev/null')",
+      "Bash(npx supabase db dump:*)"
     ],
     "deny": [],
     "ask": []

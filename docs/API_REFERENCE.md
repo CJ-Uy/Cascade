@@ -1,162 +1,312 @@
-# API Reference (RPC Functions)
+# API Reference
 
-**Last Updated:** 2025-12-20
+**Last Updated:** 2025-12-22
 
-This document provides a complete reference for all major Remote Procedure Call (RPC) functions in the Cascade Supabase backend.
+This document provides an overview of the Cascade API surface. For detailed RPC function documentation, see the complete reference below.
 
-**Security Model**: All RPC functions use `SECURITY DEFINER`, meaning they run with the privileges of the function owner. They **must** implement their own internal access control to prevent data leaks, as they bypass traditional RLS policies.
+## Overview
 
-## Table of Contents
+Cascade uses a hybrid API approach:
 
-1.  [Request Operations](#request-operations)
-2.  [Workflow & Form Operations](#workflow--form-operations)
-3.  [Auth & Permission Helpers](#auth--permission-helpers)
-4.  [Auditor Functions](#auditor-functions)
-5.  [Notification Functions](#notification-functions)
+1. **RPC Functions** (Primary) - PostgreSQL functions called via Supabase
+2. **REST API Routes** (Limited) - Next.js API routes for specific operations
+3. **Server Actions** - Next.js server actions for form submissions
 
----
+## Quick Links
 
-## Request Operations
+### Comprehensive Documentation
 
-Functions for creating, retrieving, and acting on requests.
+- **[RPC Functions Reference](./RPC_FUNCTIONS.md)** - Complete list of all database RPC functions
+- **[Database Schema](./DATABASE_SCHEMA.md)** - All tables, fields, and relationships
+- **[RLS Policies](./RLS_POLICIES.md)** - Row Level Security policies and access control
+- **[System Architecture](./SYSTEM_ARCHITECTURE.md)** - Overall system design and patterns
 
-### `get_request_workflow_progress(p_request_id UUID)`
+## RPC Functions Summary
 
--   **Purpose**: Retrieves the complete workflow structure for a given request, including all sections and approval steps.
--   **Returns**: `JSONB` object containing the workflow name and an array of sections with their respective steps.
--   **Usage**: Used in the request detail view to display the progress timeline.
+### Authentication & Permissions
 
-### `get_approver_requests(p_user_id UUID)`
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `get_user_auth_context()` | Complete user context | JSONB |
+| `is_super_admin()` | Check Super Admin role | BOOLEAN |
+| `is_organization_admin()` | Check Org Admin role | BOOLEAN |
+| `is_bu_admin_for_unit(uuid)` | Check BU Admin for unit | BOOLEAN |
+| `is_auditor()` | Check auditor status | BOOLEAN |
 
--   **Purpose**: Fetches all requests that are currently awaiting approval from the specified user.
--   **Returns**: A `TABLE` of request records, including details about the current section and step the request is on.
--   **Usage**: Populates the "To Approve" list for approvers.
+### Request Operations
 
-### `get_initiatable_forms(p_user_id UUID)`
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `get_request_workflow_progress(uuid)` | Workflow structure for request | JSONB |
+| `get_approver_requests(uuid)` | Pending approvals for user | TABLE |
+| `get_initiatable_forms(uuid)` | Forms user can start | TABLE |
+| `submit_request(...)` | Create new request | UUID |
+| `approve_request(...)` | Approve request | BOOLEAN |
+| `reject_request(...)` | Reject request | BOOLEAN |
 
--   **Purpose**: Gets all forms that the specified user can use to initiate a new request.
--   **Returns**: A `TABLE` of form records. The logic checks which `workflow_sections` the user can initiate based on their assigned roles via `workflow_section_initiators`.
--   **Usage**: Powers the form selector on the `/requests/create` page.
+### Workflow Operations
 
-### `submit_request(p_form_id UUID, p_data JSONB, p_business_unit_id UUID)`
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `get_workflow_chains_for_bu(uuid)` | Workflows for BU | JSONB |
+| `get_workflow_chain_details(uuid)` | Complete workflow structure | JSONB |
+| `save_workflow_chain(...)` | Create/update workflow | UUID |
+| `delete_workflow_chain(uuid)` | Delete workflow | BOOLEAN |
+| `archive_workflow_chain(uuid)` | Archive workflow | BOOLEAN |
 
--   **Purpose**: Submits a new request.
--   **Logic**: Creates a new record in the `requests` table with the provided form data. It also creates the initial `SUBMIT` entry in the `request_history` table.
--   **Returns**: The `UUID` of the newly created request.
+### Auditor Functions
 
-### `approve_request(p_request_id UUID, p_comments TEXT)`
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `get_auditor_documents(...)` | Requests visible to auditor | TABLE |
+| `get_auditor_document_details(uuid)` | Full request details | JSONB |
 
--   **Purpose**: Approves a request at its current step.
--   **Logic**: Logs an `APPROVE` action in `request_history`. The system then determines if the request moves to the next step, the next section, or is fully approved.
--   **Returns**: `BOOLEAN` indicating success.
+### Business Unit & Organization
 
-### `reject_request(p_request_id UUID, p_comments TEXT)`
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `get_business_units_for_user()` | User's BUs | TABLE |
+| `get_org_admin_business_units()` | BUs for Org Admin | TABLE |
+| `get_org_admin_users()` | Users for Org Admin | TABLE |
 
--   **Purpose**: Rejects a request entirely.
--   **Logic**: Logs a `REJECT` action in `request_history` and sets the request status to `REJECTED`. This stops the workflow.
--   **Returns**: `BOOLEAN` indicating success.
-
----
-
-## Workflow & Form Operations
-
-Functions for managing workflow chains and forms.
-
-### `get_workflow_chains_for_bu(p_bu_id UUID)`
-
--   **Purpose**: Fetches all workflow chains associated with a specific business unit.
--   **Returns**: `JSONB` array of workflow chains, including counts of sections and steps.
--   **Usage**: Used in the workflow management dashboard.
-
-### `get_workflow_chain_details(p_chain_id UUID)`
-
--   **Purpose**: Retrieves the complete structure of a single workflow chain.
--   **Returns**: A `JSONB` object containing the chain's details and a nested array of its sections, initiators (with role names), steps (with approver role names), and associated form details.
--   **Usage**: Powers the workflow builder UI, showing all details for a selected workflow.
-
-### `save_workflow_chain(...)`
-
--   **Purpose**: Atomically creates or updates a workflow chain and all its associated sections, initiators, and steps.
--   **Parameters**: Accepts a `JSONB` object representing the entire workflow structure.
--   **Logic**: This is a complex transactional function that deletes old sections/steps and inserts the new configuration, ensuring the workflow is saved correctly.
--   **Returns**: The `UUID` of the saved workflow chain.
-
-### `delete_workflow_chain(p_chain_id UUID)`
-
--   **Purpose**: Permanently deletes a workflow chain and all its associated data (sections, steps, etc.).
--   **Returns**: `BOOLEAN` indicating success.
-
-### `archive_workflow_chain(p_chain_id UUID)`
-
--   **Purpose**: Soft-deletes a workflow chain by setting its status to `archived`.
--   **Returns**: `BOOLEAN` indicating success.
+**For complete function signatures, parameters, and examples, see [RPC_FUNCTIONS.md](./RPC_FUNCTIONS.md).**
 
 ---
 
-## Auth & Permission Helpers
+## Next.js API Routes
 
-Functions for checking user permissions and retrieving authentication context.
+### Form Templates API
 
-### `get_user_auth_context()`
+**Base Path**: `/api/form-templates`
 
--   **Purpose**: Retrieves a complete authentication profile for the current user.
--   **Returns**: A `JSONB` object containing the user's ID, email, organization, system roles, and a detailed list of their business unit memberships and permissions.
--   **Usage**: This is the primary function used by the `SessionProvider` to establish the user's client-side context.
+#### `GET /api/form-templates`
+Fetch form templates.
 
-### `is_super_admin()`
+#### `POST /api/form-templates`
+Create form template.
 
--   **Purpose**: Checks if the current user has the `Super Admin` system role.
--   **Returns**: `BOOLEAN`.
+#### `PUT /api/form-templates/[id]`
+Update form template.
 
-### `is_organization_admin()`
+#### `DELETE /api/form-templates/[id]`
+Delete form template.
 
--   **Purpose**: Checks if the current user has the `Organization Admin` role for their organization.
--   **Returns**: `BOOLEAN`.
+### Workflow Templates API
 
-### `is_bu_admin_for_unit(p_bu_id UUID)`
+**Base Path**: `/api/workflow-templates`
 
--   **Purpose**: Checks if the current user is a Business Unit Admin for a *specific* business unit.
--   **Returns**: `BOOLEAN`.
+Similar CRUD endpoints for workflow templates.
 
-### `get_business_units_for_user()`
+### Chat API
 
--   **Purpose**: Gets all business units the current user is a member of and has access to.
--   **Returns**: `TABLE` of business unit records.
+**Base Path**: `/api/chat`
 
----
+Real-time chat operations.
 
-## Auditor Functions
-
-Functions used to provide read-only audit capabilities. Note that while some migrations may refer to `documents`, the correct and current entity is `requests`.
-
-### `is_auditor()`
-
--   **Purpose**: Checks if the current user has an auditor role, either at the system level (`Super Admin` or `AUDITOR` system role) or at the BU level (`AUDITOR` membership type).
--   **Returns**: `BOOLEAN`.
-
-### `get_auditor_requests(p_tag_ids UUID[], p_status_filter request_status, p_search_text TEXT)`
-
--   **Purpose**: Fetches all requests that are accessible to the current auditor, with optional filters.
--   **Access Control**: System-level auditors can see all requests across all organizations. BU-level auditors can only see requests from their assigned business units.
--   **Returns**: `TABLE` of request records, joined with form, BU, and tag information.
-
-### `get_auditor_request_details(p_request_id UUID)`
-
--   **Purpose**: Retrieves the complete, detailed view of a single request for an auditor.
--   **Access Control**: Internally validates that the auditor has permission to view the requested record.
--   **Returns**: A `JSONB` object containing the request, its associated form fields, tags, full history, and comments.
+**Note**: Most data operations use RPC functions instead of REST APIs.
 
 ---
 
-## Notification Functions
+## Server Actions
 
-### `get_my_notifications(p_limit INT)`
+Server actions are located in `actions.ts` files next to their routes:
 
--   **Purpose**: Fetches the most recent notifications for the currently logged-in user.
--   **Returns**: `TABLE` of notification records.
+### Request Actions
 
-### `create_notification(...)`
+**File**: `app/(main)/requests/create/actions.ts`
 
--   **Purpose**: Creates a new notification for a specified user. This is a `SECURITY DEFINER` function intended to be called from other server-side RPC functions or triggers.
--   **Parameters**: `recipient_id`, `message`, `link_url`.
--   **Returns**: The newly created notification record.
+```typescript
+export async function submitRequest(
+  formId: string,
+  formData: Record<string, any>,
+  businessUnitId: string
+): Promise<{ success: boolean; requestId?: string; error?: string }>
+```
+
+### Approval Actions
+
+**File**: `app/(main)/approvals/document/actions.ts`
+
+```typescript
+export async function approveDocument(
+  requestId: string,
+  comment?: string
+): Promise<{ success: boolean; error?: string }>
+
+export async function rejectDocument(
+  requestId: string,
+  comment: string
+): Promise<{ success: boolean; error?: string }>
+
+export async function requestClarification(
+  requestId: string,
+  comment: string
+): Promise<{ success: boolean; error?: string }>
+```
+
+### Management Actions
+
+**File**: `app/(main)/management/forms/actions.ts`
+
+Form CRUD operations (create, update, delete, publish).
+
+**File**: `app/(main)/management/approval-system/actions.ts`
+
+Workflow chain operations.
+
+---
+
+## Authentication
+
+All API calls require authentication via Supabase Auth:
+
+```typescript
+import { createClient } from "@/lib/supabase/server";
+
+const supabase = await createClient();
+const { data: { user } } = await supabase.auth.getUser();
+
+if (!user) {
+  return { error: "Unauthorized" };
+}
+```
+
+Session managed via cookies (middleware handles refresh).
+
+---
+
+## Error Handling
+
+Standard error response format:
+
+```typescript
+{
+  success: false,
+  error: "Error message here"
+}
+```
+
+Success response format:
+
+```typescript
+{
+  success: true,
+  data: { ... }
+}
+```
+
+---
+
+## Rate Limiting
+
+Currently no rate limiting implemented. All limits enforced at Supabase project level.
+
+---
+
+## Webhooks
+
+No webhook system currently implemented.
+
+---
+
+## Real-time Subscriptions
+
+Chat system uses Supabase real-time:
+
+```typescript
+const channel = supabase
+  .channel(`chat:${chatId}`)
+  .on(
+    'postgres_changes',
+    {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'chat_messages',
+      filter: `chat_id=eq.${chatId}`
+    },
+    handleNewMessage
+  )
+  .subscribe();
+```
+
+See `hooks/chat/use-realtime-messages.ts` for implementation.
+
+---
+
+## Security
+
+### Row Level Security (RLS)
+
+All database tables use RLS policies. See [RLS_POLICIES.md](./RLS_POLICIES.md).
+
+### CORS
+
+Not applicable (Next.js handles routing, no external API calls needed).
+
+### API Keys
+
+No API keys - authentication via Supabase Auth JWT tokens.
+
+---
+
+## Versioning
+
+No API versioning currently implemented. Breaking changes handled through database migrations.
+
+---
+
+## Developer Resources
+
+- **[Database Schema](./DATABASE_SCHEMA.md)** - Complete schema reference
+- **[RPC Functions](./RPC_FUNCTIONS.md)** - All available RPC functions
+- **[RLS Policies](./RLS_POLICIES.md)** - Security policies
+- **[System Architecture](./SYSTEM_ARCHITECTURE.md)** - Architecture overview
+- **[Changelog](./CHANGELOG.md)** - Version history
+
+---
+
+## Examples
+
+### Creating a Request
+
+```typescript
+import { createClient } from "@/lib/supabase/server";
+
+const supabase = await createClient();
+
+const { data: requestId, error } = await supabase.rpc('submit_request', {
+  p_form_id: 'form-uuid',
+  p_data: {
+    amount: 5000,
+    description: "Office supplies",
+    ...
+  },
+  p_business_unit_id: 'bu-uuid'
+});
+
+if (error) {
+  console.error('Failed to submit request:', error);
+}
+```
+
+### Fetching User's Approvals
+
+```typescript
+const { data: requests, error } = await supabase.rpc('get_approver_requests', {
+  p_user_id: userId
+});
+```
+
+### Checking Permissions
+
+```typescript
+const { data: isSuperAdmin } = await supabase.rpc('is_super_admin');
+const { data: isOrgAdmin } = await supabase.rpc('is_organization_admin');
+const { data: isBuAdmin } = await supabase.rpc('is_bu_admin_for_unit', {
+  p_bu_id: buId
+});
+```
+
+---
+
+For implementation details, see the full documentation in the links above.
