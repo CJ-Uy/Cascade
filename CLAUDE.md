@@ -407,6 +407,78 @@ await createNotification({
 - Only tags assigned by the current user can be removed
 - Tags are displayed as badges throughout the UI
 
+#### Enhanced Approval System
+
+**NEW Feature** (December 2024): Comprehensive approval workflow management system.
+
+**Purpose**: Provides approvers with full workflow visibility and multiple action options beyond simple approve/reject.
+
+**Key Features**:
+
+1. **Three-Tab Approval Queue** ([app/(main)/approvals/to-approve/page.tsx](<app/(main)/approvals/to-approve/page.tsx>)):
+   - **My Turn** - Requests requiring immediate approval
+   - **In Progress** - Requests past user in workflow (still active)
+   - **Already Approved** - Requests user has approved (workflow continues)
+   - Badge counters showing request counts
+   - Rich card display with workflow progress bars
+
+2. **Multiple Approval Actions** ([app/(main)/requests/[id]/(components)/ApprovalActions.tsx](<app/(main)/requests/[id]/(components)/ApprovalActions.tsx>)):
+   - **Primary Actions** (shown only when user's turn):
+     - Approve - Advance to next step
+     - Reject - Stop workflow entirely
+     - Send Back for Edits - Return to section initiator
+   - **Secondary Actions** (available to all workflow participants):
+     - Request Clarification - Notify current section approvers
+     - Ask Previous Section - Contact previous section participants (section > 0)
+     - Cancel Request - Terminate request (notifies all)
+
+3. **Notification System**:
+   - Clarification requests notify relevant approvers
+   - Send back notifies section initiator
+   - Cancel notifies all participants
+
+**Database Changes** (Migration: `20251222000000_enhance_approval_system.sql`):
+
+- New `request_action` enum values: `SEND_BACK_TO_INITIATOR`, `REQUEST_PREVIOUS_SECTION_EDIT`, `CANCEL_REQUEST`
+- New RPC function: `get_enhanced_approver_requests()` - Returns comprehensive workflow position data
+- Action functions with built-in notification logic:
+  - `send_back_to_initiator()`
+  - `official_request_clarification()`
+  - `request_previous_section_clarification()`
+  - `cancel_request_by_approver()`
+
+**Server Actions** ([app/(main)/approvals/document/enhanced-actions.ts](<app/(main)/approvals/document/enhanced-actions.ts>)):
+
+```typescript
+// Fetch approval queue with categorization
+export async function getEnhancedApproverRequests();
+
+// Action functions
+export async function approveRequest(requestId: string, comment?: string);
+export async function rejectRequest(requestId: string, reason: string);
+export async function sendBackToInitiator(requestId: string, reason: string);
+export async function officialRequestClarification(
+  requestId: string,
+  question: string,
+);
+export async function requestPreviousSectionClarification(
+  requestId: string,
+  question: string,
+);
+export async function cancelRequestByApprover(
+  requestId: string,
+  reason: string,
+);
+```
+
+**Integration Points**:
+
+- Request detail page ([app/(main)/requests/[id]/page.tsx](<app/(main)/requests/[id]/page.tsx>)) - Displays approval actions
+- Navigation ([components/nav/bar.jsx](components/nav/bar.jsx)) - Points to enhanced queue
+- DocumentView component - Includes ApprovalActions component
+
+**For Complete Documentation**: See [docs/ENHANCED_APPROVAL_SYSTEM.md](docs/ENHANCED_APPROVAL_SYSTEM.md)
+
 #### Chat System
 
 **Full-featured messaging system** with private and group chats.

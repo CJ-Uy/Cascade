@@ -68,6 +68,7 @@ CREATE TABLE organizations (
 ```
 
 **Relationships**:
+
 - Has many `business_units`
 - Has many `profiles` (users)
 - Has many `forms` (organization-scoped)
@@ -93,6 +94,7 @@ CREATE TABLE business_units (
 ```
 
 **Relationships**:
+
 - Belongs to `organizations`
 - Has many `user_business_units` (memberships)
 - Has many `roles` (BU-scoped)
@@ -101,6 +103,7 @@ CREATE TABLE business_units (
 - Has many `requests`
 
 **Indexes**:
+
 - `idx_business_units_org` on `organization_id`
 
 ---
@@ -125,10 +128,12 @@ CREATE TABLE profiles (
 ```
 
 **Fields**:
+
 - `user_status`: ENUM ('UNASSIGNED', 'ACTIVE', 'DISABLED')
 - `organization_id`: NULL if no organization assigned yet
 
 **Relationships**:
+
 - Belongs to `organizations` (optional)
 - Has many `user_business_units` (BU memberships)
 - Has many `user_role_assignments` (roles)
@@ -136,6 +141,7 @@ CREATE TABLE profiles (
 - Has many `comments` (as author)
 
 **Indexes**:
+
 - `idx_profiles_org` on `organization_id`
 - `idx_profiles_email` on `email`
 
@@ -166,23 +172,28 @@ CREATE TABLE roles (
 ```
 
 **Enums**:
+
 - `scope`: 'BU', 'ORGANIZATION', 'SYSTEM', 'AUDITOR'
 
 **Scope Rules**:
+
 - **BU**: Scoped to specific business unit
 - **ORGANIZATION**: Scoped to organization (all BUs)
 - **SYSTEM**: Global (e.g., "Super Admin")
 - **AUDITOR**: System-wide auditor role
 
 **Special Flags**:
+
 - `is_bu_admin`: If true, user with this role has BU admin privileges
 
 **Relationships**:
+
 - Has many `user_role_assignments`
 - Has many `workflow_section_initiators`
 - Has many `workflow_section_steps` (as approver)
 
 **Indexes**:
+
 - `idx_roles_bu` on `business_unit_id`
 - `idx_roles_org` on `organization_id`
 - `idx_roles_scope` on `scope`
@@ -206,11 +217,13 @@ CREATE TABLE user_role_assignments (
 ```
 
 **Relationships**:
+
 - Belongs to `profiles` (user)
 - Belongs to `roles`
 - Tracks who assigned the role (`assigned_by`)
 
 **Indexes**:
+
 - `idx_user_role_assignments_user` on `user_id`
 - `idx_user_role_assignments_role` on `role_id`
 
@@ -233,15 +246,18 @@ CREATE TABLE user_business_units (
 ```
 
 **Enums**:
+
 - `membership_type`: 'MEMBER', 'AUDITOR'
 
 **Note**: Permission levels (BU_ADMIN, APPROVER, MEMBER) are now determined by roles, not this table. The `membership_type` only distinguishes between regular members and auditors.
 
 **Relationships**:
+
 - Belongs to `profiles`
 - Belongs to `business_units`
 
 **Indexes**:
+
 - `idx_user_business_units_user` on `user_id`
 - `idx_user_business_units_bu` on `business_unit_id`
 
@@ -277,25 +293,30 @@ CREATE TABLE forms (
 ```
 
 **Enums**:
+
 - `scope`: 'BU', 'ORGANIZATION', 'SYSTEM'
 - `status`: 'draft', 'active', 'archived'
 
 **Scope Visibility**:
+
 - **BU**: Only users in that business unit
 - **ORGANIZATION**: All users in the organization
 - **SYSTEM**: All users across all organizations
 
 **Versioning**:
+
 - `parent_form_id`: Links to previous version
 - `version`: Incrementing version number
 - `is_latest`: Only one version should be latest
 
 **Relationships**:
+
 - Has many `form_fields`
 - Has many `workflow_sections` (forms used in workflows)
 - Has many `requests` (form instances)
 
 **Indexes**:
+
 - `idx_forms_scope` on `scope`
 - `idx_forms_bu` on `business_unit_id`
 - `idx_forms_org` on `organization_id`
@@ -329,6 +350,7 @@ CREATE TABLE form_fields (
 ```
 
 **Field Types** (ENUM):
+
 - `short-text`, `long-text`, `number`
 - `radio`, `checkbox`, `select`
 - `file-upload`
@@ -336,17 +358,21 @@ CREATE TABLE form_fields (
 - `table`, `grid-table` (table inputs)
 
 **JSONB Columns**:
+
 - `options`: For radio/checkbox/select (array of `{label, value}`)
 - `field_config`: For complex fields like grid-table (custom configuration)
 
 **Nested Fields**:
+
 - `parent_list_field_id`: For fields within repeater/table fields
 
 **Relationships**:
+
 - Belongs to `forms`
 - Can have child fields (`parent_list_field_id`)
 
 **Indexes**:
+
 - `idx_form_fields_form_id` on `form_id`
 - `idx_form_fields_order` on `(form_id, display_order)`
 
@@ -383,16 +409,19 @@ CREATE TABLE workflow_chains (
 ```
 
 **Enums**:
+
 - `scope`: 'BU', 'ORGANIZATION', 'SYSTEM'
 - `status`: 'draft', 'active', 'archived'
 
 **Structure**: A workflow chain contains multiple ordered **sections**.
 
 **Relationships**:
+
 - Has many `workflow_sections`
 - Has many `requests`
 
 **Indexes**:
+
 - `idx_workflow_chains_business_unit` on `business_unit_id`
 - `idx_workflow_chains_status` on `status`
 - `idx_workflow_chains_is_latest` on `is_latest`
@@ -421,17 +450,20 @@ CREATE TABLE workflow_sections (
 ```
 
 **Key Concepts**:
+
 - `section_order`: 0-indexed position in chain (0, 1, 2, ...)
 - Each section has **exactly ONE form** (`form_id`)
 - Sections execute sequentially
 
 **Relationships**:
+
 - Belongs to `workflow_chains`
 - Belongs to `forms` (the form for this section)
 - Has many `workflow_section_initiators` (who can start this section)
 - Has many `workflow_section_steps` (approval steps)
 
 **Indexes**:
+
 - `idx_workflow_sections_chain` on `chain_id`
 - `idx_workflow_sections_order` on `(chain_id, section_order)`
 
@@ -459,10 +491,12 @@ CREATE TABLE workflow_section_initiators (
 **Replaces**: Old `form_initiator_access` table (deprecated Dec 18, 2024)
 
 **Relationships**:
+
 - Belongs to `workflow_sections`
 - Belongs to `roles`
 
 **Indexes**:
+
 - `idx_workflow_section_initiators_section` on `section_id`
 - `idx_workflow_section_initiators_role` on `role_id`
 
@@ -487,15 +521,18 @@ CREATE TABLE workflow_section_steps (
 ```
 
 **Key Concepts**:
+
 - `step_number`: 1-indexed step position (1, 2, 3, ...)
 - Steps execute sequentially within a section
 - Each step assigned to a role
 
 **Relationships**:
+
 - Belongs to `workflow_sections`
 - Belongs to `roles` (approver role)
 
 **Indexes**:
+
 - `idx_workflow_section_steps_section` on `section_id`
 - `idx_workflow_section_steps_order` on `(section_id, step_number)`
 
@@ -523,19 +560,23 @@ CREATE TABLE requests (
 ```
 
 **Enums**:
+
 - `status`: 'DRAFT', 'SUBMITTED', 'IN_REVIEW', 'NEEDS_REVISION', 'APPROVED', 'REJECTED', 'CANCELLED'
 
 **JSONB Data Storage**:
+
 - `data`: Stores all form field values as key-value pairs
 - Example: `{"amount": 5000, "description": "Office supplies", "approver_comment": "..."}`
 
 **Lifecycle**:
+
 1. Created with status 'DRAFT' (optional)
 2. Submitted → 'SUBMITTED'
 3. Flows through workflow steps → 'IN_REVIEW'
 4. Final states: 'APPROVED', 'REJECTED', 'CANCELLED'
 
 **Relationships**:
+
 - Belongs to `forms` (template)
 - Belongs to `workflow_chains` (optional)
 - Belongs to `business_units`
@@ -546,6 +587,7 @@ CREATE TABLE requests (
 - Has many `request_tags`
 
 **Indexes**:
+
 - `idx_requests_form` on `form_id`
 - `idx_requests_workflow` on `workflow_chain_id`
 - `idx_requests_bu` on `business_unit_id`
@@ -574,15 +616,18 @@ CREATE TABLE request_history (
 ```
 
 **Enums**:
+
 - `action`: 'SUBMIT', 'APPROVE', 'REJECT', 'REQUEST_REVISION', 'REQUEST_CLARIFICATION', 'COMMENT', 'CANCEL'
 
 **Purpose**: Immutable log of all actions taken on a request.
 
 **Relationships**:
+
 - Belongs to `requests`
 - Belongs to `profiles` (actor)
 
 **Indexes**:
+
 - `idx_request_history_request` on `(request_id, created_at DESC)`
 - `idx_request_history_actor` on `actor_id`
 
@@ -608,10 +653,12 @@ CREATE TABLE comments (
 ```
 
 **Relationships**:
+
 - Belongs to `requests` (optional - can be standalone)
 - Belongs to `profiles` (author)
 
 **Indexes**:
+
 - `idx_comments_request` on `request_id`
 - `idx_comments_author` on `author_id`
 - `idx_comments_created` on `created_at DESC`
@@ -640,6 +687,7 @@ CREATE TABLE tags (
 **Scope**: Tags are organization-scoped (unique name per org).
 
 **Relationships**:
+
 - Belongs to `organizations`
 - Has many `request_tags`
 
@@ -664,11 +712,13 @@ CREATE TABLE request_tags (
 ```
 
 **Relationships**:
+
 - Belongs to `requests`
 - Belongs to `tags`
 - Tracks who tagged (`tagged_by`)
 
 **Indexes**:
+
 - `idx_request_tags_request` on `request_id`
 - `idx_request_tags_tag` on `tag_id`
 
@@ -699,10 +749,12 @@ CREATE TABLE attachments (
 **Purpose**: Generic file attachment storage with references to parent entities.
 
 **Relationships**:
+
 - Optionally belongs to `requests`, `comments`, or `chat_messages`
 - Belongs to `profiles` (uploader)
 
 **Indexes**:
+
 - `idx_attachments_request` on `request_id`
 - `idx_attachments_comment` on `comment_id`
 - `idx_attachments_message` on `message_id`
@@ -727,9 +779,11 @@ CREATE TABLE notifications (
 **Purpose**: In-app notification system.
 
 **Relationships**:
+
 - Belongs to `profiles` (recipient)
 
 **Indexes**:
+
 - `idx_notifications_recipient` on `recipient_id`
 - `idx_notifications_unread` on `(recipient_id, is_read, created_at DESC)`
 
@@ -756,13 +810,16 @@ CREATE TABLE organization_invitations (
 ```
 
 **Enums**:
+
 - `status`: 'pending', 'accepted', 'declined', 'cancelled'
 
 **Relationships**:
+
 - Belongs to `organizations`
 - Belongs to `profiles` (inviter)
 
 **Indexes**:
+
 - `idx_organization_invitations_org` on `organization_id`
 - `idx_organization_invitations_email` on `email`
 
@@ -785,6 +842,7 @@ CREATE TABLE chats (
 ```
 
 **Enums**:
+
 - `type`: 'PRIVATE', 'GROUP'
 
 ---
@@ -822,6 +880,7 @@ CREATE TABLE chat_messages (
 ```
 
 **Indexes**:
+
 - `idx_chat_messages_chat` on `chat_id`
 - `idx_chat_messages_created` on `created_at DESC`
 
@@ -1051,6 +1110,7 @@ CREATE INDEX idx_chat_messages_created ON chat_messages(created_at DESC);
 When a record is deleted, these cascades occur:
 
 #### Delete Organization:
+
 ```
 organizations
   └→ business_units (CASCADE)
@@ -1069,6 +1129,7 @@ organizations
 ```
 
 #### Delete User (Profile):
+
 ```
 profiles
   └→ user_role_assignments (CASCADE)
@@ -1079,6 +1140,7 @@ profiles
 ```
 
 #### Delete Form:
+
 ```
 forms
   └→ form_fields (CASCADE)
@@ -1086,6 +1148,7 @@ forms
 ```
 
 #### Delete Workflow Chain:
+
 ```
 workflow_chains
   └→ workflow_sections (CASCADE)
@@ -1134,32 +1197,39 @@ CREATE TRIGGER trigger_update_requests_updated_at
 These tables were removed in migration `20251216200000_complete_schema_restructure.sql`:
 
 #### `requisitions`, `requisition_values`, `requisition_approvals`
+
 - **Replaced by**: `requests` + `request_history`
 - **Reason**: Simplified data model - request data now stored as JSONB
 
 #### `requisition_templates`, `template_fields`, `field_options`
+
 - **Replaced by**: `forms` + `form_fields`
 - **Reason**: Unified terminology and cleaner schema
 
 #### `form_templates`, `workflow_templates`
+
 - **Replaced by**: `forms` + `workflow_chains`
 - **Reason**: Removed redundant "template" terminology
 
 #### `approval_step_definitions`, `approval_workflows`
+
 - **Replaced by**: `workflow_chains` + `workflow_sections` + `workflow_section_steps`
 - **Reason**: New section-based workflow architecture
 
 #### `workflow_form_mappings`
+
 - **Deprecated**: Dec 18, 2024 (migration `20251218050000`)
 - **Replaced by**: `workflow_sections.form_id`
 - **Reason**: Forms now linked at section level, not workflow level
 
 #### `form_initiator_access`
+
 - **Deprecated**: Dec 18, 2024 (migration `20251218050000`)
 - **Replaced by**: `workflow_section_initiators`
 - **Reason**: Access control now per-section for mid-workflow support
 
 #### `template_initiator_access`
+
 - **Removed**: Replaced by workflow section initiators
 
 ---

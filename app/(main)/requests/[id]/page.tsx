@@ -128,6 +128,19 @@ export default async function RequestDetailPage({ params }: PageProps) {
     console.error("Error fetching workflow progress:", workflowError);
   }
 
+  // Fetch user's approval position in this workflow
+  const { data: enhancedRequest } = await supabase.rpc(
+    "get_enhanced_approver_requests",
+    {
+      p_user_id: user.id,
+    },
+  );
+
+  // Find this specific request in the enhanced data
+  const myApprovalPosition = enhancedRequest?.find(
+    (r: any) => r.id === requestId,
+  );
+
   // Transform workflow progress to include current progress indicators
   let workflowProgress = null;
   if (rawWorkflowProgress && rawWorkflowProgress.has_workflow) {
@@ -209,6 +222,14 @@ export default async function RequestDetailPage({ params }: PageProps) {
         workflowProgress={workflowProgress || null}
         requestId={requestId}
         onCommentsRefreshed={handleCommentsRefreshed}
+        approvalPosition={{
+          isMyTurn: myApprovalPosition?.is_my_turn || false,
+          currentSectionOrder: myApprovalPosition?.current_section_order || 0,
+          hasPreviousSection:
+            (myApprovalPosition?.current_section_order || 0) > 0,
+          previousSectionInitiatorName:
+            myApprovalPosition?.previous_section_initiator_name,
+        }}
       />
     </div>
   );

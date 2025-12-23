@@ -17,16 +17,16 @@ This document provides a comprehensive overview of the Cascade project's archite
 
 ## Technology Stack
 
--   **Framework**: Next.js 15 (App Router), React 19
--   **Language**: TypeScript
--   **Database**: Supabase (PostgreSQL)
--   **Auth**: Supabase Auth with RLS
--   **Styling**: Tailwind CSS 4, shadcn/ui
--   **State Management**: React Context + Server Components
--   **Forms**: react-hook-form + zod
--   **Tables**: @tanstack/react-table
--   **Drag & Drop**: @dnd-kit
--   **Real-time**: Supabase subscriptions
+- **Framework**: Next.js 15 (App Router), React 19
+- **Language**: TypeScript
+- **Database**: Supabase (PostgreSQL)
+- **Auth**: Supabase Auth with RLS
+- **Styling**: Tailwind CSS 4, shadcn/ui
+- **State Management**: React Context + Server Components
+- **Forms**: react-hook-form + zod
+- **Tables**: @tanstack/react-table
+- **Drag & Drop**: @dnd-kit
+- **Real-time**: Supabase subscriptions
 
 ---
 
@@ -52,18 +52,18 @@ User selects Form → Creates Request → Submits → Travels through Workflow C
 
 A **Workflow Chain** contains multiple ordered **Sections**:
 
--   Each section is linked to **one Form** that is filled out by the section's initiator.
--   Each section has **multiple approval steps**, which are assigned to user roles and executed sequentially.
--   Sections are processed in order (e.g., section 0, then section 1, etc.).
--   The same Form can be reused across different sections and workflows, providing flexibility.
+- Each section is linked to **one Form** that is filled out by the section's initiator.
+- Each section has **multiple approval steps**, which are assigned to user roles and executed sequentially.
+- Sections are processed in order (e.g., section 0, then section 1, etc.).
+- The same Form can be reused across different sections and workflows, providing flexibility.
 
 ### Scope System
 
 To support multi-tenancy and granular control, resources like Forms and Workflow Chains use a **scope column**:
 
--   **BU-scoped**: Specific to a Business Unit. Created by BU Admins and visible only to users within that BU.
--   **ORGANIZATION-scoped**: Available across all Business Units within an Organization. Created by Org Admins.
--   **SYSTEM-scoped**: Global resources available to all users across all organizations. Created by Super Admins.
+- **BU-scoped**: Specific to a Business Unit. Created by BU Admins and visible only to users within that BU.
+- **ORGANIZATION-scoped**: Available across all Business Units within an Organization. Created by Org Admins.
+- **SYSTEM-scoped**: Global resources available to all users across all organizations. Created by Super Admins.
 
 ---
 
@@ -211,19 +211,19 @@ CREATE TABLE request_history (
 
 ### Supporting Tables
 
--   `organizations`, `business_units`: For multi-tenancy structure.
--   `profiles`, `roles`, `user_role_assignments`, `user_business_units`: For user and permission management.
--   `comments`: For discussions on requests.
--   `tags`, `request_tags`: For categorizing requests, primarily used by the Auditor feature.
+- `organizations`, `business_units`: For multi-tenancy structure.
+- `profiles`, `roles`, `user_role_assignments`, `user_business_units`: For user and permission management.
+- `comments`: For discussions on requests.
+- `tags`, `request_tags`: For categorizing requests, primarily used by the Auditor feature.
 
 ### Key Enums
 
--   `scope_type`: `BU`, `ORGANIZATION`, `SYSTEM`
--   `form_status`: `draft`, `active`, `archived`
--   `workflow_status`: `draft`, `active`, `archived`
--   `request_status`: `DRAFT`, `SUBMITTED`, `IN_REVIEW`, `NEEDS_REVISION`, `APPROVED`, `REJECTED`, `CANCELLED`
--   `field_type`: `short-text`, `long-text`, `number`, `radio`, `checkbox`, `select`, `file-upload`, etc.
--   `request_action`: `SUBMIT`, `APPROVE`, `REJECT`, `REQUEST_REVISION`, `COMMENT`, etc.
+- `scope_type`: `BU`, `ORGANIZATION`, `SYSTEM`
+- `form_status`: `draft`, `active`, `archived`
+- `workflow_status`: `draft`, `active`, `archived`
+- `request_status`: `DRAFT`, `SUBMITTED`, `IN_REVIEW`, `NEEDS_REVISION`, `APPROVED`, `REJECTED`, `CANCELLED`
+- `field_type`: `short-text`, `long-text`, `number`, `radio`, `checkbox`, `select`, `file-upload`, etc.
+- `request_action`: `SUBMIT`, `APPROVE`, `REJECT`, `REQUEST_REVISION`, `COMMENT`, etc.
 
 ---
 
@@ -232,25 +232,25 @@ CREATE TABLE request_history (
 ### 4-Tier Permission System
 
 1.  **System Roles** (Scope: `SYSTEM`):
-    -   `Super Admin`: Global access.
-    -   `AUDITOR`: System-wide read-only audit access.
+    - `Super Admin`: Global access.
+    - `AUDITOR`: System-wide read-only audit access.
 2.  **Organization Roles** (Scope: `ORGANIZATION`):
-    -   `Organization Admin`: Manages all BUs within their organization.
+    - `Organization Admin`: Manages all BUs within their organization.
 3.  **Business Unit Roles** (Scope: `BU`):
-    -   Custom roles defined per BU. A boolean flag `is_bu_admin` grants admin rights.
+    - Custom roles defined per BU. A boolean flag `is_bu_admin` grants admin rights.
 4.  **Business Unit Membership**:
-    -   Defines a user's relationship with a BU (`MEMBER`, `APPROVER`, `BU_ADMIN`, `AUDITOR`).
+    - Defines a user's relationship with a BU (`MEMBER`, `APPROVER`, `BU_ADMIN`, `AUDITOR`).
 
 ### Session Management
 
--   The `useSession()` hook provides client-side access to the complete authentication context.
--   Different Supabase clients are used depending on the execution environment (Server Components, Client Components, Middleware) to ensure security and Next.js compatibility.
+- The `useSession()` hook provides client-side access to the complete authentication context.
+- Different Supabase clients are used depending on the execution environment (Server Components, Client Components, Middleware) to ensure security and Next.js compatibility.
 
 ### Row Level Security (RLS)
 
--   **All tables have RLS enabled.**
--   Policies ensure that users can only access data within their authorized scope (e.g., users can only see requests from their own business units).
--   **CRITICAL**: All data access, especially `SELECT` queries, should be performed through **RPC functions**. These functions are designed to correctly handle permissions and prevent data leaks, whereas direct table queries can be prone to errors if not constructed carefully.
+- **All tables have RLS enabled.**
+- Policies ensure that users can only access data within their authorized scope (e.g., users can only see requests from their own business units).
+- **CRITICAL**: All data access, especially `SELECT` queries, should be performed through **RPC functions**. These functions are designed to correctly handle permissions and prevent data leaks, whereas direct table queries can be prone to errors if not constructed carefully.
 
 ---
 
@@ -258,26 +258,26 @@ CREATE TABLE request_history (
 
 ### Server Actions
 
--   Located in `actions.ts` files collocated with their corresponding routes.
--   Follow a standard pattern: validate input, perform Supabase operation, handle errors, and call `revalidatePath` to update the UI.
+- Located in `actions.ts` files collocated with their corresponding routes.
+- Follow a standard pattern: validate input, perform Supabase operation, handle errors, and call `revalidatePath` to update the UI.
 
 ### Data Fetching
 
--   Primarily done in **Server Components**.
--   Use RPC functions for complex, permission-sensitive queries.
--   Direct table queries are suitable for simpler cases where RLS policies are straightforward.
+- Primarily done in **Server Components**.
+- Use RPC functions for complex, permission-sensitive queries.
+- Direct table queries are suitable for simpler cases where RLS policies are straightforward.
 
 ### State Management
 
--   **Global State**: React Context is used for session (`SessionProvider`) and theme information.
--   **Local State**: `useState` is used for UI state within components (e.g., modal visibility, form inputs).
--   **URL State**: Route parameters (`/requests/[id]`) and search parameters (`?tab=history`) are used to manage view state.
--   **Server State**: Data is fetched on the server, passed as props to components, and managed via `revalidatePath`.
+- **Global State**: React Context is used for session (`SessionProvider`) and theme information.
+- **Local State**: `useState` is used for UI state within components (e.g., modal visibility, form inputs).
+- **URL State**: Route parameters (`/requests/[id]`) and search parameters (`?tab=history`) are used to manage view state.
+- **Server State**: Data is fetched on the server, passed as props to components, and managed via `revalidatePath`.
 
 ### Real-time Subscriptions
 
--   Supabase subscriptions are used for real-time features like chat.
--   A custom hook encapsulates the logic for subscribing to a channel and handling incoming events.
+- Supabase subscriptions are used for real-time features like chat.
+- A custom hook encapsulates the logic for subscribing to a channel and handling incoming events.
 
 ---
 

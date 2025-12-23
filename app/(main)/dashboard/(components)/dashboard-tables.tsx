@@ -74,8 +74,8 @@ const pendingColumns: ColumnDef<DashboardDocument>[] = [
   {
     id: "actions",
     cell: ({ row }) => (
-      <Link href={`/approvals/document/${row.original.id}`}>
-        <Button size="sm">Review Document</Button>
+      <Link href={`/requests/${row.original.id}`}>
+        <Button size="sm">Review Request</Button>
       </Link>
     ),
   },

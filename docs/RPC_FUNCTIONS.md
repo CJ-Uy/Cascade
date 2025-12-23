@@ -36,6 +36,7 @@ All RPC functions use `SECURITY DEFINER`, meaning they execute with the privileg
 ### Critical Security Rules
 
 ⚠️ **IMPORTANT**:
+
 - All SELECT queries should use RPC functions, NOT direct `.from()` queries
 - RPC functions enforce organizational boundaries and user permissions
 - Direct table queries can leak data across organization boundaries
@@ -51,6 +52,7 @@ All RPC functions use `SECURITY DEFINER`, meaning they execute with the privileg
 **Parameters**: None (uses `auth.uid()`)
 
 **Returns**: `JSONB`
+
 ```json
 {
   "user_id": "uuid",
@@ -80,8 +82,9 @@ All RPC functions use `SECURITY DEFINER`, meaning they execute with the privileg
 ```
 
 **Usage**:
+
 ```typescript
-const { data } = await supabase.rpc('get_user_auth_context');
+const { data } = await supabase.rpc("get_user_auth_context");
 ```
 
 **Used By**: `SessionProvider.tsx` for initial auth context loading
@@ -97,6 +100,7 @@ const { data } = await supabase.rpc('get_user_auth_context');
 **Returns**: `BOOLEAN`
 
 **Implementation**:
+
 ```sql
 SELECT EXISTS (
   SELECT 1 FROM user_role_assignments ura
@@ -118,6 +122,7 @@ SELECT EXISTS (
 **Returns**: `BOOLEAN`
 
 **Implementation**:
+
 ```sql
 SELECT EXISTS (
   SELECT 1 FROM user_role_assignments ura
@@ -135,11 +140,13 @@ SELECT EXISTS (
 **Purpose**: Checks if current user is BU Admin for a specific business unit.
 
 **Parameters**:
+
 - `p_bu_id`: Business unit ID to check
 
 **Returns**: `BOOLEAN`
 
 **Implementation**: Checks for:
+
 1. `user_business_units` membership with `BU_ADMIN` type
 2. OR has role with `is_bu_admin = true` for that BU
 3. OR is Organization Admin for the BU's organization
@@ -156,6 +163,7 @@ SELECT EXISTS (
 **Returns**: `BOOLEAN`
 
 **Checks**:
+
 - System role = 'AUDITOR'
 - OR Super Admin (has audit access to everything)
 - OR has `membership_type = 'AUDITOR'` in any `user_business_units` record
@@ -193,6 +201,7 @@ SELECT EXISTS (
 **Returns**: `UUID[]`
 
 **Logic**:
+
 - Super Admin: All BUs
 - Organization Admin: All BUs in their organization
 - BU Admin: Only their specific BUs
@@ -206,9 +215,11 @@ SELECT EXISTS (
 **Purpose**: Retrieves the complete workflow structure for a request, including all sections and approval steps.
 
 **Parameters**:
+
 - `p_request_id`: Request ID
 
 **Returns**: `JSONB`
+
 ```json
 {
   "has_workflow": true,
@@ -248,9 +259,11 @@ SELECT EXISTS (
 **Purpose**: Fetches all requests awaiting approval from the specified user.
 
 **Parameters**:
+
 - `p_user_id`: User ID (typically `auth.uid()`)
 
 **Returns**: `TABLE` of request records with:
+
 ```
 - id
 - form_id
@@ -268,6 +281,7 @@ SELECT EXISTS (
 ```
 
 **Logic**:
+
 - Joins `requests` → `workflow_chains` → `workflow_sections` → `workflow_section_steps`
 - Filters by user's assigned roles in `user_role_assignments`
 - Only shows `SUBMITTED` or `IN_REVIEW` requests
@@ -284,9 +298,11 @@ SELECT EXISTS (
 **Purpose**: Gets all forms that the user can use to initiate a new request.
 
 **Parameters**:
+
 - `p_user_id`: User ID
 
 **Returns**: `TABLE` with:
+
 ```
 - id
 - name
@@ -302,6 +318,7 @@ SELECT EXISTS (
 ```
 
 **Logic**:
+
 - Checks `workflow_section_initiators` to find sections user can initiate
 - Returns forms from those sections
 - Includes workflow context (workflow name shown above form name)
@@ -320,6 +337,7 @@ SELECT EXISTS (
 **Purpose**: Submits a new request.
 
 **Parameters**:
+
 - `p_form_id`: Form template ID
 - `p_data`: JSONB object containing form field values
 - `p_business_unit_id`: Business unit ID
@@ -327,6 +345,7 @@ SELECT EXISTS (
 **Returns**: `UUID` (new request ID)
 
 **Process**:
+
 1. Gets current user via `auth.uid()`
 2. Looks up organization ID from `business_units`
 3. Creates record in `requests` table with status `SUBMITTED`
@@ -344,12 +363,14 @@ SELECT EXISTS (
 **Purpose**: Approves a request at its current step.
 
 **Parameters**:
+
 - `p_request_id`: Request ID
 - `p_comments`: Optional approver comments
 
 **Returns**: `BOOLEAN` (success)
 
 **Process**:
+
 1. Logs `APPROVE` action in `request_history`
 2. System determines if request advances to next step/section
 3. Updates request status if fully approved
@@ -365,12 +386,14 @@ SELECT EXISTS (
 **Purpose**: Rejects a request entirely.
 
 **Parameters**:
+
 - `p_request_id`: Request ID
 - `p_comments`: Required rejection reason
 
 **Returns**: `BOOLEAN` (success)
 
 **Process**:
+
 1. Logs `REJECT` action in `request_history`
 2. Sets request status to `REJECTED`
 3. Workflow stops
@@ -388,9 +411,11 @@ SELECT EXISTS (
 **Purpose**: Fetches all workflow chains for a specific business unit.
 
 **Parameters**:
+
 - `p_bu_id`: Business unit ID
 
 **Returns**: `JSONB` array of workflow chains with counts
+
 ```json
 [
   {
@@ -414,9 +439,11 @@ SELECT EXISTS (
 **Purpose**: Retrieves complete structure of a single workflow chain.
 
 **Parameters**:
+
 - `p_chain_id`: Workflow chain ID
 
 **Returns**: `JSONB` object with:
+
 ```json
 {
   "id": "uuid",
@@ -430,9 +457,7 @@ SELECT EXISTS (
       "section_name": "Section 1",
       "form_id": "uuid",
       "form_name": "Form Name",
-      "initiators": [
-        {"role_id": "uuid", "role_name": "Role Name"}
-      ],
+      "initiators": [{ "role_id": "uuid", "role_name": "Role Name" }],
       "steps": [
         {
           "step_number": 1,
@@ -460,6 +485,7 @@ SELECT EXISTS (
 **Returns**: `UUID` (workflow chain ID)
 
 **Process**:
+
 1. Creates/updates `workflow_chains` record
 2. Deletes old sections and dependencies
 3. Inserts new sections, initiators, and steps
@@ -475,6 +501,7 @@ SELECT EXISTS (
 **Purpose**: Permanently deletes a workflow chain.
 
 **Parameters**:
+
 - `p_chain_id`: Workflow chain ID
 
 **Returns**: `BOOLEAN`
@@ -490,6 +517,7 @@ SELECT EXISTS (
 **Purpose**: Soft-deletes a workflow chain by setting status to `archived`.
 
 **Parameters**:
+
 - `p_chain_id`: Workflow chain ID
 
 **Returns**: `BOOLEAN`
@@ -505,11 +533,13 @@ SELECT EXISTS (
 **Purpose**: Fetch all forms accessible to a business unit.
 
 **Parameters**:
+
 - `p_bu_id`: Business unit ID
 
 **Returns**: Array of form records
 
 **Logic**: Returns forms where:
+
 - `scope = 'BU'` AND `business_unit_id = p_bu_id`
 - OR `scope = 'ORGANIZATION'` AND organization matches BU's org
 - OR `scope = 'SYSTEM'`
@@ -523,6 +553,7 @@ SELECT EXISTS (
 **Purpose**: Fetches all requests/documents accessible to the current auditor with filters.
 
 **Parameters**:
+
 - `p_tag_ids`: Array of tag IDs to filter by (optional)
 - `p_status_filter`: Status to filter by (optional)
 - `p_search_text`: Text search in request data (optional)
@@ -530,6 +561,7 @@ SELECT EXISTS (
 **Returns**: `TABLE` of request records with metadata
 
 **Access Control**:
+
 - **System Auditors** (Super Admin or AUDITOR system role): Can see ALL requests across ALL organizations
 - **BU Auditors** (`AUDITOR` membership type): Can only see requests from their assigned business units
 
@@ -544,9 +576,11 @@ SELECT EXISTS (
 **Purpose**: Retrieves complete, detailed view of a single request for an auditor.
 
 **Parameters**:
+
 - `p_document_id`: Request ID (legacy name uses "document")
 
 **Returns**: `JSONB` with:
+
 ```json
 {
   "request": {
@@ -556,18 +590,10 @@ SELECT EXISTS (
     "data": {},
     "...": "..."
   },
-  "form_fields": [
-    {"field_key": "amount", "label": "Amount", "...": "..."}
-  ],
-  "tags": [
-    {"id": "uuid", "name": "Urgent", "color": "#ff0000"}
-  ],
-  "history": [
-    {"action": "SUBMIT", "actor": "...", "created_at": "..."}
-  ],
-  "comments": [
-    {"author": "...", "content": "...", "created_at": "..."}
-  ]
+  "form_fields": [{ "field_key": "amount", "label": "Amount", "...": "..." }],
+  "tags": [{ "id": "uuid", "name": "Urgent", "color": "#ff0000" }],
+  "history": [{ "action": "SUBMIT", "actor": "...", "created_at": "..." }],
+  "comments": [{ "author": "...", "content": "...", "created_at": "..." }]
 }
 ```
 
@@ -590,6 +616,7 @@ SELECT EXISTS (
 **Returns**: `TABLE` of business unit records
 
 **Logic**:
+
 - Super Admin: All BUs
 - Organization Admin: All BUs in their org
 - Regular users: Only BUs they're members of via `user_business_units`
@@ -627,6 +654,7 @@ SELECT EXISTS (
 **Parameters**: None
 
 **Returns**: `TABLE` with:
+
 ```
 - id
 - name
@@ -648,6 +676,7 @@ SELECT EXISTS (
 **Parameters**: None
 
 **Returns**: `TABLE` with complete user information including:
+
 - Profile data
 - Assigned roles
 - BU memberships
@@ -666,6 +695,7 @@ SELECT EXISTS (
 **Purpose**: Creates a new notification for a user.
 
 **Parameters**:
+
 - `p_recipient_id`: User ID to notify
 - `p_message`: Notification message
 - `p_link_url`: URL to navigate to when clicked
@@ -685,16 +715,19 @@ SELECT EXISTS (
 The following functions reference deprecated tables and should NOT be used in new code:
 
 #### `get_requisitions_for_bu(p_bu_id UUID)`
+
 - **Status**: DEPRECATED
 - **Reason**: Uses old `requisitions` table
 - **Replacement**: Use `requests` table directly or via `get_approver_requests()`
 
 #### `get_templates_for_bu(p_bu_id UUID)`
+
 - **Status**: DEPRECATED
 - **Reason**: Uses old `requisition_templates` table
 - **Replacement**: Use `get_forms_for_bu()` or `get_initiatable_forms()`
 
 #### `get_initiatable_templates(p_user_id UUID)`
+
 - **Status**: DEPRECATED (as of Dec 18, 2024)
 - **Reason**: Replaced by workflow section-based access control
 - **Replacement**: `get_initiatable_forms()` (checks `workflow_section_initiators`)
@@ -712,10 +745,10 @@ import { createClient } from "@/lib/supabase/server";
 export default async function Page() {
   const supabase = await createClient();
 
-  const { data: isSuperAdmin } = await supabase.rpc('is_super_admin');
-  const { data: isOrgAdmin } = await supabase.rpc('is_organization_admin');
-  const { data: isBuAdmin } = await supabase.rpc('is_bu_admin_for_unit', {
-    p_bu_id: 'some-uuid'
+  const { data: isSuperAdmin } = await supabase.rpc("is_super_admin");
+  const { data: isOrgAdmin } = await supabase.rpc("is_organization_admin");
+  const { data: isBuAdmin } = await supabase.rpc("is_bu_admin_for_unit", {
+    p_bu_id: "some-uuid",
   });
 
   // Use permissions to conditionally render UI
@@ -726,7 +759,7 @@ export default async function Page() {
 
 ```typescript
 // In SessionProvider or server component
-const { data: authContext } = await supabase.rpc('get_user_auth_context');
+const { data: authContext } = await supabase.rpc("get_user_auth_context");
 
 // authContext contains:
 // - user_id, email, profile
@@ -739,13 +772,13 @@ const { data: authContext } = await supabase.rpc('get_user_auth_context');
 ```typescript
 // ❌ BAD - Direct table query (bypasses RLS, prone to errors)
 const { data } = await supabase
-  .from('requests')
-  .select('*')
-  .eq('business_unit_id', buId);
+  .from("requests")
+  .select("*")
+  .eq("business_unit_id", buId);
 
 // ✅ GOOD - Use RPC function (enforces permissions)
-const { data } = await supabase.rpc('get_approver_requests', {
-  p_user_id: userId
+const { data } = await supabase.rpc("get_approver_requests", {
+  p_user_id: userId,
 });
 ```
 
@@ -777,22 +810,22 @@ Key migrations that introduced or modified major RPC functions:
 
 ## Function Quick Reference
 
-| Function | Purpose | Returns | Key For |
-|----------|---------|---------|---------|
-| `get_user_auth_context()` | Full auth context | JSONB | SessionProvider |
-| `is_super_admin()` | Check Super Admin | BOOLEAN | Permission gates |
-| `is_organization_admin()` | Check Org Admin | BOOLEAN | Permission gates |
-| `is_bu_admin_for_unit(uuid)` | Check BU Admin | BOOLEAN | Permission gates |
-| `is_auditor()` | Check auditor status | BOOLEAN | Auditor access |
-| `get_request_workflow_progress(uuid)` | Workflow structure | JSONB | Request detail view |
-| `get_approver_requests(uuid)` | Approval queue | TABLE | To-approve list |
-| `get_initiatable_forms(uuid)` | Forms user can start | TABLE | Form selector |
-| `submit_request(...)` | Create request | UUID | Request submission |
-| `approve_request(...)` | Approve request | BOOLEAN | Approval action |
-| `reject_request(...)` | Reject request | BOOLEAN | Rejection action |
-| `get_workflow_chain_details(uuid)` | Full workflow | JSONB | Workflow builder |
-| `get_auditor_documents(...)` | Auditor request list | TABLE | Auditor views |
-| `get_business_units_for_user()` | User's BUs | TABLE | BU selector |
+| Function                              | Purpose              | Returns | Key For             |
+| ------------------------------------- | -------------------- | ------- | ------------------- |
+| `get_user_auth_context()`             | Full auth context    | JSONB   | SessionProvider     |
+| `is_super_admin()`                    | Check Super Admin    | BOOLEAN | Permission gates    |
+| `is_organization_admin()`             | Check Org Admin      | BOOLEAN | Permission gates    |
+| `is_bu_admin_for_unit(uuid)`          | Check BU Admin       | BOOLEAN | Permission gates    |
+| `is_auditor()`                        | Check auditor status | BOOLEAN | Auditor access      |
+| `get_request_workflow_progress(uuid)` | Workflow structure   | JSONB   | Request detail view |
+| `get_approver_requests(uuid)`         | Approval queue       | TABLE   | To-approve list     |
+| `get_initiatable_forms(uuid)`         | Forms user can start | TABLE   | Form selector       |
+| `submit_request(...)`                 | Create request       | UUID    | Request submission  |
+| `approve_request(...)`                | Approve request      | BOOLEAN | Approval action     |
+| `reject_request(...)`                 | Reject request       | BOOLEAN | Rejection action    |
+| `get_workflow_chain_details(uuid)`    | Full workflow        | JSONB   | Workflow builder    |
+| `get_auditor_documents(...)`          | Auditor request list | TABLE   | Auditor views       |
+| `get_business_units_for_user()`       | User's BUs           | TABLE   | BU selector         |
 
 ---
 

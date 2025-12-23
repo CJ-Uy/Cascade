@@ -270,6 +270,7 @@ WITH CHECK (is_super_admin());
 #### SELECT Policy
 
 **Policy Names**:
+
 - `"Super Admins can view all business units"`
 - `"Organization Admins can view BUs in their org"`
 - `"Users can view BUs they are members of"`
@@ -303,6 +304,7 @@ USING (
 #### INSERT/UPDATE/DELETE Policies
 
 **Policy Names**:
+
 - `"Super Admins can manage all BUs"`
 - `"Organization Admins can manage BUs in their org"`
 
@@ -526,6 +528,7 @@ USING (
 ```
 
 **Scope Visibility**:
+
 - **SYSTEM**: Everyone can see
 - **ORGANIZATION**: Users in that organization
 - **BU**: Users in that business unit
@@ -1071,6 +1074,7 @@ RESET ROLE;
 ### Validating Isolation
 
 **Test checklist**:
+
 1. ✅ User A cannot see User B's requests (different BU)
 2. ✅ User A cannot see requests from different organization
 3. ✅ BU Admin can see all requests in their BU
@@ -1104,11 +1108,13 @@ VALUES (..., 'different-bu-id', auth.uid(), ...);
 **Symptom**: User cannot see data they should have access to.
 
 **Causes**:
+
 1. Missing `user_business_units` record
 2. RLS policy too restrictive
 3. Organization mismatch
 
 **Solution**:
+
 ```sql
 -- Check user's BU memberships
 SELECT * FROM user_business_units WHERE user_id = 'user-id';
@@ -1127,6 +1133,7 @@ SELECT business_unit_id, organization_id FROM requests WHERE id = 'request-id';
 **Cause**: RLS policy references itself through joins.
 
 **Example**:
+
 ```sql
 -- BAD - Causes recursion
 CREATE POLICY "policy" ON user_role_assignments
@@ -1159,11 +1166,13 @@ USING (
 **Symptom**: Auditors cannot see expected requests.
 
 **Checks**:
+
 1. Verify `is_auditor()` returns `true`
 2. Check if system auditor vs BU auditor
 3. Validate BU memberships for BU auditors
 
 **Solution**:
+
 ```sql
 -- Check auditor status
 SELECT is_auditor();
@@ -1180,6 +1189,7 @@ WHERE user_id = auth.uid() AND membership_type = 'AUDITOR';
 ### 1. Always Use Helper Functions
 
 ❌ **Bad**: Inline permission checks
+
 ```sql
 USING (
   EXISTS (
@@ -1191,6 +1201,7 @@ USING (
 ```
 
 ✅ **Good**: Use helper function
+
 ```sql
 USING (is_super_admin())
 ```
@@ -1200,17 +1211,19 @@ USING (is_super_admin())
 ### 2. Prefer RPC Functions Over Direct Queries
 
 ❌ **Bad**: Direct query in client code
+
 ```typescript
 const { data } = await supabase
-  .from('requests')
-  .select('*')
-  .eq('business_unit_id', buId);
+  .from("requests")
+  .select("*")
+  .eq("business_unit_id", buId);
 ```
 
 ✅ **Good**: Use RPC function
+
 ```typescript
-const { data } = await supabase.rpc('get_approver_requests', {
-  p_user_id: userId
+const { data } = await supabase.rpc("get_approver_requests", {
+  p_user_id: userId,
 });
 ```
 
@@ -1219,6 +1232,7 @@ const { data } = await supabase.rpc('get_approver_requests', {
 ### 3. Test with Multiple User Roles
 
 Always test RLS changes with:
+
 - Super Admin
 - Organization Admin
 - BU Admin

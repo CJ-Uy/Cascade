@@ -92,7 +92,11 @@ const requestItems = [
 ];
 
 const approvalItems = [
-  { title: "To Approve", url: "/approvals/to-approve", icon: CheckSquare },
+  {
+    title: "To Approve",
+    url: "/approvals/to-approve",
+    icon: CheckSquare,
+  },
 ];
 
 const adminItems = [
@@ -419,7 +423,7 @@ export function Navbar() {
                                 asChild
                                 isActive={path.startsWith(item.url)}
                               >
-                                <Link href={`${item.url}/${selectedBuId}`}>
+                                <Link href={item.url}>
                                   <item.icon className="h-4 w-4" />
                                   <span>{item.title}</span>
                                 </Link>
@@ -548,7 +552,7 @@ export function Navbar() {
                                 asChild
                                 isActive={path.startsWith(item.url)}
                               >
-                                <Link href={`${item.url}/${adminSelectedBuId}`}>
+                                <Link href={item.url}>
                                   <item.icon className="h-4 w-4" />
                                   <span>{item.title}</span>
                                 </Link>

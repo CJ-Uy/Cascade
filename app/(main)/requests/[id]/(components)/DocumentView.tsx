@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { FieldRenderer } from "./FieldRenderer";
 import { WorkflowChainDetails } from "./WorkflowChainDetails";
 import { CommentThread } from "./CommentThread";
+import { ApprovalActions } from "./ApprovalActions";
 
 interface DocumentViewProps {
   document: any;
@@ -40,6 +41,12 @@ interface DocumentViewProps {
   workflowProgress: any;
   requestId: string; // Add requestId here
   onCommentsRefreshed: () => void;
+  approvalPosition?: {
+    isMyTurn: boolean;
+    currentSectionOrder: number;
+    hasPreviousSection: boolean;
+    previousSectionInitiatorName?: string;
+  };
 }
 
 export function DocumentView({
@@ -50,6 +57,7 @@ export function DocumentView({
   workflowProgress,
   requestId,
   onCommentsRefreshed,
+  approvalPosition,
 }: DocumentViewProps) {
   const [activeTab, setActiveTab] = useState("details");
 
@@ -156,6 +164,23 @@ export function DocumentView({
       </div>
 
       <Separator />
+
+      {/* Approval Actions */}
+      {approvalPosition && (
+        <>
+          <ApprovalActions
+            requestId={requestId}
+            isMyTurn={approvalPosition.isMyTurn}
+            currentSectionOrder={approvalPosition.currentSectionOrder}
+            hasPreviousSection={approvalPosition.hasPreviousSection}
+            previousSectionInitiatorName={
+              approvalPosition.previousSectionInitiatorName
+            }
+            status={document.status}
+          />
+          <Separator />
+        </>
+      )}
 
       {/* Main Content with Tabs */}
       <div className="grid gap-6 lg:grid-cols-3">
