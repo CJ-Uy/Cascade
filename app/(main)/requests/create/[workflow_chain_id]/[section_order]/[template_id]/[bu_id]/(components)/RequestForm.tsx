@@ -32,8 +32,9 @@ interface RequestFormProps {
   businessUnitName: string;
   workflowChainId: string;
   sectionOrder: number;
-  draftId?: string;
+  existingRequestId?: string;
   draftData?: Record<string, any>;
+  isEditing?: boolean;
 }
 
 export function RequestForm({
@@ -42,8 +43,9 @@ export function RequestForm({
   businessUnitName,
   workflowChainId,
   sectionOrder,
-  draftId,
+  existingRequestId,
   draftData,
+  isEditing = false,
 }: RequestFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,7 +75,7 @@ export function RequestForm({
         template.id,
         currentFormData,
         businessUnitId,
-        draftId,
+        existingRequestId,
         workflowChainId,
       );
 
@@ -101,12 +103,17 @@ export function RequestForm({
         template.id,
         formData,
         businessUnitId,
-        draftId,
+        existingRequestId,
         workflowChainId,
+        isEditing,
       );
 
       if (result.success) {
-        toast.success("Request submitted successfully!");
+        toast.success(
+          isEditing
+            ? "Request resubmitted successfully!"
+            : "Request submitted successfully!",
+        );
         router.push(`/requests/${result.requestId}`);
       } else {
         toast.error("Failed to submit request");

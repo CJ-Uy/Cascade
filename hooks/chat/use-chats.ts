@@ -170,6 +170,3 @@ export function useChats(): UseChatsReturn {
     cleanup,
   };
 }
-
-// Export the createChat function for use in components
-export { useChats };

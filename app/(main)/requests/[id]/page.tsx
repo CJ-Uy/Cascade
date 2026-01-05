@@ -96,6 +96,11 @@ export default async function RequestDetailPage({ params }: PageProps) {
           first_name,
           last_name,
           image_url
+        ),
+        resolver:profiles!resolved_by(
+          first_name,
+          last_name,
+          image_url
         )
       `,
     )
@@ -141,68 +146,20 @@ export default async function RequestDetailPage({ params }: PageProps) {
     (r: any) => r.id === requestId,
   );
 
-  // Transform workflow progress to include current progress indicators
+  // Use workflow progress directly from RPC (it now includes all progress tracking)
   let workflowProgress = null;
   if (rawWorkflowProgress && rawWorkflowProgress.has_workflow) {
-    // Get current progress from request status
-    // For now, assume section 0 step 1 is current (we'll enhance this based on request_history later)
-    const sections = rawWorkflowProgress.sections || [];
-    const totalSections = sections.length;
-
-    // Find current section based on request status and history
-    let currentSectionOrder = 0;
-    let currentStepNumber = 1;
-
-    // Transform sections to include progress indicators
-    const transformedSections = sections.map((section: any) => {
-      const isCurrentSection = section.section_order === currentSectionOrder;
-      const isCompletedSection = section.section_order < currentSectionOrder;
-
-      // Transform steps to include progress indicators
-      const transformedSteps = (section.steps || []).map((step: any) => ({
-        step_id: `${section.section_order}-${step.step_number}`, // Generate ID for React keys
-        step_number: step.step_number,
-        approver_role_name: step.role_name,
-        is_current: isCurrentSection && step.step_number === currentStepNumber,
-        is_completed:
-          isCompletedSection ||
-          (isCurrentSection && step.step_number < currentStepNumber),
-      }));
-
-      return {
-        section_id: section.form_id || `section-${section.section_order}`, // Use form_id as section_id or generate
-        section_order: section.section_order,
-        section_name: section.section_name,
-        is_form: section.form_id !== null,
-        is_current: isCurrentSection,
-        is_completed: isCompletedSection,
-        steps: transformedSteps,
-      };
-    });
-
-    // Find the role we're waiting on
-    let waitingOn = null;
-    if (request.status === "SUBMITTED" || request.status === "IN_REVIEW") {
-      const currentSection = transformedSections.find((s: any) => s.is_current);
-      if (currentSection) {
-        const currentStep = currentSection.steps.find(
-          (st: any) => st.is_current,
-        );
-        if (currentStep) {
-          waitingOn = currentStep.approver_role_name;
-        }
-      }
-    }
-
+    // The RPC function now returns all the correct data including progress tracking
     workflowProgress = {
       has_workflow: true,
       chain_id: request.workflow_chain_id,
-      chain_name: rawWorkflowProgress.workflow_name,
-      total_sections: totalSections,
-      current_section: currentSectionOrder + 1, // 1-indexed for display
-      current_step: currentStepNumber,
-      sections: transformedSections,
-      waiting_on: waitingOn,
+      chain_name: rawWorkflowProgress.chain_name,
+      total_sections: rawWorkflowProgress.total_sections,
+      current_section: rawWorkflowProgress.current_section,
+      current_step: rawWorkflowProgress.current_step,
+      sections: rawWorkflowProgress.sections || [],
+      waiting_on: rawWorkflowProgress.waiting_on,
+      request_status: rawWorkflowProgress.request_status,
       waiting_since: request.updated_at,
     };
   }

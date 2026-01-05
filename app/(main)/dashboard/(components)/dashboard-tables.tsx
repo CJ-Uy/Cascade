@@ -5,27 +5,84 @@ import Link from "next/link";
 import { DataTable } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Download } from "lucide-react";
+import { ArrowRight, Download, AlertCircle } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
-// This is a generic type based on the public.documents table.
-// It should be replaced with a proper type from a central types file if one exists.
-type DashboardDocument = {
+// Type for requests returned from dashboard RPC functions
+type DashboardRequest = {
   id: string;
+  form_id: string;
+  workflow_chain_id: string | null;
+  business_unit_id: string;
+  organization_id: string;
+  status:
+    | "DRAFT"
+    | "SUBMITTED"
+    | "IN_REVIEW"
+    | "NEEDS_REVISION"
+    | "APPROVED"
+    | "REJECTED"
+    | "CANCELLED";
+  data: any;
   created_at: string;
   updated_at: string;
-  status: "IN_REVIEW" | "NEEDS_REVISION" | "APPROVED" | "SUBMITTED";
-  // The RPC functions return the whole document, so other fields are available if needed
+  form_name: string;
+  workflow_name: string | null;
 };
 
-// 1. Columns for Initiator's "My Active Documents" table
-const initiatedColumns: ColumnDef<DashboardDocument>[] = [
+// 1. Columns for "Needs Revision" table - URGENT
+const needsRevisionColumns: ColumnDef<DashboardRequest>[] = [
   {
-    accessorKey: "id",
-    header: "Document ID",
+    accessorKey: "form_name",
+    header: "Form",
     cell: ({ row }) => (
-      <p className="font-mono text-xs">{row.original.id.substring(0, 8)}...</p>
+      <div>
+        <p className="font-medium">{row.original.form_name}</p>
+        {row.original.workflow_name && (
+          <p className="text-muted-foreground text-xs">
+            {row.original.workflow_name}
+          </p>
+        )}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "updated_at",
+    header: "Sent Back",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <AlertCircle className="text-destructive h-4 w-4" />
+        <span>{new Date(row.original.updated_at).toLocaleDateString()}</span>
+      </div>
+    ),
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => (
+      <Link href={`/requests/${row.original.id}`}>
+        <Button size="sm" variant="destructive">
+          Edit Request <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </Link>
+    ),
+  },
+];
+
+// 2. Columns for "Active Requests" table
+const activeRequestsColumns: ColumnDef<DashboardRequest>[] = [
+  {
+    accessorKey: "form_name",
+    header: "Form",
+    cell: ({ row }) => (
+      <div>
+        <p className="font-medium">{row.original.form_name}</p>
+        {row.original.workflow_name && (
+          <p className="text-muted-foreground text-xs">
+            {row.original.workflow_name}
+          </p>
+        )}
+      </div>
     ),
   },
   {
@@ -36,7 +93,7 @@ const initiatedColumns: ColumnDef<DashboardDocument>[] = [
       let variant: "default" | "secondary" | "destructive" | "outline" =
         "secondary";
       if (status === "IN_REVIEW") variant = "default";
-      if (status === "NEEDS_REVISION") variant = "destructive";
+      if (status === "SUBMITTED") variant = "outline";
       return <Badge variant={variant}>{status.replace("_", " ")}</Badge>;
     },
   },
@@ -48,7 +105,7 @@ const initiatedColumns: ColumnDef<DashboardDocument>[] = [
   {
     id: "actions",
     cell: ({ row }) => (
-      <Link href={`/documents/${row.original.id}`}>
+      <Link href={`/requests/${row.original.id}`}>
         <Button variant="outline" size="sm">
           View <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
@@ -57,13 +114,20 @@ const initiatedColumns: ColumnDef<DashboardDocument>[] = [
   },
 ];
 
-// 2. Columns for Approver's "Pending My Approval" table
-const pendingColumns: ColumnDef<DashboardDocument>[] = [
+// 3. Columns for Approver's "Pending My Approval" table
+const pendingColumns: ColumnDef<DashboardRequest>[] = [
   {
-    accessorKey: "id",
-    header: "Document ID",
+    accessorKey: "form_name",
+    header: "Form",
     cell: ({ row }) => (
-      <p className="font-mono text-xs">{row.original.id.substring(0, 8)}...</p>
+      <div>
+        <p className="font-medium">{row.original.form_name}</p>
+        {row.original.workflow_name && (
+          <p className="text-muted-foreground text-xs">
+            {row.original.workflow_name}
+          </p>
+        )}
+      </div>
     ),
   },
   {
@@ -81,13 +145,20 @@ const pendingColumns: ColumnDef<DashboardDocument>[] = [
   },
 ];
 
-// 3. Columns for Data Processor's "Approved Documents" table
-const approvedColumns: ColumnDef<DashboardDocument>[] = [
+// 4. Columns for Data Processor's "Approved Requests" table
+const approvedColumns: ColumnDef<DashboardRequest>[] = [
   {
-    accessorKey: "id",
-    header: "Document ID",
+    accessorKey: "form_name",
+    header: "Form",
     cell: ({ row }) => (
-      <p className="font-mono text-xs">{row.original.id.substring(0, 8)}...</p>
+      <div>
+        <p className="font-medium">{row.original.form_name}</p>
+        {row.original.workflow_name && (
+          <p className="text-muted-foreground text-xs">
+            {row.original.workflow_name}
+          </p>
+        )}
+      </div>
     ),
   },
   {
@@ -107,7 +178,7 @@ const approvedColumns: ColumnDef<DashboardDocument>[] = [
   {
     id: "actions",
     cell: ({ row }) => (
-      <Link href={`/documents/${row.original.id}`}>
+      <Link href={`/requests/${row.original.id}`}>
         <Button variant="outline" size="sm">
           View
         </Button>
@@ -117,17 +188,25 @@ const approvedColumns: ColumnDef<DashboardDocument>[] = [
 ];
 
 // Wrapper Components that use the generic DataTable
-export const InitiatedDocsTable = ({ data }: { data: DashboardDocument[] }) => (
-  <DataTable columns={initiatedColumns} data={data} />
+export const NeedsRevisionTable = ({ data }: { data: DashboardRequest[] }) => (
+  <DataTable columns={needsRevisionColumns} data={data} />
+);
+
+export const ActiveRequestsTable = ({ data }: { data: DashboardRequest[] }) => (
+  <DataTable columns={activeRequestsColumns} data={data} />
 );
 
 export const PendingApprovalsTable = ({
   data,
 }: {
-  data: DashboardDocument[];
+  data: DashboardRequest[];
 }) => <DataTable columns={pendingColumns} data={data} />;
 
-export const ApprovedDocsTable = ({ data }: { data: DashboardDocument[] }) => (
+export const ApprovedRequestsTable = ({
+  data,
+}: {
+  data: DashboardRequest[];
+}) => (
   <div>
     <Toaster />
     <div className="mb-4 flex justify-end">

@@ -270,10 +270,10 @@ export async function addRequestComment(requestId: string, content: string) {
     return { success: false, error: "Comment content is required" };
   }
 
-  const { error } = await supabase.from("comments").insert({
-    request_id: requestId,
-    author_id: user.id,
-    content: content.trim(),
+  // Use RPC function which handles both the comment insert and history logging
+  const { data, error } = await supabase.rpc("add_request_comment", {
+    p_request_id: requestId,
+    p_content: content.trim(),
   });
 
   if (error) {
@@ -281,16 +281,8 @@ export async function addRequestComment(requestId: string, content: string) {
     return { success: false, error: error.message };
   }
 
-  // Also log as action in history
-  await supabase.from("request_history").insert({
-    request_id: requestId,
-    actor_id: user.id,
-    action: "COMMENT",
-    comments: content.trim().substring(0, 500), // Truncate for history
-  });
-
   revalidatePath(`/requests/${requestId}`);
-  return { success: true };
+  return { success: true, commentId: data };
 }
 
 /**
@@ -299,30 +291,39 @@ export async function addRequestComment(requestId: string, content: string) {
 export async function getRequestComments(requestId: string) {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("comments")
-    .select(
-      `
-      id,
-      content,
-      created_at,
-      updated_at,
-      author:profiles!author_id(
-        id,
-        first_name,
-        last_name,
-        email,
-        image_url
-      )
-    `,
-    )
-    .eq("request_id", requestId)
-    .order("created_at", { ascending: true });
+  // Use RPC function to get comments with proper access control
+  const { data, error } = await supabase.rpc("get_request_comments", {
+    p_request_id: requestId,
+  });
 
   if (error) {
     console.error("Error fetching comments:", error);
     return { success: false, error: error.message, data: null };
   }
 
-  return { success: true, error: null, data: data || [] };
+  // Transform data to match expected format
+  const transformedData = (data || []).map(
+    (comment: {
+      id: string;
+      created_at: string;
+      content: string;
+      author_id: string;
+      author_name: string;
+      author_email: string;
+      author_image_url: string | null;
+    }) => ({
+      id: comment.id,
+      content: comment.content,
+      created_at: comment.created_at,
+      author: {
+        id: comment.author_id,
+        first_name: comment.author_name?.split(" ")[0] || null,
+        last_name: comment.author_name?.split(" ").slice(1).join(" ") || null,
+        email: comment.author_email,
+        image_url: comment.author_image_url,
+      },
+    }),
+  );
+
+  return { success: true, error: null, data: transformedData };
 }

@@ -36,7 +36,13 @@
       "Bash(npm run build:*)",
       "Bash(find:*)",
       "Bash(xargs -I {} sh -c 'grep -l \"\"get_request_workflow_progress\"\" {} 2>/dev/null')",
-      "Bash(npx supabase db dump:*)"
+      "Bash(npx supabase db dump:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx eslint:*)",
+      "Bash(NEXT_LINT_IGNORE=1 npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git checkout:*)",
+      "Bash(yes:*)"
     ],
     "deny": [],
     "ask": []

@@ -119,14 +119,15 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
     }
 
     setIsCreatingTag(true);
-    const { success, error, data } = await createTag(
-      newTagLabel.trim(),
-      newTagColor,
-    );
+    const {
+      success: createSuccess,
+      error: createError,
+      data,
+    } = await createTag(newTagLabel.trim(), newTagColor);
     setIsCreatingTag(false);
 
-    if (!success || !data) {
-      toast.error(error || "Failed to create tag");
+    if (!createSuccess || !data) {
+      toast.error(createError || "Failed to create tag");
       return;
     }
 
@@ -147,11 +148,9 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
     setTags([...tags, optimisticTag]);
     setIsDialogOpen(false);
 
-    const { success, error: assignError } = await assignTagToDocument(
-      documentId,
-      data.id,
-    );
-    if (!success) {
+    const { success: assignSuccess, error: assignError } =
+      await assignTagToDocument(documentId, data.id);
+    if (!assignSuccess) {
       // Revert optimistic update
       setTags(tags);
       toast.error(assignError || "Tag created but failed to assign");

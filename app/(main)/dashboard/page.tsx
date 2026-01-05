@@ -2,12 +2,20 @@ import { redirect } from "next/navigation";
 import { getUserAuthContext } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { InvitationsCard } from "./(components)/invitations-card";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
-  InitiatedDocsTable,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  NeedsRevisionTable,
+  ActiveRequestsTable,
   PendingApprovalsTable,
-  ApprovedDocsTable,
+  ApprovedRequestsTable,
 } from "./(components)/dashboard-tables";
+import { AlertCircle } from "lucide-react";
 
 export default async function DashboardPage() {
   const authContext = await getUserAuthContext();
@@ -25,9 +33,10 @@ export default async function DashboardPage() {
   // Fetch all data in parallel
   const [
     invitationsRes,
-    initiatedDocsRes,
+    needsRevisionRes,
+    activeRequestsRes,
     pendingApprovalsRes,
-    approvedDocsRes,
+    approvedRequestsRes,
   ] = await Promise.all([
     supabase
       .from("organization_invitations")
@@ -37,21 +46,24 @@ export default async function DashboardPage() {
       .eq("user_id", authContext.user_id)
       .eq("status", "pending")
       .order("created_at", { ascending: false }),
-    supabase.rpc("get_my_initiated_documents"),
+    supabase.rpc("get_my_requests_needing_revision"),
+    supabase.rpc("get_my_active_requests"),
     supabase.rpc("get_my_pending_approvals"),
-    supabase.rpc("get_approved_documents_for_bu"),
+    supabase.rpc("get_approved_requests_for_bu"),
   ]);
 
   const invitations = invitationsRes.data;
-  const initiatedDocs = initiatedDocsRes.data;
+  const needsRevision = needsRevisionRes.data;
+  const activeRequests = activeRequestsRes.data;
   const pendingApprovals = pendingApprovalsRes.data;
-  const approvedDocs = approvedDocsRes.data;
+  const approvedRequests = approvedRequestsRes.data;
 
   const hasData = [
     invitations,
-    initiatedDocs,
+    needsRevision,
+    activeRequests,
     pendingApprovals,
-    approvedDocs,
+    approvedRequests,
   ].some((data) => data && data.length > 0);
 
   return (
@@ -60,6 +72,27 @@ export default async function DashboardPage() {
 
       {invitations && invitations.length > 0 && (
         <InvitationsCard invitations={invitations} />
+      )}
+
+      {/* NEEDS REVISION - Highest Priority */}
+      {needsRevision && needsRevision.length > 0 && (
+        <Card className="border-destructive">
+          <CardHeader className="bg-destructive/10">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="text-destructive h-5 w-5" />
+              <CardTitle className="text-destructive">
+                Action Required: Requests Needing Revision
+              </CardTitle>
+            </div>
+            <CardDescription>
+              These requests have been sent back by approvers and need your
+              immediate attention
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <NeedsRevisionTable data={needsRevision} />
+          </CardContent>
+        </Card>
       )}
 
       {/* Approver View */}
@@ -74,26 +107,29 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {/* Initiator View */}
-      {initiatedDocs && initiatedDocs.length > 0 && (
+      {/* Initiator View - Active Requests */}
+      {activeRequests && activeRequests.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>My Active Documents</CardTitle>
+            <CardTitle>My Active Requests</CardTitle>
+            <CardDescription>
+              Requests currently in review or submitted
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <InitiatedDocsTable data={initiatedDocs} />
+            <ActiveRequestsTable data={activeRequests} />
           </CardContent>
         </Card>
       )}
 
       {/* Data Processor View */}
-      {approvedDocs && approvedDocs.length > 0 && (
+      {approvedRequests && approvedRequests.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Approved Documents Queue</CardTitle>
+            <CardTitle>Approved Requests Queue</CardTitle>
           </CardHeader>
           <CardContent>
-            <ApprovedDocsTable data={approvedDocs} />
+            <ApprovedRequestsTable data={approvedRequests} />
           </CardContent>
         </Card>
       )}

@@ -20,7 +20,7 @@ export default async function PendingRequestsPage() {
     redirect("/auth/login");
   }
 
-  // Fetch pending documents for this user
+  // Fetch pending documents for this user (including those sent back for revision)
   const { data: requests, error } = await supabase
     .from("requests")
     .select(
@@ -43,7 +43,7 @@ export default async function PendingRequestsPage() {
       `,
     )
     .eq("initiator_id", user.id)
-    .in("status", ["SUBMITTED", "IN_REVIEW", "DRAFT"])
+    .in("status", ["SUBMITTED", "IN_REVIEW", "DRAFT", "NEEDS_REVISION"])
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -58,71 +58,19 @@ export default async function PendingRequestsPage() {
         { p_request_id: request.id },
       );
 
-      // Transform workflow progress to include current progress indicators
+      // Use workflow progress directly from RPC (it now includes all progress tracking)
       let workflowProgress = null;
       if (rawProgress && rawProgress.has_workflow) {
-        const sections = rawProgress.sections || [];
-        const totalSections = sections.length;
-
-        // Find current section based on request status and history
-        let currentSectionOrder = 0;
-        let currentStepNumber = 1;
-
-        // Transform sections to include progress indicators
-        const transformedSections = sections.map((section: any) => {
-          const isCurrentSection =
-            section.section_order === currentSectionOrder;
-          const isCompletedSection =
-            section.section_order < currentSectionOrder;
-
-          // Transform steps to include progress indicators
-          const transformedSteps = (section.steps || []).map((step: any) => ({
-            step_id: `${section.section_order}-${step.step_number}`,
-            step_number: step.step_number,
-            approver_role_name: step.role_name,
-            is_current:
-              isCurrentSection && step.step_number === currentStepNumber,
-            is_completed:
-              isCompletedSection ||
-              (isCurrentSection && step.step_number < currentStepNumber),
-          }));
-
-          return {
-            section_id: section.form_id || `section-${section.section_order}`,
-            section_order: section.section_order,
-            section_name: section.section_name,
-            is_form: section.form_id !== null,
-            is_current: isCurrentSection,
-            is_completed: isCompletedSection,
-            steps: transformedSteps,
-          };
-        });
-
-        // Find the role we're waiting on
-        let waitingOn = null;
-        if (request.status === "SUBMITTED" || request.status === "IN_REVIEW") {
-          const currentSection = transformedSections.find(
-            (s: any) => s.is_current,
-          );
-          if (currentSection) {
-            const currentStep = currentSection.steps.find(
-              (st: any) => st.is_current,
-            );
-            if (currentStep) {
-              waitingOn = currentStep.approver_role_name;
-            }
-          }
-        }
-
         workflowProgress = {
           has_workflow: true,
           chain_id: request.workflow_chain_id,
-          chain_name: rawProgress.workflow_name,
-          total_sections: totalSections,
-          current_section: currentSectionOrder + 1,
-          current_step: currentStepNumber,
-          sections: transformedSections,
-          waiting_on: waitingOn,
+          chain_name: rawProgress.chain_name,
+          total_sections: rawProgress.total_sections,
+          current_section: rawProgress.current_section,
+          current_step: rawProgress.current_step,
+          sections: rawProgress.sections || [],
+          waiting_on: rawProgress.waiting_on,
+          request_status: rawProgress.request_status,
           waiting_since: request.updated_at,
         };
       }

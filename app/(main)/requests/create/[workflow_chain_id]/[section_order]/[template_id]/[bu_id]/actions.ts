@@ -24,16 +24,18 @@ export async function submitRequest(
   formId: string,
   formData: Record<string, any>,
   businessUnitId: string,
-  draftId?: string,
+  existingRequestId?: string,
   workflowChainId?: string,
+  isEditing?: boolean,
 ) {
   return await saveOrSubmitRequest(
     formId,
     formData,
     businessUnitId,
     "SUBMITTED",
-    draftId,
+    existingRequestId,
     workflowChainId,
+    isEditing,
   );
 }
 
@@ -42,8 +44,9 @@ async function saveOrSubmitRequest(
   formData: Record<string, any>,
   businessUnitId: string,
   status: "DRAFT" | "SUBMITTED",
-  existingDraftId?: string,
+  existingRequestId?: string,
   workflowChainId?: string,
+  isEditing?: boolean,
 ) {
   const supabase = await createClient();
 
@@ -66,30 +69,41 @@ async function saveOrSubmitRequest(
     throw new Error("Business unit not found.");
   }
 
-  // If updating an existing draft
-  if (existingDraftId) {
+  // If updating an existing draft or editing a NEEDS_REVISION request
+  if (existingRequestId) {
     const { error: updateError } = await supabase
       .from("requests")
       .update({
         data: formData,
         status: status,
-        workflow_chain_id: workflowChainId, // Also update on draft -> submission
+        workflow_chain_id: workflowChainId,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", existingDraftId)
+      .eq("id", existingRequestId)
       .eq("initiator_id", user.id);
 
     if (updateError) {
-      console.error("Error updating draft:", updateError);
-      throw new Error("Failed to update draft.");
+      console.error("Error updating request:", updateError);
+      throw new Error("Failed to update request.");
+    }
+
+    // If resubmitting after revision, add to history
+    if (isEditing && status === "SUBMITTED") {
+      await supabase.from("request_history").insert({
+        request_id: existingRequestId,
+        actor_id: user.id,
+        action: "SUBMIT",
+        comments: "Request resubmitted after revision",
+      });
     }
 
     revalidatePath("/requests/create");
-    revalidatePath(`/requests/${existingDraftId}`);
+    revalidatePath("/requests/pending");
+    revalidatePath(`/requests/${existingRequestId}`);
 
     return {
       success: true,
-      requestId: existingDraftId,
+      requestId: existingRequestId,
       isDraft: status === "DRAFT",
     };
   }

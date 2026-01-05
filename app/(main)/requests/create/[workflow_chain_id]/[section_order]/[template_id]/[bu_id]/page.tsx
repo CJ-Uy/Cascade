@@ -16,6 +16,7 @@ interface PageProps {
   }>;
   searchParams: Promise<{
     draft_id?: string;
+    edit_id?: string;
   }>;
 }
 
@@ -41,12 +42,14 @@ export default async function FillRequestFormPage({
     bu_id: businessUnitId,
   } = await params;
 
-  const { draft_id: draftId } = await searchParams;
+  const { draft_id: draftId, edit_id: editId } = await searchParams;
 
   const sectionOrder = parseInt(sectionOrderStr, 10);
 
-  // Load draft data if draft_id is provided
+  // Load draft data if draft_id is provided OR edit data if edit_id is provided
   let draftData: Record<string, any> | undefined;
+  let existingRequestId: string | undefined;
+
   if (draftId) {
     const { data: draft } = await supabase
       .from("requests")
@@ -58,6 +61,20 @@ export default async function FillRequestFormPage({
 
     if (draft) {
       draftData = draft.data;
+      existingRequestId = draftId;
+    }
+  } else if (editId) {
+    const { data: editRequest } = await supabase
+      .from("requests")
+      .select("data, status")
+      .eq("id", editId)
+      .eq("initiator_id", user.id)
+      .eq("status", "NEEDS_REVISION")
+      .single();
+
+    if (editRequest) {
+      draftData = editRequest.data;
+      existingRequestId = editId;
     }
   }
 
@@ -168,8 +185,9 @@ export default async function FillRequestFormPage({
         businessUnitName={businessUnit?.name || ""}
         workflowChainId={workflowChainId}
         sectionOrder={sectionOrder}
-        draftId={draftId}
+        existingRequestId={existingRequestId}
         draftData={draftData}
+        isEditing={!!editId}
       />
     </div>
   );

@@ -24,10 +24,12 @@ import {
   MessageSquare,
   Share2,
   Download,
+  Edit,
 } from "lucide-react";
 import { icons } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { FieldRenderer } from "./FieldRenderer";
 import { WorkflowChainDetails } from "./WorkflowChainDetails";
 import { CommentThread } from "./CommentThread";
@@ -59,6 +61,7 @@ export function DocumentView({
   onCommentsRefreshed,
   approvalPosition,
 }: DocumentViewProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("details");
 
   const handleShare = () => {
@@ -66,6 +69,15 @@ export function DocumentView({
     navigator.clipboard.writeText(url);
     toast.success("Link copied to clipboard!");
   };
+
+  const handleEdit = () => {
+    router.push(`/requests/edit/${requestId}`);
+  };
+
+  // Check if current user is the initiator and status is NEEDS_REVISION
+  const canEdit =
+    document.status === "NEEDS_REVISION" &&
+    document.initiator?.id === currentUserId;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -152,6 +164,12 @@ export function DocumentView({
         </div>
 
         <div className="flex gap-2">
+          {canEdit && (
+            <Button onClick={handleEdit} size="sm">
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Request
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleShare}>
             <Share2 className="mr-2 h-4 w-4" />
             Share
@@ -245,6 +263,7 @@ export function DocumentView({
                 currentUserId={currentUserId}
                 requestId={requestId}
                 onCommentAdded={onCommentsRefreshed}
+                history={history}
               />
             </TabsContent>
           </Tabs>
