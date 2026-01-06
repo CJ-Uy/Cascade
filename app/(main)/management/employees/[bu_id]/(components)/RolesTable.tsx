@@ -34,14 +34,14 @@ interface RolesTableProps {
   businessUnitId: string;
   onEdit: (role: Role) => void;
   onCreate: () => void;
-  key: number;
+  refreshKey?: number;
 }
 
 export function RolesTable({
   businessUnitId,
   onEdit,
   onCreate,
-  key,
+  refreshKey,
 }: RolesTableProps) {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,7 +110,7 @@ export function RolesTable({
       setLoading(false);
     };
     fetchRoles();
-  }, [businessUnitId, key]);
+  }, [businessUnitId, refreshKey]);
 
   return (
     <div>

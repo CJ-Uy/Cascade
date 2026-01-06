@@ -143,7 +143,7 @@ export default function EmployeesPage() {
             businessUnitId={buId}
             onEdit={handleEditRole}
             onCreate={handleCreateRole}
-            key={key}
+            refreshKey={key}
           />
         </TabsContent>
 
@@ -151,7 +151,7 @@ export default function EmployeesPage() {
           <EmployeeTable
             businessUnitId={buId}
             onEdit={handleEditEmployee}
-            key={key}
+            refreshKey={key}
           />
         </TabsContent>
 

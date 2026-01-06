@@ -37,13 +37,13 @@ export interface Employee {
 interface EmployeeTableProps {
   onEdit: (employee: Employee) => void;
   businessUnitId: string;
-  key: number;
+  refreshKey?: number;
 }
 
 export function EmployeeTable({
   onEdit,
   businessUnitId,
-  key,
+  refreshKey,
 }: EmployeeTableProps) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,7 +156,7 @@ export function EmployeeTable({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [businessUnitId, key]);
+  }, [businessUnitId, refreshKey]);
 
   return (
     <div className="space-y-4">

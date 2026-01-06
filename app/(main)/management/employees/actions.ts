@@ -43,7 +43,10 @@ export async function getEmployees(
       email: profile.email || "No email found",
       roles: profile.user_role_assignments
         .map((assignment: any) => assignment.roles)
-        .filter((role: any) => role.business_unit_id === businessUnitId)
+        .filter(
+          (role: any) =>
+            role != null && role.business_unit_id === businessUnitId,
+        )
         .map((role: any) => role.name),
     };
   });
@@ -165,52 +168,16 @@ export async function updateEmployeeRoles(
 ) {
   const supabase = await createClient();
 
-  const { data: buRoles, error: buRolesError } = await supabase
-    .from("roles")
-    .select("id")
-    .eq("business_unit_id", businessUnitId);
+  // Use RPC function to update roles (bypasses RLS, has internal auth checks)
+  const { error } = await supabase.rpc("update_employee_roles_in_bu", {
+    p_employee_id: employeeId,
+    p_business_unit_id: businessUnitId,
+    p_role_names: roleNames,
+  });
 
-  if (buRolesError) {
-    console.error("Error fetching BU roles:", buRolesError);
-    throw new Error("Failed to find BU roles.");
-  }
-  const buRoleIds = buRoles.map((r) => r.id);
-
-  const { error: deleteError } = await supabase
-    .from("user_role_assignments")
-    .delete()
-    .eq("user_id", employeeId)
-    .in("role_id", buRoleIds);
-
-  if (deleteError) {
-    console.error("Error deleting old roles:", deleteError);
-    throw new Error("Failed to update roles.");
-  }
-
-  if (roleNames.length > 0) {
-    const { data: roles, error: rolesError } = await supabase
-      .from("roles")
-      .select("id, name")
-      .eq("business_unit_id", businessUnitId)
-      .in("name", roleNames);
-
-    if (rolesError || !roles) {
-      console.error("Error fetching roles:", rolesError);
-      throw new Error("Failed to find roles to assign.");
-    }
-
-    const assignments = roles.map((role) => ({
-      user_id: employeeId,
-      role_id: role.id,
-    }));
-    const { error: insertError } = await supabase
-      .from("user_role_assignments")
-      .insert(assignments);
-
-    if (insertError) {
-      console.error("Error inserting new roles:", insertError);
-      throw new Error("Failed to update roles.");
-    }
+  if (error) {
+    console.error("Error updating employee roles:", error);
+    throw new Error(error.message || "Failed to update roles.");
   }
 
   revalidatePath(pathname);
@@ -223,6 +190,19 @@ export async function addUserToBusinessUnit(
 ) {
   const supabase = await createClient();
 
+  // Get the business unit's organization_id
+  const { data: bu, error: buError } = await supabase
+    .from("business_units")
+    .select("organization_id")
+    .eq("id", businessUnitId)
+    .single();
+
+  if (buError) {
+    console.error("Error fetching business unit:", buError);
+    throw new Error("Failed to fetch business unit information.");
+  }
+
+  // Add user to business unit
   const { error } = await supabase.from("user_business_units").insert({
     user_id: userId,
     business_unit_id: businessUnitId,
@@ -235,6 +215,18 @@ export async function addUserToBusinessUnit(
       throw new Error("User is already in this business unit.");
     }
     throw new Error("Failed to add user to business unit.");
+  }
+
+  // Update user's organization_id if not already set
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ organization_id: bu.organization_id })
+    .eq("id", userId)
+    .is("organization_id", null);
+
+  if (updateError) {
+    console.error("Error updating user organization:", updateError);
+    // Don't throw - user was added to BU successfully, org update is secondary
   }
 
   revalidatePath(pathname);
