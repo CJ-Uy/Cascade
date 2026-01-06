@@ -135,8 +135,10 @@ export default async function SystemTemplatesPage() {
                       {new Date(template.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Edit
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/organization-admin/system-templates/${template.id}`}>
+                      Edit
+                    </Link>
                   </Button>
                 </div>
               ))}

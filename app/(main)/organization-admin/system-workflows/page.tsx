@@ -179,8 +179,10 @@ export default async function SystemWorkflowsPage() {
                       {new Date(workflow.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Edit
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/organization-admin/system-workflows/${workflow.id}`}>
+                      Edit
+                    </Link>
                   </Button>
                 </div>
               ))}

@@ -4,7 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Quick Reference
 
-For detailed technical reference including security patterns, workflow chaining, database schema, and component patterns, see [docs/REFERENCE.md](docs/REFERENCE.md).
+For detailed documentation:
+- [Database Schema](docs/DATABASE_SCHEMA.md) - Complete table/enum reference
+- [RPC Functions](docs/RPC_FUNCTIONS.md) - All backend functions
+- [RLS Policies](docs/RLS_POLICIES.md) - Security policies
+- [System Architecture](docs/SYSTEM_ARCHITECTURE.md) - High-level design
+- [Enhanced Approval System](docs/ENHANCED_APPROVAL_SYSTEM.md) - Approval workflow guide
+
+See [docs/README.md](docs/README.md) for complete documentation index.
 
 ## Project Overview
 
@@ -29,6 +36,91 @@ npm run lint
 npm run db:setup    # Initial database setup
 npm run db:reset    # Reset database
 npm run db:push     # Push schema changes
+```
+
+## Critical Security Patterns
+
+### Authentication Helpers
+
+**Always use server-only utilities** ([lib/auth-helpers.ts](lib/auth-helpers.ts)):
+
+```typescript
+import { checkOrgAdminRole, checkSuperAdminRole, checkBuAdminRole } from "@/lib/auth-helpers";
+
+// Check organization admin access
+const { isOrgAdmin, organizationId } = await checkOrgAdminRole();
+if (!isOrgAdmin) redirect("/dashboard");
+
+// Check super admin access
+const { isSuperAdmin } = await checkSuperAdminRole();
+
+// Check BU admin access
+const { isBuAdmin } = await checkBuAdminRole(buId);
+```
+
+**Key Rules:**
+- ⚠️ **NEVER** use `supabase.auth.admin` in client components
+- ⚠️ **NEVER** expose admin credentials client-side
+- ✅ **ALWAYS** use server actions for privileged operations
+- ✅ **ALWAYS** protect routes with layout.tsx access checks
+
+### Layout-Level Route Protection
+
+All admin routes must have layout.tsx protection:
+
+```typescript
+// app/(main)/admin/layout.tsx
+export default async function AdminLayout({ children }) {
+  const { isSuperAdmin } = await checkSuperAdminRole();
+  if (!isSuperAdmin) redirect("/dashboard");
+  return <>{children}</>;
+}
+```
+
+### File Upload Pattern
+
+**For form file uploads** (files submitted through request forms):
+
+```typescript
+// Server action: app/(main)/requests/create/.../form-file-upload.ts
+export async function uploadFormFile(formData: FormData) {
+  const file = formData.get("file") as File;
+  const filePath = `form-uploads/${userId}-${Date.now()}.${ext}`;
+
+  await supabase.storage.from("attachments").upload(filePath, file);
+
+  return {
+    success: true,
+    fileData: {
+      filename: file.name,
+      storage_path: filePath,
+      filetype: file.type,
+      size_bytes: file.size
+    }
+  };
+}
+```
+
+**Key Points:**
+- Upload files to Supabase Storage **immediately** when selected
+- Store **metadata object** in JSONB, NOT File objects
+- Metadata: `{ filename, storage_path, filetype, size_bytes }`
+- Warn users if file size > 25MB (but still allow upload)
+- Display images with preview, other files with download link
+
+**Field Rendering:**
+
+```typescript
+// Render uploaded files from metadata
+if (value?.storage_path && value?.filename) {
+  const { data: { publicUrl } } = supabase.storage
+    .from("attachments")
+    .getPublicUrl(value.storage_path);
+
+  return value.filetype?.startsWith("image/")
+    ? <img src={publicUrl} alt={value.filename} />
+    : <a href={publicUrl} download={value.filename}>{value.filename}</a>;
+}
 ```
 
 ## Architecture Overview
@@ -780,146 +872,50 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 
 ### Key Tables
 
-**User & Organization Management:**
+See [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) for complete table reference.
 
-- `profiles` - User profiles (extends auth.users)
-- `organizations` - Multi-tenant organizations
-- `organization_invitations` - Organization invitation system
-- `business_units` - Organizational units
-- `user_business_units` - User-BU membership (MEMBER/AUDITOR)
-- `roles` - Role definitions (BU, SYSTEM, ORGANIZATION, AUDITOR scopes)
-- `user_role_assignments` - User-role assignments
+**Core Tables:**
+- `organizations`, `business_units`, `profiles` - Multi-tenant structure
+- `forms`, `form_fields` - Form templates with dynamic fields
+- `workflow_chains`, `workflow_sections`, `workflow_section_steps` - Multi-section workflows
+- `requests`, `request_history` - User-submitted requests with audit trail
+- `roles`, `user_role_assignments`, `user_business_units` - Permission system
+- `tags`, `request_tags` - Request categorization (auditor feature)
+- `chats`, `chat_messages`, `chat_participants` - Messaging system
+- `comments`, `attachments` - Comments and file storage
+- `notifications` - In-app notifications
 
-**Dynamic Documents (NEW - Migration: `20251201000000_finalize_dynamic_schema.sql`):**
-
-- `form_templates` - Dynamic form definitions
-- `form_fields` - Field specifications with types and validation
-- `workflow_templates` - Workflow definitions
-- `workflow_steps` - Individual workflow steps
-- `documents` - Document submissions (JSONB data storage)
-- `document_history` - Complete audit trail of document actions
-
-**Form Templates & Workflows (LEGACY):**
-
-- `requisition_templates` - Form templates with versioning
-- `template_fields` - Form field definitions
-- `field_options` - Options for radio/checkbox fields
-- `template_initiator_access` - Role-based template access
-- `approval_workflows` - Workflow definitions with versioning
-- `approval_step_definitions` - Workflow steps
-
-**Requisitions (LEGACY):**
-
-- `requisitions` - Document requests
-- `requisition_values` - Form field values
-- `requisition_approvals` - Approval step instances
-- `comments` - Comments on requisitions and documents
-- `attachments` - File attachments
-- `requisition_tags` - Tagging system
-- `tags` - Tag definitions
-
-**Chat System:**
-
-- `chats` - Chat instances (PRIVATE/GROUP)
-- `chat_participants` - Chat members
-- `chat_messages` - Messages
-
-**Other:**
-
-- `notifications` - User notifications
-
-### Enums
-
-- `action_type` - Requisition action types
-- `approval_status` - Approval step statuses
-- `approval_workflow_status` - Workflow lifecycle (draft/active/archived)
-- `bu_membership_type` - MEMBER/AUDITOR
-- `chat_type` - PRIVATE/GROUP
-- `field_type` - Form field types
-- `requisition_status` - Overall requisition status
-- `role_scope` - BU/SYSTEM/AUDITOR/ORGANIZATION
-- `template_status` - Template lifecycle (draft/active/archived)
-- `user_status` - UNASSIGNED/ACTIVE/DISABLED
+**Deprecated Tables (DO NOT USE):**
+- `requisitions` → Use `requests` instead
+- `workflow_form_mappings` → Use `workflow_sections.form_id`
+- `form_initiator_access` → Use `workflow_section_initiators`
 
 ### RPC Functions
 
 **⚠️ CRITICAL: Always use RPC functions for SELECT queries**
 
-See [docs/rls_documentation.md](docs/rls_documentation.md) for complete reference.
+See [docs/RPC_FUNCTIONS.md](docs/RPC_FUNCTIONS.md) for complete function reference.
 
-**Auditor Functions** (Migration: `20251215000001_create_auditor_rpc_functions.sql`):
+**Key Functions:**
+- `get_user_auth_context()` - Complete auth context with roles/permissions
+- `get_auditor_requests()` - Fetch requests for auditors with filters
+- `get_enhanced_approver_requests()` - Approval queue with workflow details
+- `is_super_admin()`, `is_organization_admin()`, `is_auditor()` - Permission checks
+- `send_back_to_initiator()`, `official_request_clarification()` - Approval actions
 
-- `is_auditor()` - Returns boolean indicating if current user is an auditor (system or BU level)
-- `get_auditor_documents(p_tag_ids UUID[], p_status_filter document_status, p_search_text TEXT)` - Returns documents accessible to auditor with optional filters. System auditors see all documents, BU auditors see only their BU documents.
-- `get_auditor_document_details(p_document_id UUID)` - Returns complete document details including template fields, tags, history, and comments. Validates auditor access before returning data.
-
-**Helper Functions** (Migration: `20251130230000_create_rls_compliant_rpc_functions.sql`):
-
-- `is_bu_admin_for_unit(bu_id)` - Check if user is BU Admin for specific BU
-- `is_organization_admin()` - Check if user has Organization Admin role
-- `is_super_admin()` - Check if user has Super Admin role
-- `get_user_organization_id()` - Get current user's organization ID
-
-**Data Access Functions:**
-
-- `get_business_units_for_user()` - BUs user can access (role-based filtering)
-- `get_business_unit_options()` - BU id/name for dropdowns
-- `get_users_in_organization()` - Users in user's org
-- `get_org_admin_business_units()` - BUs with user counts (Org Admin only)
-- `get_org_admin_users()` - Users with roles/BUs (Org Admin only)
-- `get_requisitions_for_bu(bu_id)` - Requisitions for a BU
-- `get_templates_for_bu(bu_id)` - Templates for a BU
-
-**Auth & User Management:**
-
-- `get_user_auth_context()` - Returns complete auth context with roles and permissions
-- `get_administered_bu_ids()` - Returns BUs user can administer
-- `get_my_organization_id()` - Get user's organization ID
-- `update_avatar_url()` - Profile picture update
-
-**Template & Workflow Management** (Migrations: `20251201010000`, `20251201020000`):
-
-- Form template RPC functions
-- Workflow template RPC functions
-- `create_new_template_version()` - Template versioning helper
-
-**Document Operations** (Migrations: `20251201040000`, `20251201050000`, `20251201070000`):
-
-- Form submission RPC functions
-- Document approval RPC functions
-- Dashboard data RPC functions
+**Security Rule:** RPC functions use `SECURITY DEFINER` and bypass RLS. Never use direct `supabase.from()` SELECT queries.
 
 ### Row Level Security (RLS)
 
-**✅ SECURITY HARDENED** (Migrations: `20251130214500`, `20251130220000`)
+See [docs/RLS_POLICIES.md](docs/RLS_POLICIES.md) for complete policy documentation.
 
-All tables now have proper RLS policies enforcing data isolation. See [docs/rls_documentation.md](docs/rls_documentation.md) for details.
+**Key Principles:**
+- Multi-tenant data isolation (organization boundaries)
+- Business unit access control (BU membership required)
+- Hierarchical permissions (Super Admin → Org Admin → BU Admin → Member)
+- RLS as secondary defense (primary = RPC functions)
 
-**Organization-level:**
-
-- Super Admins can manage all organizations
-- Organization Admins can view/update their organization
-- All authenticated users can view organizations
-
-**Business Unit-level:**
-
-- Super Admins can manage all BUs
-- Organization Admins can manage BUs in their organization
-- Users can view BUs they're members of
-
-**Data Isolation:**
-
-- Requisitions/Documents: Users can only access data from their BUs
-- Chat: Users can only access chats they participate in
-- User/Role Management: Scoped to same organization
-- Comments/Attachments: Scoped via parent resource (requisition/document/chat)
-
-**Invitation-level:**
-
-- Super Admins can manage all invitations
-- Users can view/update their own invitations
-
-**⚠️ IMPORTANT:** Never use direct `supabase.from()` queries for SELECT operations. Always use RPC functions to ensure proper access control. See [docs/REFERENCE.md](docs/REFERENCE.md) for quick reference.
+**⚠️ CRITICAL:** Always use RPC functions for SELECT queries, never direct table access.
 
 ### Workflow Chaining
 

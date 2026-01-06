@@ -124,15 +124,15 @@ export async function deleteBusinessUnitAction(buId: string) {
     return { error: "Business unit not found in your organization" };
   }
 
-  // Check for dependencies (requisitions, templates, etc.)
-  const { count: requisitionsCount } = await supabase
-    .from("requisitions")
+  // Check for dependencies (requests, templates, etc.)
+  const { count: requestsCount } = await supabase
+    .from("requests")
     .select("*", { count: "exact", head: true })
     .eq("business_unit_id", buId);
 
-  if (requisitionsCount && requisitionsCount > 0) {
+  if (requestsCount && requestsCount > 0) {
     return {
-      error: "Cannot delete business unit with existing requisitions",
+      error: "Cannot delete business unit with existing requests",
     };
   }
 

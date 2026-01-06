@@ -1,11 +1,11 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,71 +18,47 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database } from "@/lib/database.types";
 import Link from "next/link";
+import { inviteUserToOrganization } from "./actions";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
+  firstName: z.string().min(1, { message: "First name is required" }),
+  lastName: z.string().min(1, { message: "Last name is required" }),
 });
 
 type InviteUserFormValues = z.infer<typeof formSchema>;
 
 export default function InviteUserPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchOrgId() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("organization_id")
-        .eq("id", session.user.id)
-        .single();
-
-      if (profile) {
-        setOrganizationId(profile.organization_id);
-      }
-    }
-    fetchOrgId();
-  }, [supabase]);
 
   const form = useForm<InviteUserFormValues>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      firstName: "",
+      lastName: "",
+    },
   });
 
   async function onSubmit(values: InviteUserFormValues) {
-    if (!organizationId) {
-      setError("Could not determine your organization to invite users to.");
-      return;
-    }
     setIsLoading(true);
-    setError(null);
-    setSuccess(null);
 
-    // This requires 'Auth Admin' privileges on the Supabase client.
-    // Ensure RLS policies are set up to allow this for Organization Admins.
-    const { data, error } = await supabase.auth.admin.inviteUserByEmail(
-      values.email,
-      {
-        data: { organization_id: organizationId },
-      },
-    );
+    const result = await inviteUserToOrganization({
+      email: values.email,
+      firstName: values.firstName,
+      lastName: values.lastName,
+      roleId: "", // TODO: Add role selection
+      businessUnitIds: [], // TODO: Add BU selection
+    });
 
-    if (error) {
-      console.error("Error inviting user:", error);
-      setError(error.message);
+    if (result.error) {
+      toast.error(result.error);
     } else {
-      setSuccess(`Invitation sent successfully to ${values.email}.`);
+      toast.success(`Invitation sent successfully to ${values.email}`);
       form.reset();
+      router.push("/organization-admin");
     }
     setIsLoading(false);
   }
@@ -108,7 +84,7 @@ export default function InviteUserPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>User Email</FormLabel>
+                    <FormLabel>Email Address</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
@@ -120,17 +96,40 @@ export default function InviteUserPage() {
                   </FormItem>
                 )}
               />
-              {error && <p className="text-destructive text-sm">{error}</p>}
-              {success && <p className="text-primary text-sm">{success}</p>}
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Sending Invitation..." : "Invite User"}
               </Button>
             </form>
           </Form>
           <p className="text-muted-foreground mt-4 text-xs">
-            Note: The ability to invite users requires appropriate permissions.
-            Ensure your role is configured in Supabase RLS policies to use the
-            admin invite functionality.
+            An invitation will be created for this user. They will need to sign
+            up and accept the invitation to join your organization.
           </p>
         </CardContent>
       </Card>

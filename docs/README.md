@@ -33,6 +33,12 @@ Welcome to the comprehensive documentation for the Cascade project - a Digital M
 - **[Auditor Views PRD](./auditor-views-prd.md)** 📋
   Product Requirements Document for the Auditor Views feature, including access control, tag management, and audit trails.
 
+- **[Enhanced Approval System](./ENHANCED_APPROVAL_SYSTEM.md)** 🔄
+  Implementation guide for the enhanced approval workflow system with multiple action options, workflow visibility, and collaboration features.
+
+- **[File Uploads](./FILE_UPLOADS.md)** 📁
+  Complete guide to file upload patterns including form file uploads, comment attachments, and chat attachments. Covers metadata storage, server actions, and component integration.
+
 ---
 
 ## Quick Start
@@ -93,12 +99,22 @@ See [RLS_POLICIES.md](./RLS_POLICIES.md) for details.
 
 ---
 
-## Recent Changes (December 2024)
+## Recent Changes
+
+### January 2026
+
+- ✅ **File Upload System** - Metadata-based storage pattern for form file uploads, preventing JSONB serialization issues
+- ✅ **Security Hardening** - Consolidated auth helpers ([lib/auth-helpers.ts](../lib/auth-helpers.ts)), layout-level route protection
+- ✅ **Organization Admin Pages** - Created missing system-templates and system-workflows pages
+- ✅ **Documentation Update** - Reorganized and simplified CLAUDE.md, added FILE_UPLOADS.md guide
+
+### December 2024
 
 - ✅ **Workflow Chains Architecture** - Multi-section workflows replacing single workflows
 - ✅ **Request System** - Replaced "documents/requisitions" with unified "requests"
 - ✅ **Form Fields Enhancement** - Added `repeater`, `grid-table` field types
 - ✅ **Auditor System** - System and BU-level auditors with tag management
+- ✅ **Enhanced Approval System** - Multiple approval actions, workflow visibility, collaboration
 - ✅ **Deprecated Tables** - Removed `workflow_form_mappings`, `form_initiator_access`
 
 See [CHANGELOG.md](./CHANGELOG.md) for complete history.
