@@ -5,9 +5,12 @@ import Link from "next/link";
 import { DataTable } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Download, AlertCircle } from "lucide-react";
+import { ArrowRight, Download, AlertCircle, Clock } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
+import { CompactWorkflowProgress } from "../../requests/(components)/CompactWorkflowProgress";
+import { WorkflowProgress } from "../../requests/(components)/WorkflowProgressBar";
 
 // Type for requests returned from dashboard RPC functions
 type DashboardRequest = {
@@ -29,6 +32,7 @@ type DashboardRequest = {
   updated_at: string;
   form_name: string;
   workflow_name: string | null;
+  workflow_progress?: WorkflowProgress;
 };
 
 // 1. Columns for "Needs Revision" table - URGENT
@@ -48,12 +52,42 @@ const needsRevisionColumns: ColumnDef<DashboardRequest>[] = [
     ),
   },
   {
+    id: "progress",
+    header: "Progress",
+    cell: ({ row }) => {
+      const progress = row.original.workflow_progress;
+      if (!progress || !progress.has_workflow) {
+        return <span className="text-muted-foreground text-sm">-</span>;
+      }
+      return <CompactWorkflowProgress progress={progress} />;
+    },
+  },
+  {
+    id: "waiting_on",
+    header: "Waiting On",
+    cell: ({ row }) => {
+      const progress = row.original.workflow_progress;
+      if (progress?.waiting_on) {
+        return (
+          <Badge variant="outline" className="font-normal">
+            {progress.waiting_on}
+          </Badge>
+        );
+      }
+      return <span className="text-muted-foreground text-sm">-</span>;
+    },
+  },
+  {
     accessorKey: "updated_at",
-    header: "Sent Back",
+    header: "Wait Time",
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
-        <AlertCircle className="text-destructive h-4 w-4" />
-        <span>{new Date(row.original.updated_at).toLocaleDateString()}</span>
+        <Clock className="text-destructive h-4 w-4" />
+        <span className="text-sm">
+          {formatDistanceToNow(new Date(row.original.updated_at), {
+            addSuffix: false,
+          })}
+        </span>
       </div>
     ),
   },
@@ -86,21 +120,44 @@ const activeRequestsColumns: ColumnDef<DashboardRequest>[] = [
     ),
   },
   {
-    accessorKey: "status",
-    header: "Status",
+    id: "progress",
+    header: "Progress",
     cell: ({ row }) => {
-      const status = row.original.status;
-      let variant: "default" | "secondary" | "destructive" | "outline" =
-        "secondary";
-      if (status === "IN_REVIEW") variant = "default";
-      if (status === "SUBMITTED") variant = "outline";
-      return <Badge variant={variant}>{status.replace("_", " ")}</Badge>;
+      const progress = row.original.workflow_progress;
+      if (!progress || !progress.has_workflow) {
+        return <span className="text-muted-foreground text-sm">-</span>;
+      }
+      return <CompactWorkflowProgress progress={progress} />;
+    },
+  },
+  {
+    id: "waiting_on",
+    header: "Waiting On",
+    cell: ({ row }) => {
+      const progress = row.original.workflow_progress;
+      if (progress?.waiting_on) {
+        return (
+          <Badge variant="outline" className="font-normal">
+            {progress.waiting_on}
+          </Badge>
+        );
+      }
+      return <span className="text-muted-foreground text-sm">-</span>;
     },
   },
   {
     accessorKey: "updated_at",
-    header: "Last Updated",
-    cell: ({ row }) => new Date(row.original.updated_at).toLocaleDateString(),
+    header: "Wait Time",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <Clock className="text-muted-foreground h-4 w-4" />
+        <span className="text-sm">
+          {formatDistanceToNow(new Date(row.original.updated_at), {
+            addSuffix: false,
+          })}
+        </span>
+      </div>
+    ),
   },
   {
     id: "actions",
@@ -131,9 +188,29 @@ const pendingColumns: ColumnDef<DashboardRequest>[] = [
     ),
   },
   {
+    id: "progress",
+    header: "Progress",
+    cell: ({ row }) => {
+      const progress = row.original.workflow_progress;
+      if (!progress || !progress.has_workflow) {
+        return <span className="text-muted-foreground text-sm">-</span>;
+      }
+      return <CompactWorkflowProgress progress={progress} />;
+    },
+  },
+  {
     accessorKey: "created_at",
-    header: "Received",
-    cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString(),
+    header: "Wait Time",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <Clock className="text-muted-foreground h-4 w-4" />
+        <span className="text-sm">
+          {formatDistanceToNow(new Date(row.original.created_at), {
+            addSuffix: false,
+          })}
+        </span>
+      </div>
+    ),
   },
   {
     id: "actions",

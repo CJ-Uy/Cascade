@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -10,7 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CheckCircle2, XCircle, FileText } from "lucide-react";
+import { CheckCircle2, XCircle, FileText, Download, Image as ImageIcon } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface FieldRendererProps {
   field: any;
@@ -218,7 +220,67 @@ export function FieldRenderer({
       );
 
     case "file-upload":
-      // Check for file object with name
+      // Check for file metadata object (new format with storage_path)
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        value.storage_path &&
+        value.filename
+      ) {
+        const supabase = createClient();
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("attachments").getPublicUrl(value.storage_path);
+
+        const isImage = value.filetype?.startsWith("image/");
+
+        if (isImage) {
+          return (
+            <div className="space-y-2">
+              <a
+                href={publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                <img
+                  src={publicUrl}
+                  alt={value.filename}
+                  className="border-border max-h-64 rounded-md border object-contain transition-opacity hover:opacity-90"
+                />
+              </a>
+              <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                <ImageIcon className="h-4 w-4" />
+                <span>{value.filename}</span>
+                <a
+                  href={publicUrl}
+                  download={value.filename}
+                  className="ml-auto"
+                >
+                  <Button size="sm" variant="outline" className="h-7">
+                    <Download className="mr-1 h-3 w-3" />
+                    Download
+                  </Button>
+                </a>
+              </div>
+            </div>
+          );
+        } else {
+          return (
+            <div className="border-border bg-muted/50 flex items-center gap-2 rounded-md border px-3 py-2">
+              <FileText className="h-4 w-4 text-blue-600" />
+              <span className="flex-1 text-sm font-medium">{value.filename}</span>
+              <a href={publicUrl} download={value.filename}>
+                <Button size="sm" variant="outline" className="h-7">
+                  <Download className="mr-1 h-3 w-3" />
+                  Download
+                </Button>
+              </a>
+            </div>
+          );
+        }
+      }
+      // Check for legacy file object with name (old format)
       if (typeof value === "object" && value !== null && value.name) {
         return (
           <div className="border-border bg-muted/50 flex items-center gap-2 rounded-md border px-3 py-2">
@@ -308,6 +370,41 @@ function RepeaterCellRenderer({ column, value }: { column: any; value: any }) {
       return <span className="text-sm">{String(value)}</span>;
 
     case "file-upload":
+      // Check for file metadata object (new format with storage_path)
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        value.storage_path &&
+        value.filename
+      ) {
+        const supabase = createClient();
+        const {
+          data: { publicUrl },
+        } = supabase.storage
+          .from("attachments")
+          .getPublicUrl(value.storage_path);
+        const isImage = value.filetype?.startsWith("image/");
+
+        return (
+          <div className="flex items-center gap-1">
+            {isImage ? (
+              <ImageIcon className="h-3 w-3" />
+            ) : (
+              <FileText className="h-3 w-3" />
+            )}
+            <a
+              href={publicUrl}
+              download={value.filename}
+              className="text-xs underline hover:no-underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {value.filename}
+            </a>
+          </div>
+        );
+      }
+      // Legacy format
       if (typeof value === "object" && value.name) {
         return (
           <div className="flex items-center gap-1">
@@ -385,6 +482,41 @@ function GridCellRenderer({
       return <span className="text-sm">{String(value)}</span>;
 
     case "file-upload":
+      // Check for file metadata object (new format with storage_path)
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        value.storage_path &&
+        value.filename
+      ) {
+        const supabase = createClient();
+        const {
+          data: { publicUrl },
+        } = supabase.storage
+          .from("attachments")
+          .getPublicUrl(value.storage_path);
+        const isImage = value.filetype?.startsWith("image/");
+
+        return (
+          <div className="flex items-center gap-1">
+            {isImage ? (
+              <ImageIcon className="h-3 w-3" />
+            ) : (
+              <FileText className="h-3 w-3" />
+            )}
+            <a
+              href={publicUrl}
+              download={value.filename}
+              className="text-xs underline hover:no-underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {value.filename}
+            </a>
+          </div>
+        );
+      }
+      // Legacy format
       if (typeof value === "object" && value.name) {
         return (
           <div className="flex items-center gap-1">

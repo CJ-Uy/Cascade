@@ -18,6 +18,7 @@ import {
   WorkflowProgressBar,
   WorkflowProgress,
 } from "../../(components)/WorkflowProgressBar";
+import { CompactWorkflowProgress } from "../../(components)/CompactWorkflowProgress";
 
 export type RequestDocument = {
   id: string;
@@ -131,15 +132,15 @@ export const requestsColumns: ColumnDef<RequestDocument>[] = [
   },
   {
     id: "workflow_progress",
-    header: "Workflow Progress",
+    header: "Progress",
     cell: ({ row }) => {
       const progress = row.original.workflow_progress;
 
       if (!progress || !progress.has_workflow) {
-        return <div className="text-muted-foreground text-sm">No workflow</div>;
+        return <div className="text-muted-foreground text-sm">-</div>;
       }
 
-      return <WorkflowProgressBar progress={progress} />;
+      return <CompactWorkflowProgress progress={progress} />;
     },
   },
   {

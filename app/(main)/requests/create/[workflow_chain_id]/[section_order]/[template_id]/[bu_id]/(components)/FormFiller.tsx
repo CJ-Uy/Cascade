@@ -7,7 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Table } from "lucide-react";
+import { Plus, Trash2, Table, X, FileText, Image as ImageIcon } from "lucide-react";
+import { toast } from "sonner";
+import { uploadFormFile, deleteFormFile } from "../form-file-upload";
 
 interface FormField {
   id: string;
@@ -64,6 +66,9 @@ export function FormFiller({
 }: FormFillerProps) {
   const [formData, setFormData] = useState<Record<string, any>>(initialData);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploadingFields, setUploadingFields] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Notify parent of form data changes
   useEffect(() => {
@@ -134,6 +139,52 @@ export function FormFiller({
         delete newErrors[fieldKey];
         return newErrors;
       });
+    }
+  };
+
+  const handleFileUpload = async (fieldKey: string, file: File | null) => {
+    if (!file) {
+      handleValueChange(fieldKey, null);
+      return;
+    }
+
+    setUploadingFields((prev) => new Set(prev).add(fieldKey));
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const result = await uploadFormFile(formData);
+
+    setUploadingFields((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(fieldKey);
+      return newSet;
+    });
+
+    if (result.success && result.fileData) {
+      handleValueChange(fieldKey, result.fileData);
+      if (result.warning) {
+        toast.warning(result.warning, { duration: 5000 });
+      } else {
+        toast.success(`${file.name} uploaded successfully!`);
+      }
+    } else {
+      toast.error(result.error || "Failed to upload file");
+    }
+  };
+
+  const handleFileRemove = async (fieldKey: string) => {
+    const fileData = formData[fieldKey];
+    if (fileData?.storage_path) {
+      const result = await deleteFormFile(fileData.storage_path);
+      if (result.success) {
+        handleValueChange(fieldKey, null);
+        toast.success("File removed");
+      } else {
+        toast.error(result.error || "Failed to remove file");
+      }
+    } else {
+      handleValueChange(fieldKey, null);
     }
   };
 
@@ -350,25 +401,74 @@ export function FormFiller({
           />
         );
       case "file-upload":
-        const fileName = formData[fieldKey]
-          ? formData[fieldKey].name
-          : "No file chosen";
+        const fileData = formData[fieldKey];
+        const isUploading = uploadingFields.has(fieldKey);
+        const isImage = fileData?.filetype?.startsWith("image/");
+
         return fieldWrapper(
           field.label,
-          <div className="flex items-center space-x-2">
-            <Input
-              {...commonProps}
-              type="file"
-              onChange={(e) =>
-                handleValueChange(
-                  fieldKey,
-                  e.target.files ? e.target.files[0] : null,
-                )
-              }
-              className="flex-grow"
-            />
-            {formData[fieldKey] && (
-              <span className="text-muted-foreground text-sm">{fileName}</span>
+          <div className="space-y-2">
+            {!fileData ? (
+              <Input
+                {...commonProps}
+                type="file"
+                onChange={(e) =>
+                  handleFileUpload(
+                    fieldKey,
+                    e.target.files ? e.target.files[0] : null,
+                  )
+                }
+                disabled={isUploading}
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+              />
+            ) : (
+              <div className="border-border bg-muted relative rounded-md border p-3">
+                {isImage ? (
+                  <div className="flex items-start gap-3">
+                    <div className="relative">
+                      <img
+                        src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/attachments/${fileData.storage_path}`}
+                        alt={fileData.filename}
+                        className="h-20 w-20 rounded object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <ImageIcon className="text-muted-foreground h-4 w-4" />
+                        <span className="text-sm font-medium">
+                          {fileData.filename}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleFileRemove(fieldKey)}
+                      className="h-8 w-8"
+                      type="button"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <FileText className="text-muted-foreground h-4 w-4" />
+                    <span className="flex-1 text-sm">{fileData.filename}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleFileRemove(fieldKey)}
+                      className="h-8 w-8"
+                      type="button"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            {isUploading && (
+              <p className="text-muted-foreground text-sm">Uploading...</p>
             )}
           </div>,
         );
@@ -474,8 +574,51 @@ function ColumnPreview({
   value: any;
   onChange: (value: any) => void;
 }) {
+  const [isUploading, setIsUploading] = useState(false);
   const colKey = column.field_key;
   const colType = column.field_type || column.type;
+
+  const handleFileUpload = async (file: File | null) => {
+    if (!file) {
+      onChange(null);
+      return;
+    }
+
+    setIsUploading(true);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const result = await uploadFormFile(formData);
+
+    setIsUploading(false);
+
+    if (result.success && result.fileData) {
+      onChange(result.fileData);
+      if (result.warning) {
+        toast.warning(result.warning, { duration: 5000 });
+      } else {
+        toast.success(`${file.name} uploaded successfully!`);
+      }
+    } else {
+      toast.error(result.error || "Failed to upload file");
+    }
+  };
+
+  const handleFileRemove = async () => {
+    const fileData = value;
+    if (fileData?.storage_path) {
+      const result = await deleteFormFile(fileData.storage_path);
+      if (result.success) {
+        onChange(null);
+        toast.success("File removed");
+      } else {
+        toast.error(result.error || "Failed to remove file");
+      }
+    } else {
+      onChange(null);
+    }
+  };
 
   const commonProps = {
     id: colKey,
@@ -602,20 +745,45 @@ function ColumnPreview({
         </div>,
       );
     case "file-upload":
-      const fileName = value ? value.name : "No file chosen";
+      const fileData = value;
+      const isImage = fileData?.filetype?.startsWith("image/");
+
       return fieldWrapper(
         column.label,
-        <div className="mt-2 flex items-center space-x-2">
-          <Input
-            {...commonProps}
-            type="file"
-            onChange={(e) =>
-              onChange(e.target.files ? e.target.files[0] : null)
-            }
-            className="flex-grow"
-          />
-          {value && (
-            <span className="text-muted-foreground text-sm">{fileName}</span>
+        <div className="mt-2 space-y-2">
+          {!fileData ? (
+            <Input
+              {...commonProps}
+              type="file"
+              onChange={(e) =>
+                handleFileUpload(e.target.files ? e.target.files[0] : null)
+              }
+              disabled={isUploading}
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+            />
+          ) : (
+            <div className="border-border bg-background flex items-center gap-2 rounded border p-2">
+              {isImage ? (
+                <ImageIcon className="text-muted-foreground h-4 w-4" />
+              ) : (
+                <FileText className="text-muted-foreground h-4 w-4" />
+              )}
+              <span className="flex-1 truncate text-xs">
+                {fileData.filename}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleFileRemove}
+                className="h-6 w-6"
+                type="button"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+          {isUploading && (
+            <p className="text-muted-foreground text-xs">Uploading...</p>
           )}
         </div>,
       );
@@ -638,6 +806,7 @@ function GridTablePreview({
   value: Record<string, any>;
   onChange: (value: Record<string, any>) => void;
 }) {
+  const [uploadingCells, setUploadingCells] = useState<Set<string>>(new Set());
   const rows = field.gridConfig?.rows || [];
   const columns = field.gridConfig?.columns || [];
   const cellConfig = field.gridConfig?.cellConfig || { type: "short-text" };
@@ -650,6 +819,58 @@ function GridTablePreview({
     const cellKey = `${rowIndex}-${colIndex}`;
     const newValue = { ...value, [cellKey]: cellValue };
     onChange(newValue);
+  };
+
+  const handleCellFileUpload = async (
+    rowIndex: number,
+    colIndex: number,
+    file: File | null,
+  ) => {
+    if (!file) {
+      handleCellChange(rowIndex, colIndex, null);
+      return;
+    }
+
+    const cellKey = `${rowIndex}-${colIndex}`;
+    setUploadingCells((prev) => new Set(prev).add(cellKey));
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const result = await uploadFormFile(formData);
+
+    setUploadingCells((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(cellKey);
+      return newSet;
+    });
+
+    if (result.success && result.fileData) {
+      handleCellChange(rowIndex, colIndex, result.fileData);
+      if (result.warning) {
+        toast.warning(result.warning, { duration: 5000 });
+      } else {
+        toast.success(`${file.name} uploaded successfully!`);
+      }
+    } else {
+      toast.error(result.error || "Failed to upload file");
+    }
+  };
+
+  const handleCellFileRemove = async (rowIndex: number, colIndex: number) => {
+    const cellKey = `${rowIndex}-${colIndex}`;
+    const fileData = value[cellKey];
+    if (fileData?.storage_path) {
+      const result = await deleteFormFile(fileData.storage_path);
+      if (result.success) {
+        handleCellChange(rowIndex, colIndex, null);
+        toast.success("File removed");
+      } else {
+        toast.error(result.error || "Failed to remove file");
+      }
+    } else {
+      handleCellChange(rowIndex, colIndex, null);
+    }
   };
 
   const renderCellInput = (rowIndex: number, colIndex: number) => {
@@ -765,22 +986,50 @@ function GridTablePreview({
           </div>
         );
       case "file-upload":
-        const fileName = cellValue ? cellValue.name : "No file chosen";
+        const fileData = cellValue;
+        const cellKey = `${rowIndex}-${colIndex}`;
+        const isUploadingCell = uploadingCells.has(cellKey);
+        const isImage = fileData?.filetype?.startsWith("image/");
+
         return (
-          <div className="flex flex-col gap-1">
-            <Input
-              type="file"
-              onChange={(e) =>
-                handleCellChange(
-                  rowIndex,
-                  colIndex,
-                  e.target.files ? e.target.files[0] : null,
-                )
-              }
-              className="border-0 text-xs focus-visible:ring-1"
-            />
-            {cellValue && (
-              <span className="text-muted-foreground text-xs">{fileName}</span>
+          <div className="space-y-1">
+            {!fileData ? (
+              <Input
+                type="file"
+                onChange={(e) =>
+                  handleCellFileUpload(
+                    rowIndex,
+                    colIndex,
+                    e.target.files ? e.target.files[0] : null,
+                  )
+                }
+                disabled={isUploadingCell}
+                className="border-0 text-xs focus-visible:ring-1"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+              />
+            ) : (
+              <div className="border-border bg-background flex items-center gap-1 rounded border p-1">
+                {isImage ? (
+                  <ImageIcon className="text-muted-foreground h-3 w-3" />
+                ) : (
+                  <FileText className="text-muted-foreground h-3 w-3" />
+                )}
+                <span className="flex-1 truncate text-xs">
+                  {fileData.filename}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleCellFileRemove(rowIndex, colIndex)}
+                  className="h-5 w-5"
+                  type="button"
+                >
+                  <X className="h-2 w-2" />
+                </Button>
+              </div>
+            )}
+            {isUploadingCell && (
+              <p className="text-muted-foreground text-[10px]">Uploading...</p>
             )}
           </div>
         );

@@ -117,6 +117,13 @@ export default async function RequestDetailPage({ params }: PageProps) {
           first_name,
           last_name,
           image_url
+        ),
+        attachments(
+          id,
+          filename,
+          filetype,
+          storage_path,
+          size_bytes
         )
       `,
     )

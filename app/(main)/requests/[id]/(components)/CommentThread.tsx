@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -13,9 +13,32 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
-import { MessageSquare, Send, AlertCircle, CheckCircle2 } from "lucide-react";
+import {
+  MessageSquare,
+  Send,
+  AlertCircle,
+  CheckCircle2,
+  Paperclip,
+  X,
+  FileText,
+  Download,
+  Image as ImageIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import {
+  uploadCommentAttachment,
+  createCommentWithAttachments,
+  deleteAttachment,
+} from "./comment-actions";
+
+interface Attachment {
+  id: string;
+  filename: string;
+  filetype: string;
+  storage_path: string;
+  size_bytes: number;
+}
 
 interface CommentThreadProps {
   comments: any[];
@@ -35,6 +58,11 @@ export function CommentThread({
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<
+    { id: string; filename: string; isImage: boolean; previewUrl?: string }[]
+  >([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
   // Extract clarification requests from history
@@ -51,24 +79,91 @@ export function CommentThread({
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const file = files[0];
+
+    // Check if it's an image and create preview
+    const isImage = file.type.startsWith("image/");
+    let previewUrl: string | undefined;
+    if (isImage) {
+      previewUrl = URL.createObjectURL(file);
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const result = await uploadCommentAttachment(formData);
+
+    if (result.success && result.attachment) {
+      setUploadedFiles((prev) => [
+        ...prev,
+        {
+          id: result.attachment!.id,
+          filename: result.attachment!.filename,
+          isImage,
+          previewUrl,
+        },
+      ]);
+      if (result.warning) {
+        toast.warning(result.warning, { duration: 5000 });
+      } else {
+        toast.success(`${file.name} uploaded successfully!`);
+      }
+    } else {
+      toast.error(result.error || "Failed to upload file");
+      // Clean up preview URL if upload failed
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    }
+
+    setIsUploading(false);
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveFile = async (fileId: string, filename: string) => {
+    const result = await deleteAttachment(fileId);
+    if (result.success) {
+      setUploadedFiles((prev) => {
+        const file = prev.find((f) => f.id === fileId);
+        // Clean up preview URL if it exists
+        if (file?.previewUrl) {
+          URL.revokeObjectURL(file.previewUrl);
+        }
+        return prev.filter((f) => f.id !== fileId);
+      });
+      toast.success(`${filename} removed`);
+    } else {
+      toast.error(result.error || "Failed to remove file");
+    }
+  };
+
   const handlePostComment = async () => {
-    if (!newComment.trim()) {
+    if (!newComment.trim() && uploadedFiles.length === 0) {
       toast.error("Comment cannot be empty.");
       return;
     }
 
     setIsSubmitting(true);
-    const { error } = await supabase.from("comments").insert({
-      request_id: requestId,
-      author_id: currentUserId,
-      content: newComment.trim(),
-    });
+    const result = await createCommentWithAttachments(
+      requestId,
+      newComment.trim() || "(attachment)",
+      uploadedFiles.map((f) => f.id),
+    );
 
-    if (error) {
-      console.error("Error posting comment:", error);
+    if (result.error) {
+      console.error("Error posting comment:", result.error);
       toast.error("Failed to post comment.");
     } else {
       setNewComment("");
+      setUploadedFiles([]);
       toast.success("Comment posted successfully!");
       if (onCommentAdded) {
         onCommentAdded();
@@ -168,6 +263,87 @@ export function CommentThread({
                   <p className="text-sm">
                     {isClarification ? message.comments : message.content}
                   </p>
+
+                  {/* Show attachments if present */}
+                  {!isClarification && message.attachments?.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {message.attachments.map((attachment: Attachment) => {
+                        const isImage =
+                          attachment.filetype.startsWith("image/");
+                        const supabase = createClient();
+                        const {
+                          data: { publicUrl },
+                        } = supabase.storage
+                          .from("attachments")
+                          .getPublicUrl(attachment.storage_path);
+
+                        if (isImage) {
+                          return (
+                            <div key={attachment.id} className="space-y-1">
+                              <a
+                                href={publicUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
+                              >
+                                <img
+                                  src={publicUrl}
+                                  alt={attachment.filename}
+                                  className="border-border max-h-64 rounded-md border object-contain transition-opacity hover:opacity-90"
+                                />
+                              </a>
+                              <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                                <ImageIcon className="h-3 w-3" />
+                                <span className="truncate">
+                                  {attachment.filename}
+                                </span>
+                                <a
+                                  href={publicUrl}
+                                  download={attachment.filename}
+                                  className="ml-auto"
+                                >
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 px-2"
+                                  >
+                                    <Download className="h-3 w-3" />
+                                  </Button>
+                                </a>
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div
+                              key={attachment.id}
+                              className="border-border bg-background flex items-center gap-2 rounded border p-2"
+                            >
+                              <FileText className="text-muted-foreground h-4 w-4" />
+                              <span className="flex-1 truncate text-xs">
+                                {attachment.filename}
+                              </span>
+                              <a
+                                href={publicUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download={attachment.filename}
+                              >
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <Download className="h-3 w-3" />
+                                </Button>
+                              </a>
+                            </div>
+                          );
+                        }
+                      })}
+                    </div>
+                  )}
+
                   {isResolved && message.resolver && (
                     <p className="text-muted-foreground text-xs italic">
                       Resolved by {message.resolver.first_name}{" "}
@@ -212,11 +388,91 @@ export function CommentThread({
           rows={3}
           disabled={isSubmitting}
         />
-        <div className="flex w-full justify-between">
+
+        {/* Uploaded files preview */}
+        {uploadedFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {uploadedFiles.map((file) => (
+              <div
+                key={file.id}
+                className="border-border bg-muted relative rounded-md border"
+              >
+                {file.isImage && file.previewUrl ? (
+                  <div className="relative">
+                    <img
+                      src={file.previewUrl}
+                      alt={file.filename}
+                      className="h-32 w-32 rounded-md object-cover"
+                    />
+                    <button
+                      onClick={() => handleRemoveFile(file.id, file.filename)}
+                      className="bg-destructive hover:bg-destructive/90 absolute top-1 right-1 rounded-full p-1 text-white"
+                      type="button"
+                      title="Remove image"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                    <div className="absolute right-0 bottom-0 left-0 rounded-b-md bg-black/60 px-2 py-1">
+                      <span className="truncate text-xs text-white">
+                        {file.filename}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 px-3 py-1.5">
+                    <Paperclip className="text-muted-foreground h-3 w-3" />
+                    <span className="text-sm">{file.filename}</span>
+                    <button
+                      onClick={() => handleRemoveFile(file.id, file.filename)}
+                      className="text-muted-foreground hover:text-destructive"
+                      type="button"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex w-full items-center justify-between">
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileSelect}
+              className="hidden"
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || isSubmitting}
+              type="button"
+            >
+              {isUploading ? (
+                "Uploading..."
+              ) : (
+                <>
+                  <Paperclip className="mr-2 h-4 w-4" />
+                  Attach File
+                </>
+              )}
+            </Button>
+            {uploadedFiles.length > 0 && (
+              <span className="text-muted-foreground text-xs">
+                {uploadedFiles.length} file{uploadedFiles.length > 1 ? "s" : ""}{" "}
+                attached
+              </span>
+            )}
+          </div>
           <Button
             onClick={handlePostComment}
-            disabled={isSubmitting || !newComment.trim()}
-            className="ml-auto"
+            disabled={
+              isSubmitting || (!newComment.trim() && uploadedFiles.length === 0)
+            }
           >
             {isSubmitting ? "Posting..." : "Post Comment"}
             <Send className="ml-2 h-4 w-4" />
