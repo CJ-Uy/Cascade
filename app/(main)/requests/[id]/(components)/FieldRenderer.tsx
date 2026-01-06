@@ -11,7 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CheckCircle2, XCircle, FileText, Download, Image as ImageIcon } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  FileText,
+  Download,
+  Image as ImageIcon,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface FieldRendererProps {
@@ -230,7 +236,9 @@ export function FieldRenderer({
         const supabase = createClient();
         const {
           data: { publicUrl },
-        } = supabase.storage.from("attachments").getPublicUrl(value.storage_path);
+        } = supabase.storage
+          .from("attachments")
+          .getPublicUrl(value.storage_path);
 
         const isImage = value.filetype?.startsWith("image/");
 
@@ -269,7 +277,9 @@ export function FieldRenderer({
           return (
             <div className="border-border bg-muted/50 flex items-center gap-2 rounded-md border px-3 py-2">
               <FileText className="h-4 w-4 text-blue-600" />
-              <span className="flex-1 text-sm font-medium">{value.filename}</span>
+              <span className="flex-1 text-sm font-medium">
+                {value.filename}
+              </span>
               <a href={publicUrl} download={value.filename}>
                 <Button size="sm" variant="outline" className="h-7">
                   <Download className="mr-1 h-3 w-3" />

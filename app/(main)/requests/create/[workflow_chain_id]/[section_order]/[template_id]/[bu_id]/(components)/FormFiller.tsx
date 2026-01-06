@@ -7,7 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Table, X, FileText, Image as ImageIcon } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Table,
+  X,
+  FileText,
+  Image as ImageIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { uploadFormFile, deleteFormFile } from "../form-file-upload";
 
