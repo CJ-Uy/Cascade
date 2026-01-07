@@ -180,7 +180,9 @@ export default async function SystemWorkflowsPage() {
                     </p>
                   </div>
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/organization-admin/system-workflows/${workflow.id}`}>
+                    <Link
+                      href={`/organization-admin/system-workflows/${workflow.id}`}
+                    >
                       Edit
                     </Link>
                   </Button>

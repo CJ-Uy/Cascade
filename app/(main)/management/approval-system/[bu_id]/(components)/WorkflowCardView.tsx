@@ -18,6 +18,8 @@ import {
   Edit,
   Archive,
   RotateCcw,
+  PlayCircle,
+  PauseCircle,
 } from "lucide-react";
 
 import { getWorkflows } from "../../actions";
@@ -49,9 +51,11 @@ interface WorkflowCardViewProps {
   onOpenWorkflowDialog: (workflow: Workflow) => void;
   onArchive: () => void;
   onRestore: () => void;
+  onActivate: (workflow: Workflow) => void;
   globalFilter: string;
   showArchived: boolean;
   refreshKey: number;
+  onOpenPreview?: () => void;
 }
 
 export function WorkflowCardView({
@@ -59,6 +63,7 @@ export function WorkflowCardView({
   onOpenWorkflowDialog, // Changed from onEditWorkflow
   onArchive,
   onRestore,
+  onActivate,
   globalFilter,
   showArchived,
   refreshKey,
@@ -180,6 +185,28 @@ export function WorkflowCardView({
                       <Edit className="mr-2 h-4 w-4" />
                       Edit
                     </DropdownMenuItem>
+                    {!showArchived && workflow.status === "draft" && (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onActivate(workflow);
+                        }}
+                      >
+                        <PlayCircle className="mr-2 h-4 w-4" />
+                        Activate
+                      </DropdownMenuItem>
+                    )}
+                    {!showArchived && workflow.status === "active" && (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onActivate(workflow);
+                        }}
+                      >
+                        <PauseCircle className="mr-2 h-4 w-4" />
+                        Set to Draft
+                      </DropdownMenuItem>
+                    )}
                     {showArchived ? (
                       <DropdownMenuItem
                         onClick={(e) => {

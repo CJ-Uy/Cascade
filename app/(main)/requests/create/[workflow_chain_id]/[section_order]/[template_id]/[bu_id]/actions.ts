@@ -27,6 +27,8 @@ export async function submitRequest(
   existingRequestId?: string,
   workflowChainId?: string,
   isEditing?: boolean,
+  sectionOrder?: number,
+  parentRequestId?: string,
 ) {
   return await saveOrSubmitRequest(
     formId,
@@ -36,6 +38,8 @@ export async function submitRequest(
     existingRequestId,
     workflowChainId,
     isEditing,
+    sectionOrder,
+    parentRequestId,
   );
 }
 
@@ -47,6 +51,8 @@ async function saveOrSubmitRequest(
   existingRequestId?: string,
   workflowChainId?: string,
   isEditing?: boolean,
+  sectionOrder?: number,
+  parentRequestId?: string,
 ) {
   const supabase = await createClient();
 
@@ -108,6 +114,19 @@ async function saveOrSubmitRequest(
     };
   }
 
+  // Determine root_request_id for linking
+  let rootRequestId = null;
+  if (parentRequestId) {
+    // Get the root from the parent request
+    const { data: parentRequest } = await supabase
+      .from("requests")
+      .select("root_request_id, id")
+      .eq("id", parentRequestId)
+      .single();
+
+    rootRequestId = parentRequest?.root_request_id || parentRequest?.id;
+  }
+
   // Create new request
   const { data: newRequest, error: requestError } = await supabase
     .from("requests")
@@ -119,6 +138,9 @@ async function saveOrSubmitRequest(
       initiator_id: user.id,
       status: status,
       data: formData,
+      current_section_order: sectionOrder || 0,
+      parent_request_id: parentRequestId || null,
+      root_request_id: rootRequestId,
     })
     .select("id")
     .single();

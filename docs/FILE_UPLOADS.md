@@ -7,6 +7,7 @@ Complete guide to file upload patterns in the Cascade application.
 ## Overview
 
 Cascade supports file uploads in three contexts:
+
 1. **Form file uploads** - Files attached to request form fields
 2. **Comment attachments** - Files attached to comments
 3. **Chat attachments** - Files sent in chat messages
@@ -325,7 +326,9 @@ CREATE TABLE attachments (
 
 export async function uploadCommentAttachment(formData: FormData) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -372,10 +375,12 @@ export async function uploadCommentAttachment(formData: FormData) {
 ```typescript
 const { data: comments } = await supabase
   .from("comments")
-  .select(`
+  .select(
+    `
     *,
     attachments (*)
-  `)
+  `,
+  )
   .eq("request_id", requestId);
 ```
 
@@ -462,7 +467,7 @@ const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
   "application/pdf",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ];
 
 if (!ALLOWED_TYPES.includes(file.type)) {
@@ -524,7 +529,7 @@ const metadata = {
   filename: file.name,
   storage_path: "path/to/file",
   filetype: file.type,
-  size_bytes: file.size
+  size_bytes: file.size,
 };
 handleValueChange(fieldKey, metadata);
 ```
@@ -534,6 +539,7 @@ handleValueChange(fieldKey, metadata);
 **Cause:** File metadata missing or malformed
 
 **Check:**
+
 1. Metadata has `storage_path` and `filename`
 2. File exists in Supabase Storage
 3. Public URL generation works
@@ -565,6 +571,7 @@ if (result.error) {
 If you have existing code storing File objects:
 
 1. **Update upload handler:**
+
    ```typescript
    // Before
    onChange={(e) => setValue(e.target.files[0])}
@@ -574,18 +581,20 @@ If you have existing code storing File objects:
    ```
 
 2. **Update server action:**
+
    ```typescript
    // Upload file and return metadata
    const metadata = {
      filename: file.name,
      storage_path: filePath,
      filetype: file.type,
-     size_bytes: file.size
+     size_bytes: file.size,
    };
    return { success: true, fileData: metadata };
    ```
 
 3. **Update field renderer:**
+
    ```typescript
    // Before
    <img src={value} />

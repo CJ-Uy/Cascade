@@ -16,7 +16,11 @@ export async function checkOrgAdminRole(): Promise<{
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { isOrgAdmin: false, organizationId: null, error: "Not authenticated" };
+    return {
+      isOrgAdmin: false,
+      organizationId: null,
+      error: "Not authenticated",
+    };
   }
 
   // Get user auth context
@@ -101,9 +105,7 @@ export async function checkSuperAdminRole(): Promise<{
  * @param buId - Business unit ID to check
  * @returns Object containing isBuAdmin boolean and optional error
  */
-export async function checkBuAdminRole(
-  buId: string,
-): Promise<{
+export async function checkBuAdminRole(buId: string): Promise<{
   isBuAdmin: boolean;
   error?: string;
 }> {

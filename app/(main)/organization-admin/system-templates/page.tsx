@@ -136,7 +136,9 @@ export default async function SystemTemplatesPage() {
                     </p>
                   </div>
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/organization-admin/system-templates/${template.id}`}>
+                    <Link
+                      href={`/organization-admin/system-templates/${template.id}`}
+                    >
                       Edit
                     </Link>
                   </Button>

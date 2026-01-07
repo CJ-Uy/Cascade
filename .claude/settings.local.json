@@ -42,7 +42,9 @@
       "Bash(NEXT_LINT_IGNORE=1 npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(git checkout:*)",
-      "Bash(yes:*)"
+      "Bash(yes:*)",
+      "Bash(npx supabase db push --include-all)",
+      "Bash(node investigate_section2.js:*)"
     ],
     "deny": [],
     "ask": []

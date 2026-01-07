@@ -26,6 +26,7 @@ import {
   saveWorkflowChain,
   getWorkflowChainDetails,
   deleteWorkflowChain,
+  updateWorkflowChainStatus,
   type WorkflowSection as WorkflowChainSection,
 } from "../[bu_id]/workflow-chain-actions";
 
@@ -78,6 +79,29 @@ export default function ApprovalSystem() {
 
   const handleRestore = () => {
     setKey(Date.now());
+  };
+
+  const handleActivate = async (workflow: Workflow) => {
+    try {
+      const newStatus = workflow.status === "draft" ? "active" : "draft";
+      const result = await updateWorkflowChainStatus(
+        workflow.id,
+        newStatus,
+        buId,
+        `/management/approval-system/${buId}`,
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to update workflow status");
+      }
+
+      toast.success(
+        `Workflow "${workflow.name}" ${newStatus === "active" ? "activated" : "set to draft"}`,
+      );
+      setKey(Date.now());
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update workflow status");
+    }
   };
 
   const handleSaveMultiStepChain = async (
@@ -227,6 +251,7 @@ export default function ApprovalSystem() {
               showArchived={showArchived}
               onArchive={handleArchive}
               onRestore={handleRestore}
+              onActivate={handleActivate}
             />
           ) : (
             <WorkflowCardView
@@ -238,6 +263,7 @@ export default function ApprovalSystem() {
               showArchived={showArchived}
               onArchive={handleArchive}
               onRestore={handleRestore}
+              onActivate={handleActivate}
             />
           )}
         </TabsContent>

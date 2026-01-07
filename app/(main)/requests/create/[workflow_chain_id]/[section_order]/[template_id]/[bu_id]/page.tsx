@@ -17,6 +17,7 @@ interface PageProps {
   searchParams: Promise<{
     draft_id?: string;
     edit_id?: string;
+    parent_request?: string;
   }>;
 }
 
@@ -42,7 +43,11 @@ export default async function FillRequestFormPage({
     bu_id: businessUnitId,
   } = await params;
 
-  const { draft_id: draftId, edit_id: editId } = await searchParams;
+  const {
+    draft_id: draftId,
+    edit_id: editId,
+    parent_request: parentRequestId,
+  } = await searchParams;
 
   const sectionOrder = parseInt(sectionOrderStr, 10);
 
@@ -79,19 +84,86 @@ export default async function FillRequestFormPage({
   }
 
   // Fetch the specific template
-  const { data: templates } = await supabase.rpc("get_initiatable_forms", {
-    p_user_id: user.id,
-  });
+  let template = null;
 
-  const template = templates?.find(
-    (t: any) =>
-      t.id === templateId &&
-      t.workflow_chain_id === workflowChainId &&
-      t.section_order === sectionOrder,
-  );
+  if (parentRequestId) {
+    // When accessing via parent_request link, check if user can access this form
+    const { data: canAccess } = await supabase.rpc(
+      "can_access_form_with_parent",
+      {
+        p_user_id: user.id,
+        p_form_id: templateId,
+        p_workflow_chain_id: workflowChainId,
+        p_section_order: sectionOrder,
+        p_parent_request_id: parentRequestId,
+      },
+    );
 
-  if (!template) {
-    notFound();
+    if (!canAccess) {
+      notFound();
+    }
+
+    // Fetch the form details directly since we validated access
+    const { data: formData } = await supabase
+      .from("forms")
+      .select(
+        `
+        id,
+        name,
+        description,
+        icon,
+        scope,
+        business_unit_id,
+        organization_id,
+        status
+      `,
+      )
+      .eq("id", templateId)
+      .single();
+
+    if (!formData) {
+      notFound();
+    }
+
+    // Get workflow and section info
+    const { data: sectionData } = await supabase
+      .from("workflow_sections")
+      .select(
+        `
+        section_order,
+        section_name,
+        workflow_chains(id, name)
+      `,
+      )
+      .eq("chain_id", workflowChainId)
+      .eq("section_order", sectionOrder)
+      .single();
+
+    template = {
+      ...formData,
+      has_workflow: true,
+      workflow_chain_id: workflowChainId,
+      workflow_name: (sectionData as any)?.workflow_chains?.name,
+      section_order: sectionOrder,
+      section_name: sectionData?.section_name,
+      needs_prior_section: false,
+    };
+  } else {
+    // Regular access - use get_initiatable_forms (only returns Section 0)
+    const { data: templates } = await supabase.rpc("get_initiatable_forms", {
+      p_user_id: user.id,
+    });
+
+    template = templates?.find(
+      (t: any) =>
+        t.id === templateId &&
+        t.workflow_chain_id === workflowChainId &&
+        t.section_order === sectionOrder,
+    );
+
+    if (!template) {
+      notFound();
+    }
   }
 
   // Fetch form fields for this template (including nested fields)
@@ -188,6 +260,7 @@ export default async function FillRequestFormPage({
         existingRequestId={existingRequestId}
         draftData={draftData}
         isEditing={!!editId}
+        parentRequestId={parentRequestId}
       />
     </div>
   );

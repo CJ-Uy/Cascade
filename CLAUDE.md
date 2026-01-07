@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Quick Reference
 
 For detailed documentation:
+
 - [Database Schema](docs/DATABASE_SCHEMA.md) - Complete table/enum reference
 - [RPC Functions](docs/RPC_FUNCTIONS.md) - All backend functions
 - [RLS Policies](docs/RLS_POLICIES.md) - Security policies
@@ -45,7 +46,11 @@ npm run db:push     # Push schema changes
 **Always use server-only utilities** ([lib/auth-helpers.ts](lib/auth-helpers.ts)):
 
 ```typescript
-import { checkOrgAdminRole, checkSuperAdminRole, checkBuAdminRole } from "@/lib/auth-helpers";
+import {
+  checkOrgAdminRole,
+  checkSuperAdminRole,
+  checkBuAdminRole,
+} from "@/lib/auth-helpers";
 
 // Check organization admin access
 const { isOrgAdmin, organizationId } = await checkOrgAdminRole();
@@ -59,6 +64,7 @@ const { isBuAdmin } = await checkBuAdminRole(buId);
 ```
 
 **Key Rules:**
+
 - ⚠️ **NEVER** use `supabase.auth.admin` in client components
 - ⚠️ **NEVER** expose admin credentials client-side
 - ✅ **ALWAYS** use server actions for privileged operations
@@ -95,13 +101,14 @@ export async function uploadFormFile(formData: FormData) {
       filename: file.name,
       storage_path: filePath,
       filetype: file.type,
-      size_bytes: file.size
-    }
+      size_bytes: file.size,
+    },
   };
 }
 ```
 
 **Key Points:**
+
 - Upload files to Supabase Storage **immediately** when selected
 - Store **metadata object** in JSONB, NOT File objects
 - Metadata: `{ filename, storage_path, filetype, size_bytes }`
@@ -875,6 +882,7 @@ Supabase PostgreSQL with migrations in `supabase/migrations/`.
 See [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) for complete table reference.
 
 **Core Tables:**
+
 - `organizations`, `business_units`, `profiles` - Multi-tenant structure
 - `forms`, `form_fields` - Form templates with dynamic fields
 - `workflow_chains`, `workflow_sections`, `workflow_section_steps` - Multi-section workflows
@@ -886,6 +894,7 @@ See [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) for complete table refere
 - `notifications` - In-app notifications
 
 **Deprecated Tables (DO NOT USE):**
+
 - `requisitions` → Use `requests` instead
 - `workflow_form_mappings` → Use `workflow_sections.form_id`
 - `form_initiator_access` → Use `workflow_section_initiators`
@@ -897,6 +906,7 @@ See [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) for complete table refere
 See [docs/RPC_FUNCTIONS.md](docs/RPC_FUNCTIONS.md) for complete function reference.
 
 **Key Functions:**
+
 - `get_user_auth_context()` - Complete auth context with roles/permissions
 - `get_auditor_requests()` - Fetch requests for auditors with filters
 - `get_enhanced_approver_requests()` - Approval queue with workflow details
@@ -910,6 +920,7 @@ See [docs/RPC_FUNCTIONS.md](docs/RPC_FUNCTIONS.md) for complete function referen
 See [docs/RLS_POLICIES.md](docs/RLS_POLICIES.md) for complete policy documentation.
 
 **Key Principles:**
+
 - Multi-tenant data isolation (organization boundaries)
 - Business unit access control (BU membership required)
 - Hierarchical permissions (Super Admin → Org Admin → BU Admin → Member)

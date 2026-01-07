@@ -15,7 +15,8 @@ import {
   PendingApprovalsTable,
   ApprovedRequestsTable,
 } from "./(components)/dashboard-tables";
-import { AlertCircle } from "lucide-react";
+import { PendingSectionFormsTable } from "./(components)/pending-section-forms-table";
+import { AlertCircle, FileSignature } from "lucide-react";
 
 export default async function DashboardPage() {
   const authContext = await getUserAuthContext();
@@ -34,6 +35,7 @@ export default async function DashboardPage() {
   const [
     invitationsRes,
     needsRevisionRes,
+    pendingSectionFormsRes,
     activeRequestsRes,
     pendingApprovalsRes,
     approvedRequestsRes,
@@ -47,6 +49,7 @@ export default async function DashboardPage() {
       .eq("status", "pending")
       .order("created_at", { ascending: false }),
     supabase.rpc("get_my_requests_needing_revision"),
+    supabase.rpc("get_my_pending_section_forms"),
     supabase.rpc("get_my_active_requests"),
     supabase.rpc("get_my_pending_approvals"),
     supabase.rpc("get_approved_requests_for_bu"),
@@ -54,6 +57,7 @@ export default async function DashboardPage() {
 
   const invitations = invitationsRes.data;
   const needsRevision = needsRevisionRes.data;
+  const pendingSectionForms = pendingSectionFormsRes.data;
   const activeRequests = activeRequestsRes.data;
   const pendingApprovals = pendingApprovalsRes.data;
   const approvedRequests = approvedRequestsRes.data;
@@ -61,6 +65,7 @@ export default async function DashboardPage() {
   const hasData = [
     invitations,
     needsRevision,
+    pendingSectionForms,
     activeRequests,
     pendingApprovals,
     approvedRequests,
@@ -91,6 +96,26 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="pt-6">
             <NeedsRevisionTable data={needsRevision} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* PENDING SECTION FORMS - High Priority */}
+      {pendingSectionForms && pendingSectionForms.length > 0 && (
+        <Card className="border-blue-500">
+          <CardHeader className="bg-blue-50 dark:bg-blue-950">
+            <div className="flex items-center gap-2">
+              <FileSignature className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-blue-900 dark:text-blue-100">
+                Action Required: Continue Workflow
+              </CardTitle>
+            </div>
+            <CardDescription>
+              These workflows are waiting for you to fill the next section form
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <PendingSectionFormsTable data={pendingSectionForms} />
           </CardContent>
         </Card>
       )}

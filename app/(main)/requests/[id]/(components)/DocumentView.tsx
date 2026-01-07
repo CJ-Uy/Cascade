@@ -34,6 +34,7 @@ import { FieldRenderer } from "./FieldRenderer";
 import { WorkflowChainDetails } from "./WorkflowChainDetails";
 import { CommentThread } from "./CommentThread";
 import { ApprovalActions } from "./ApprovalActions";
+import { LinkedRequestsChain } from "./LinkedRequestsChain";
 
 interface DocumentViewProps {
   document: any;
@@ -271,6 +272,9 @@ export function DocumentView({
 
         {/* Right Column - Workflow, Metadata & History */}
         <div className="space-y-6">
+          {/* Linked Requests Chain */}
+          <LinkedRequestsChain currentRequestId={requestId} />
+
           {/* Workflow Chain Details */}
           {workflowProgress && workflowProgress.has_workflow && (
             <WorkflowChainDetails workflowProgress={workflowProgress} />

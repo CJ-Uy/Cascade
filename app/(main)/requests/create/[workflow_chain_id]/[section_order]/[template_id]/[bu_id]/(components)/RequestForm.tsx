@@ -35,6 +35,7 @@ interface RequestFormProps {
   existingRequestId?: string;
   draftData?: Record<string, any>;
   isEditing?: boolean;
+  parentRequestId?: string;
 }
 
 export function RequestForm({
@@ -46,6 +47,7 @@ export function RequestForm({
   existingRequestId,
   draftData,
   isEditing = false,
+  parentRequestId,
 }: RequestFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,7 +59,8 @@ export function RequestForm({
   const [skipReason, setSkipReason] = useState<string>("");
 
   // Check if starting from a later section (skipping sections)
-  const isSkippingSection = sectionOrder > 0;
+  // If there's a parent request, user is continuing a workflow (not skipping)
+  const isSkippingSection = sectionOrder > 0 && !parentRequestId;
 
   const handleFormChange = (formData: Record<string, any>) => {
     setCurrentFormData(formData);
@@ -106,6 +109,8 @@ export function RequestForm({
         existingRequestId,
         workflowChainId,
         isEditing,
+        sectionOrder,
+        parentRequestId,
       );
 
       if (result.success) {

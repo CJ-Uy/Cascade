@@ -39,7 +39,7 @@ export default async function NewSystemTemplatePage() {
         </Button>
       </div>
 
-      <div className="rounded-lg border bg-card p-8 text-center">
+      <div className="bg-card rounded-lg border p-8 text-center">
         <p className="text-muted-foreground mb-4">
           System template creation interface will be implemented here.
         </p>

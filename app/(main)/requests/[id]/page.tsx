@@ -153,6 +153,34 @@ export default async function RequestDetailPage({ params }: PageProps) {
     (r: any) => r.id === requestId,
   );
 
+  // Additionally check if user is the current approver by querying workflow directly
+  // This handles cases where get_enhanced_approver_requests might not return newly created requests
+  let isMyTurnDirect = false;
+  if (
+    rawWorkflowProgress &&
+    rawWorkflowProgress.sections &&
+    request.workflow_chain_id
+  ) {
+    const currentSection = rawWorkflowProgress.sections.find(
+      (s: any) => s.is_current,
+    );
+    if (currentSection && currentSection.steps) {
+      const currentStep = currentSection.steps.find(
+        (step: any) => step.is_current,
+      );
+      if (currentStep && currentStep.approver_role_id) {
+        // Check if user has this approver role
+        const { data: userHasRole } = await supabase
+          .from("user_role_assignments")
+          .select("role_id")
+          .eq("user_id", user.id)
+          .eq("role_id", currentStep.approver_role_id)
+          .single();
+        isMyTurnDirect = !!userHasRole;
+      }
+    }
+  }
+
   // Use workflow progress directly from RPC (it now includes all progress tracking)
   let workflowProgress = null;
   if (rawWorkflowProgress && rawWorkflowProgress.has_workflow) {
@@ -187,10 +215,15 @@ export default async function RequestDetailPage({ params }: PageProps) {
         requestId={requestId}
         onCommentsRefreshed={handleCommentsRefreshed}
         approvalPosition={{
-          isMyTurn: myApprovalPosition?.is_my_turn || false,
-          currentSectionOrder: myApprovalPosition?.current_section_order || 0,
+          isMyTurn: myApprovalPosition?.is_my_turn || isMyTurnDirect,
+          currentSectionOrder:
+            myApprovalPosition?.current_section_order ||
+            request.current_section_order ||
+            0,
           hasPreviousSection:
-            (myApprovalPosition?.current_section_order || 0) > 0,
+            (myApprovalPosition?.current_section_order ||
+              request.current_section_order ||
+              0) > 0,
           previousSectionInitiatorName:
             myApprovalPosition?.previous_section_initiator_name,
         }}

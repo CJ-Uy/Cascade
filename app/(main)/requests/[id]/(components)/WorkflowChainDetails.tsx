@@ -108,13 +108,36 @@ export function WorkflowChainDetails({
                       : "bg-muted/50 border-gray-300"
                 }`}
               >
-                {/* Form Indicator */}
-                {section.is_form && (
+                {/* Form Name */}
+                {section.form_name && (
                   <div className="mb-2">
                     <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-blue-300">
                       <FileText className="h-3 w-3" />
-                      Form Section
+                      Form: {section.form_name}
                     </p>
+                  </div>
+                )}
+
+                {/* Initiator Roles */}
+                {section.initiators && section.initiators.length > 0 && (
+                  <div className="mb-2">
+                    <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-purple-700 dark:text-purple-300">
+                      <Users className="h-3 w-3" />
+                      Can Initiate
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {section.initiators.map(
+                        (initiator: any, initIdx: number) => (
+                          <Badge
+                            key={initiator.role_id || initIdx}
+                            variant="outline"
+                            className="border-purple-200 bg-purple-50 text-xs text-purple-700 dark:border-purple-800 dark:bg-purple-950/30 dark:text-purple-300"
+                          >
+                            {initiator.role_name}
+                          </Badge>
+                        ),
+                      )}
+                    </div>
                   </div>
                 )}
 

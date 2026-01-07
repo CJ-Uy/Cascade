@@ -30,7 +30,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Edit, Archive, RotateCcw } from "lucide-react";
+import {
+  MoreHorizontal,
+  Edit,
+  Archive,
+  RotateCcw,
+  PlayCircle,
+  PauseCircle,
+} from "lucide-react";
 
 import { icons } from "lucide-react"; // Import icons for dynamic rendering
 
@@ -57,6 +64,7 @@ export interface WorkflowListProps {
   showArchived: boolean;
   onArchive: () => void;
   onRestore: () => void;
+  onActivate: (workflow: Workflow) => void;
 }
 
 export function WorkflowList({
@@ -67,6 +75,7 @@ export function WorkflowList({
   showArchived,
   onArchive,
   onRestore,
+  onActivate,
 }: WorkflowListProps) {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -231,6 +240,18 @@ export function WorkflowList({
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
               </DropdownMenuItem>
+              {!showArchived && row.original.status === "draft" && (
+                <DropdownMenuItem onClick={() => onActivate(row.original)}>
+                  <PlayCircle className="mr-2 h-4 w-4" />
+                  Activate
+                </DropdownMenuItem>
+              )}
+              {!showArchived && row.original.status === "active" && (
+                <DropdownMenuItem onClick={() => onActivate(row.original)}>
+                  <PauseCircle className="mr-2 h-4 w-4" />
+                  Set to Draft
+                </DropdownMenuItem>
+              )}
               {showArchived ? (
                 <DropdownMenuItem onClick={onRestore}>
                   <RotateCcw className="mr-2 h-4 w-4" />
