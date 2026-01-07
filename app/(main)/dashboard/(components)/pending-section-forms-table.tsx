@@ -94,7 +94,7 @@ export function PendingSectionFormsTable({
                 <Badge
                   className={`${statusColors[form.parent_status] || "bg-gray-500"} text-white`}
                 >
-                  Previous: {form.parent_status.replace(/_/g, " ")}
+                  Previous: {form.parent_status?.replace(/_/g, " ") ?? "N/A"}
                 </Badge>
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">
