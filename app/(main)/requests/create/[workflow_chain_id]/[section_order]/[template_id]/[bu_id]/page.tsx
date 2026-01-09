@@ -250,7 +250,7 @@ export default async function FillRequestFormPage({
     .single();
 
   return (
-    <div className="container mx-auto max-w-4xl p-6">
+    <div className="container mx-auto max-w-4xl p-4 sm:p-6">
       <RequestForm
         template={template}
         businessUnitId={businessUnitId}

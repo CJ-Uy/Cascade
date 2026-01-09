@@ -33,10 +33,10 @@ export default async function AuditorDocumentsPage() {
   const { data: tags, error: tagsError } = await getTags();
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto p-4 md:p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">Audit Documents</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-2xl font-bold md:text-3xl">Audit Documents</h1>
+        <p className="text-muted-foreground mt-2 text-sm md:text-base">
           View and categorize documents for auditing purposes
         </p>
       </div>

@@ -4,6 +4,104 @@ This document tracks major changes, feature updates, and schema modifications fo
 
 ---
 
+## January 2026
+
+### **`2026-01-07`**: Request Chain Linking System
+
+This major update introduces automatic linking and progression through multi-section workflows, enabling true end-to-end workflow automation.
+
+#### Key Features:
+
+1. **Parent Request Tracking**:
+   - Added `parent_request_id` column to `requests` table to link sections together
+   - Each section's request maintains a reference to the previous section's request
+   - Enables complete workflow chain visualization and navigation
+
+2. **Automatic Section Progression**:
+   - When a section completes all approval steps, the system can automatically trigger the next section
+   - Configurable initiator types for each section:
+     - `last_approver` - The person who approved the previous section becomes the initiator
+     - `specific_role` - Users with a designated role can initiate the next section
+   - Smart access control validates parent request relationships
+
+3. **LinkedRequestsChain Component**:
+   - Visual timeline showing all sections in a workflow chain
+   - Displays current section, status badges, initiator information
+   - Navigation between linked requests
+   - Color-coded current section highlighting
+   - Responsive design with mobile support
+
+4. **Pending Section Forms Dashboard**:
+   - New dashboard card showing workflows waiting for user action
+   - "Action Required" notifications for sections the user needs to complete
+   - Displays parent request context and next section details
+   - Quick-action buttons to continue workflow chains
+
+5. **Enhanced Workflow Progress Display**:
+   - Full workflow transparency - all sections visible to participants
+   - Shows initiator roles at each workflow stage
+   - Improved section completion detection
+   - Cross-section approval step tracking
+
+6. **File Upload System Improvements**:
+   - Created dedicated `attachments` storage bucket in Supabase Storage
+   - Fixed RLS policies for attachment access
+   - Comprehensive documentation in [FILE_UPLOADS.md](FILE_UPLOADS.md)
+   - Metadata-based file storage pattern for JSONB compatibility
+
+#### Database Changes:
+
+**New Columns:**
+
+- `requests.parent_request_id` - UUID reference to parent request
+- `workflow_sections.initiator_type` - ENUM ('last_approver', 'specific_role')
+- `workflow_sections.initiator_role_id` - UUID reference to role
+
+**New RPC Functions:**
+
+- `get_request_chain(p_request_id)` - Fetches all linked requests in a workflow chain
+- `can_access_form_with_parent()` - Validates access to mid-workflow forms via parent request
+- `trigger_next_section()` - Creates next section's request when current section completes
+- `get_pending_section_forms()` - Returns workflows awaiting user to fill next section
+- `get_form_with_parent_request()` - Special form access for workflow continuation
+
+**Updated RPC Functions:**
+
+- `get_request_workflow_progress()` - Enhanced to show full workflow with initiators
+- `get_initiatable_forms()` - Improved to handle mid-workflow forms correctly
+- Enhanced section completion detection across linked requests
+
+#### Migrations (20+ files):
+
+Key migrations include:
+
+- `20260106000007_add_form_and_initiators_to_workflow_progress.sql`
+- `20260107000001_add_initiators_to_workflow_progress.sql`
+- `20260107000004_add_pending_section_forms.sql`
+- `20260107000007_add_get_form_with_parent_request.sql`
+- `20260107000008_fix_step_completion_cross_section.sql`
+- `20260107000010_enhanced_request_history.sql`
+- `20260106040000_create_attachments_storage_bucket.sql`
+- `20260106050000_fix_attachments_rls_policies.sql`
+
+#### UI/UX Improvements:
+
+- **Request Detail Page**: Now shows LinkedRequestsChain component when request is part of a chain
+- **Dashboard**: Pending Section Forms card with priority notifications
+- **Form Access**: Smart routing for mid-workflow forms with parent request context
+- **Mobile Responsive**: All new components designed mobile-first
+- **Visual Feedback**: Status badges, progress indicators, and timeline visualizations
+
+#### Benefits:
+
+- **Workflow Automation**: Reduces manual handoffs between sections
+- **Audit Trail**: Complete visibility into multi-stage processes
+- **User Experience**: Clear notifications and next-action prompts
+- **Flexibility**: Supports both automatic and manual progression
+- **Context Preservation**: Maintains workflow state across all sections
+
+---
+
 ## December 2025
 
 ### **`2025-12-18`**: Request Creation and Workflow Improvements

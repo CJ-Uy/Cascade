@@ -196,7 +196,7 @@ export default async function OrganizationAdminPage({
       </div>
 
       <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="business-units">Business Units</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>

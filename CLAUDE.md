@@ -11,12 +11,15 @@ For detailed documentation:
 - [RLS Policies](docs/RLS_POLICIES.md) - Security policies
 - [System Architecture](docs/SYSTEM_ARCHITECTURE.md) - High-level design
 - [Enhanced Approval System](docs/ENHANCED_APPROVAL_SYSTEM.md) - Approval workflow guide
+- [File Uploads Guide](docs/FILE_UPLOADS.md) - File upload patterns and best practices
 
 See [docs/README.md](docs/README.md) for complete documentation index.
 
 ## Project Overview
 
-Cascade is a **Digital Mass Document Approval and Review System** built with Next.js 15, React 19, Supabase, and TypeScript. It's a multi-tenant workflow management system that handles requisitions (document requests) through configurable approval workflows across multiple organizations and business units.
+Cascade is a **Digital Mass Document Approval and Review System** built with Next.js 15, React 19, Supabase, and TypeScript. It's a multi-tenant workflow management system that handles requests (document requests) through configurable approval workflows across multiple organizations and business units.
+
+**Latest Update (January 2026)**: Added request chain linking system for multi-section workflows, enabling automatic progression through workflow sections with parent request tracking.
 
 ## Development Commands
 
@@ -202,14 +205,19 @@ app/
 │   ├── requests/            # Request management system
 │   │   ├── create/          # Form selector (shows workflow names)
 │   │   ├── create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id] # Form filler
-│   │   ├── [id]/            # View request details
+│   │   ├── [id]/            # View request details (includes LinkedRequestsChain)
 │   │   ├── pending/         # Pending requests list
 │   │   ├── history/         # Completed requests
-│   │   └── draft/[draft_id] # Continue draft request
+│   │   ├── draft/[draft_id] # Continue draft request
+│   │   ├── edit/[request_id] # Edit existing request
+│   │   └── debug/           # Debug tools (development only)
 │   ├── approvals/          # Approval queue
 │   │   ├── to-approve/[bu_id] # Pending approvals
 │   │   ├── flagged/[bu_id]    # Flagged items
 │   │   └── document/[id]       # NEW: Document approval view
+│   ├── documents/          # Document creation (alternative to requests)
+│   │   ├── create/          # Document creation landing
+│   │   └── create/[template_id] # Create document from template
 │   ├── management/         # BU Admin & System Admin features
 │   │   ├── forms/[bu_id]   # Legacy BU-specific form builder
 │   │   ├── form-templates/ # NEW: System-wide template management
@@ -314,6 +322,103 @@ Users can initiate requests from later workflow sections (Section 1, 2, etc.) if
 - Useful for manual handoffs, emergency approvals, or special circumstances
 
 **Example:** User with "Approver A3" role can initiate "Funds Release Form" (Section 2) directly, skipping Section 1.
+
+---
+
+#### Request Chain Linking System
+
+**NEW Feature (January 2026)**: Automatic linking and progression through multi-section workflows.
+
+**Purpose**: Enable workflows to automatically progress from one section to the next, creating a chain of linked requests that represent a complete multi-stage business process.
+
+**How It Works:**
+
+When a request is submitted and moves through its approval steps, the system can automatically:
+
+1. **Track Parent Requests**: Each request stores a `parent_request_id` linking it to the previous section's request
+2. **Auto-Progress Sections**: When all approval steps in a section are complete, the system can automatically trigger the next section
+3. **Maintain Context**: All linked requests share the same `workflow_chain_id`, making them part of the same workflow instance
+4. **Preserve History**: Complete audit trail across all sections via `request_history`
+
+**Database Support:**
+
+- `requests.parent_request_id` - Links to previous section's request
+- `workflow_sections.initiator_type` - Defines who can initiate next section:
+  - `'last_approver'` - Person who approved the previous section
+  - `'specific_role'` - Users with a specific role
+- `workflow_sections.initiator_role_id` - Role ID when `initiator_type = 'specific_role'`
+
+**Key RPC Functions:**
+
+- `get_request_chain(p_request_id)` - Fetches all linked requests in a chain
+- `can_access_form_with_parent()` - Validates access to mid-workflow forms via parent request
+- `trigger_next_section()` - Creates next section's request when current section completes
+
+**UI Components:**
+
+- **LinkedRequestsChain** ([app/(main)/requests/[id]/(components)/LinkedRequestsChain.tsx](<app/(main)/requests/[id]/(components)/LinkedRequestsChain.tsx>))
+  - Displays all sections in a workflow chain
+  - Shows current section, status, initiators
+  - Provides navigation between linked requests
+  - Visual timeline with arrows showing progression
+
+- **Pending Section Forms Table** ([app/(main)/dashboard/(components)/pending-section-forms-table.tsx](<app/(main)/dashboard/(components)/pending-section-forms-table.tsx>))
+  - Dashboard widget showing workflows waiting for user to fill next section
+  - Displays parent request info and next section details
+  - Quick-action button to continue workflow
+
+**Workflow Progression:**
+
+```
+Request Chain Example:
+┌─────────────────────────────────────────────────────────┐
+│ Section 0: Purchase Request Form                        │
+│ Status: APPROVED                                        │
+│ Initiator: Employee A                                   │
+└────────────────┬────────────────────────────────────────┘
+                 │ (parent_request_id)
+                 ▼
+┌─────────────────────────────────────────────────────────┐
+│ Section 1: Budget Approval Form                         │
+│ Status: IN_REVIEW                                       │
+│ Initiator: Last Approver from Section 0                │
+└────────────────┬────────────────────────────────────────┘
+                 │ (parent_request_id)
+                 ▼
+┌─────────────────────────────────────────────────────────┐
+│ Section 2: Funds Release Form                           │
+│ Status: DRAFT (waiting for Section 1 approval)         │
+│ Initiator: Finance Role                                │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Access Control:**
+
+- Users can only access mid-workflow forms if they are authorized initiators for that section
+- Authorization is validated via `parent_request_id` - must have valid parent request
+- `can_access_form_with_parent()` function enforces access rules
+
+**Dashboard Integration:**
+
+- "Pending Section Forms" card shows workflows awaiting user action
+- Users see which sections they need to complete
+- Direct links to continue the workflow chain
+
+**Migrations (January 2026):**
+
+- `20260106000007_add_form_and_initiators_to_workflow_progress.sql` - Enhanced workflow progress display
+- `20260107000001_add_initiators_to_workflow_progress.sql` - Added initiator visibility
+- `20260107000004_add_pending_section_forms.sql` - Dashboard pending forms feature
+- `20260107000007_add_get_form_with_parent_request.sql` - Parent request access validation
+- `20260107000008_fix_step_completion_cross_section.sql` - Fixed section completion detection
+- `20260107000010_enhanced_request_history.sql` - Enhanced audit trail for linked requests
+
+**Key Files:**
+
+- Component: [LinkedRequestsChain.tsx](<app/(main)/requests/[id]/(components)/LinkedRequestsChain.tsx>)
+- Dashboard: [pending-section-forms-table.tsx](<app/(main)/dashboard/(components)/pending-section-forms-table.tsx>)
+- RPC: Multiple functions in Supabase for chain management
+- Migrations: 20+ migrations in January 2026 for chain linking feature
 
 ---
 

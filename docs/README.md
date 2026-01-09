@@ -1,6 +1,6 @@
 # Cascade Documentation
 
-**Last Updated:** 2025-12-22
+**Last Updated:** 2026-01-09
 
 Welcome to the comprehensive documentation for the Cascade project - a Digital Mass Document Approval and Review System built with Next.js 15, React 19, Supabase, and TypeScript.
 
@@ -38,6 +38,9 @@ Welcome to the comprehensive documentation for the Cascade project - a Digital M
 
 - **[File Uploads](./FILE_UPLOADS.md)** 📁
   Complete guide to file upload patterns including form file uploads, comment attachments, and chat attachments. Covers metadata storage, server actions, and component integration.
+
+- **[Mobile Responsiveness](./MOBILE_RESPONSIVENESS.md)** 📱
+  Comprehensive guide to mobile-first design patterns, responsive breakpoints, component patterns, and best practices for building mobile-friendly interfaces.
 
 ---
 
@@ -103,10 +106,14 @@ See [RLS_POLICIES.md](./RLS_POLICIES.md) for details.
 
 ### January 2026
 
+- ✅ **Request Chain Linking System** - Automatic linking and progression through multi-section workflows with parent request tracking
+- ✅ **LinkedRequestsChain Component** - Visual timeline showing all sections in a workflow chain
+- ✅ **Pending Section Forms Dashboard** - Dashboard widget showing workflows waiting for user action
+- ✅ **Enhanced Workflow Progress** - Full workflow transparency with initiator visibility
 - ✅ **File Upload System** - Metadata-based storage pattern for form file uploads, preventing JSONB serialization issues
-- ✅ **Security Hardening** - Consolidated auth helpers ([lib/auth-helpers.ts](../lib/auth-helpers.ts)), layout-level route protection
-- ✅ **Organization Admin Pages** - Created missing system-templates and system-workflows pages
-- ✅ **Documentation Update** - Reorganized and simplified CLAUDE.md, added FILE_UPLOADS.md guide
+- ✅ **Attachments Storage Bucket** - Dedicated Supabase storage bucket with fixed RLS policies
+- ✅ **Mobile Responsiveness Guide** - Comprehensive documentation for mobile-first design patterns
+- ✅ **Documentation Update** - Updated CLAUDE.md, CHANGELOG.md, and added MOBILE_RESPONSIVENESS.md
 
 ### December 2024
 

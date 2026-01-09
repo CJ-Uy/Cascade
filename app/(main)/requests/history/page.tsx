@@ -55,10 +55,12 @@ export default async function RequestHistoryPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-7xl p-6">
+    <div className="container mx-auto max-w-7xl p-4 sm:p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Request History</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+          Request History
+        </h1>
+        <p className="text-muted-foreground mt-2 text-sm md:text-base">
           View all your completed, rejected, and cancelled requests.
         </p>
       </div>

@@ -272,7 +272,7 @@ export default function ApprovalQueuePage() {
       </p>
 
       <Tabs defaultValue="my-turn" className="w-full">
-        <TabsList className="mb-6 grid w-full grid-cols-3">
+        <TabsList className="mb-6 grid w-full grid-cols-1 sm:grid-cols-3">
           <TabsTrigger value="my-turn" className="relative">
             My Turn
             {data.myTurn.length > 0 && (

@@ -164,18 +164,23 @@ export function DocumentView({
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           {canEdit && (
-            <Button onClick={handleEdit} size="sm">
+            <Button onClick={handleEdit} size="sm" className="w-full sm:w-auto">
               <Edit className="mr-2 h-4 w-4" />
               Edit Request
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={handleShare}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleShare}
+            className="w-full sm:w-auto"
+          >
             <Share2 className="mr-2 h-4 w-4" />
             Share
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="w-full sm:w-auto">
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
