@@ -4,11 +4,11 @@ import { RequestsDataTable } from "./(components)/requests-data-table";
 import { requestsColumns } from "./(components)/requests-columns";
 
 export const metadata = {
-  title: "Pending Requests | Cascade",
-  description: "View your pending requests",
+  title: "My Requests | Cascade",
+  description: "View your active requests",
 };
 
-export default async function PendingRequestsPage() {
+export default async function MyRequestsPage() {
   const supabase = await createClient();
 
   // Get current user
@@ -86,18 +86,20 @@ export default async function PendingRequestsPage() {
   );
 
   return (
-    <div className="container mx-auto max-w-7xl p-6">
+    <div className="container mx-auto max-w-7xl p-4 sm:p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Pending Requests</h1>
-        <p className="text-muted-foreground mt-2">
-          View and track your requests that are currently in progress
+        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+          My Requests
+        </h1>
+        <p className="text-muted-foreground mt-2 text-sm md:text-base">
+          View and track your active requests that are currently in progress
         </p>
       </div>
 
       <RequestsDataTable
         columns={requestsColumns}
         data={requestsWithProgress}
-        emptyMessage="You have no pending requests"
+        emptyMessage="You have no active requests"
       />
     </div>
   );

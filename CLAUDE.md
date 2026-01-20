@@ -203,11 +203,11 @@ app/
 │   │   └── documents/       # Document list and detail views
 │   ├── dashboard/           # User dashboard with invitations card
 │   ├── requests/            # Request management system
+│   │   ├── page.tsx         # All Requests - comprehensive view with filtering
+│   │   ├── my-requests/     # My active requests
 │   │   ├── create/          # Form selector (shows workflow names)
 │   │   ├── create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id] # Form filler
 │   │   ├── [id]/            # View request details (includes LinkedRequestsChain)
-│   │   ├── pending/         # Pending requests list
-│   │   ├── history/         # Completed requests
 │   │   ├── draft/[draft_id] # Continue draft request
 │   │   ├── edit/[request_id] # Edit existing request
 │   │   └── debug/           # Debug tools (development only)
@@ -304,8 +304,22 @@ The system uses a **unified request-based architecture** with workflow chains co
 
 - `SUBMIT`, `APPROVE`, `REJECT`, `REQUEST_REVISION`, `REQUEST_CLARIFICATION`, `COMMENT`, `CANCEL`
 
+**Request Navigation:**
+
+- **All Requests** (`/requests`) - Comprehensive view with advanced filtering:
+  - Shows ALL requests user has access to (created, approving, involved in)
+  - Filter by status, business unit, role, search
+  - Statistics dashboard showing total, in review, approved, needs attention
+  - RPC function: `get_all_user_requests()`
+- **My Requests** (`/requests/my-requests`) - User's active requests:
+  - Shows requests created by user with status DRAFT, SUBMITTED, IN_REVIEW, NEEDS_REVISION
+  - Quick view of user's ongoing work
+
 **Key Files:**
 
+- All requests view: `app/(main)/requests/page.tsx`
+- All requests client with filtering: `app/(main)/requests/(components)/AllRequestsClient.tsx`
+- My requests: `app/(main)/requests/my-requests/page.tsx`
 - Form selector: `app/(main)/requests/create/page.tsx`
 - Template selector: `app/(main)/requests/create/(components)/TemplateSelector.tsx`
 - Form filler: `app/(main)/requests/create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id]/page.tsx`

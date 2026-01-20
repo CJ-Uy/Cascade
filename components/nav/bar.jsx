@@ -36,16 +36,11 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ChevronUp,
-  ChevronDown,
   FilePlus,
-  History,
-  Play,
   CheckSquare,
-  Flag,
   Users,
   Building,
   FileText,
-  Shield,
   Settings,
   Home,
   MessagesSquare,
@@ -56,7 +51,7 @@ import {
   Moon,
   LogOut,
   Bell,
-  Workflow,
+  User,
 } from "lucide-react";
 
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -86,9 +81,9 @@ const generalItems = [
 
 // 1. Define the menu items for each group
 const requestItems = [
+  { title: "All Requests", url: "/requests", icon: FileText },
+  { title: "My Requests", url: "/requests/my-requests", icon: User },
   { title: "Create", url: "/requests/create", icon: FilePlus },
-  { title: "Pending", url: "/requests/pending", icon: Play },
-  { title: "History", url: "/requests/history", icon: History },
 ];
 
 const approvalItems = [
@@ -174,17 +169,6 @@ export function Navbar() {
     isSystemAuditor,
     isBuAuditor,
   } = useSession();
-
-  // Debug: Log auditor status
-  if (authContext) {
-    console.log("Auditor Debug:", {
-      isAuditor,
-      isSystemAuditor,
-      isBuAuditor,
-      bu_permissions: authContext.bu_permissions,
-      system_roles: authContext.system_roles,
-    });
-  }
 
   // State for Super Admin organization and BU selection
   const [adminSelectedOrgId, setAdminSelectedOrgId] = useState(null);
@@ -392,19 +376,27 @@ export function Navbar() {
                     <SidebarMenuItem>
                       <AnimatedSection title="Requests" isNested>
                         <SidebarMenuSub>
-                          {requestItems.map((item) => (
-                            <SidebarMenuSubItem key={item.title}>
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={path.startsWith(item.url)}
-                              >
-                                <Link href={item.url}>
-                                  <item.icon className="h-4 w-4" />
-                                  <span>{item.title}</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
+                          {requestItems.map((item) => {
+                            // Exact match for /requests to avoid matching child routes
+                            const isActive =
+                              item.url === "/requests"
+                                ? path === "/requests"
+                                : path.startsWith(item.url);
+
+                            return (
+                              <SidebarMenuSubItem key={item.title}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={isActive}
+                                >
+                                  <Link href={item.url}>
+                                    <item.icon className="h-4 w-4" />
+                                    <span>{item.title}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            );
+                          })}
                         </SidebarMenuSub>
                       </AnimatedSection>
                     </SidebarMenuItem>
@@ -525,19 +517,27 @@ export function Navbar() {
                     <SidebarMenuItem>
                       <AnimatedSection title="Requests" isNested>
                         <SidebarMenuSub>
-                          {requestItems.map((item) => (
-                            <SidebarMenuSubItem key={item.title}>
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={path.startsWith(item.url)}
-                              >
-                                <Link href={item.url}>
-                                  <item.icon className="h-4 w-4" />
-                                  <span>{item.title}</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
+                          {requestItems.map((item) => {
+                            // Exact match for /requests to avoid matching child routes
+                            const isActive =
+                              item.url === "/requests"
+                                ? path === "/requests"
+                                : path.startsWith(item.url);
+
+                            return (
+                              <SidebarMenuSubItem key={item.title}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={isActive}
+                                >
+                                  <Link href={item.url}>
+                                    <item.icon className="h-4 w-4" />
+                                    <span>{item.title}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            );
+                          })}
                         </SidebarMenuSub>
                       </AnimatedSection>
                     </SidebarMenuItem>
