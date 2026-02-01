@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { RequestsDataTable } from "../pending/(components)/requests-data-table";
+import { RequestsDataTable } from "../my-requests/(components)/requests-data-table";
 import { historyColumns } from "./(components)/history-columns";
 
 export const metadata = {
