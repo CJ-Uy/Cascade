@@ -1,57 +1,30 @@
-# ===========================
-# Cascade - Docker Compose Configuration
-# For local development and testing
-# ===========================
-version: '3.8'
-
 services:
-  # Next.js Application
   cascade-app:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY}
-    container_name: cascade-app
-    ports:
-      - "3000:3000"
-    environment:
-      # Public environment variables (available in browser)
-      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY}
-
-      # Server-side environment variables
-      - NODE_ENV=production
-      - PORT=3000
-      - HOSTNAME=0.0.0.0
-
     env_file:
-      - .env.local
+      - ./.env
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
     restart: unless-stopped
-    networks:
-      - cascade-network
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    labels:
-      # Coolify labels for automatic deployment
-      - "coolify.managed=true"
-      - "coolify.type=application"
-      - "coolify.name=cascade"
-    volumes:
-      # Optional: Mount uploads directory if you need persistent storage
-      # Uncomment if you're storing files locally instead of Supabase Storage
-      # - cascade-uploads:/app/public/uploads
 
-networks:
-  cascade-network:
-    driver: bridge
+    # Resource configuration
+    # Note: No hard limits set - container can use available resources as needed
+    # Next.js RSC serialization requires adequate memory to avoid truncated responses
+    deploy:
+      resources:
+        reservations:
+          cpus: "0.25"
+          memory: 512M
 
-# Optional: Uncomment if you need persistent volumes
-# volumes:
-#   cascade-uploads:
-#     driver: local
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+
+    # Logging configuration to prevent disk space issues
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
