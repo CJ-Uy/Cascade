@@ -1,0 +1,30 @@
+services:
+  cascade-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ./.env
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    restart: unless-stopped
+
+    # Resource configuration
+    # Note: No hard limits set - container can use available resources as needed
+    # Next.js RSC serialization requires adequate memory to avoid truncated responses
+    deploy:
+      resources:
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+
+    # Logging configuration to prevent disk space issues
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

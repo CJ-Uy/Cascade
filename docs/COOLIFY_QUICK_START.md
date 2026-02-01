@@ -30,8 +30,6 @@ Build Pack: Dockerfile
 
 Click **"Environment Variables"** and add:
 
-#### Runtime Variables
-
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -40,22 +38,10 @@ PORT=3000
 HOSTNAME=0.0.0.0
 ```
 
-#### Build Arguments
-
-Go to **"Build"** tab and add **Build Arguments**:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-⚠️ **IMPORTANT**: Build arguments are required for Next.js to embed these values during build time.
-
 ### Step 4: Port Configuration
 
 ```
 Port Mappings: 3000:3000
-Health Check Path: /api/health
 ```
 
 ### Step 5: Deploy
@@ -74,7 +60,7 @@ Health Check Path: /api/health
 curl https://your-app.coolify.io/api/health
 
 # Expected response:
-# {"status":"ok","timestamp":"2026-01-20T...","uptime":123.45,"environment":"production"}
+# {"status":"ok","timestamp":"2026-02-01T...","uptime":123.45,"environment":"production"}
 ```
 
 ### Enable Auto-Deploy
@@ -110,9 +96,9 @@ curl https://your-app.coolify.io/api/health
 
 ```
 Common issues:
-1. Missing build arguments → Add NEXT_PUBLIC_* variables as build args
-2. Node version mismatch → Dockerfile uses Node 22 Alpine
-3. npm install fails → Check package.json syntax
+1. npm install fails → Check package.json syntax
+2. SWC binary error → Dockerfile includes Alpine-compatible binary
+3. Out of memory → Increase container memory limit
 ```
 
 ### App Won't Start
@@ -121,33 +107,17 @@ Common issues:
 
 ```
 Common issues:
-1. Missing runtime env variables → Add to Environment Variables tab
+1. Missing env variables → Add to Environment Variables tab
 2. Port conflict → Verify port 3000 is exposed
-3. Health check failing → Verify /api/health endpoint exists
+3. Supabase connection → Verify URL and key are correct
 ```
 
 ### Environment Variables Not Working
 
 **Solution:**
 
-1. Add NEXT_PUBLIC_* variables **BOTH** as:
-   - **Build Arguments** (Build tab)
-   - **Environment Variables** (Environment tab)
-2. Redeploy the application
-
-### Health Check Failing
-
-**Verify endpoint:**
-
-```bash
-# SSH into Coolify server or use Coolify terminal
-docker exec <container-id> wget -q -O- http://localhost:3000/api/health
-```
-
-**Fix:**
-
-1. Ensure [app/api/health/route.ts](app/api/health/route.ts) exists
-2. Rebuild and redeploy
+1. Make sure all `NEXT_PUBLIC_*` variables are set in the Environment Variables section
+2. Redeploy the application (environment variables are loaded at runtime)
 
 ## Advanced Configuration
 
@@ -159,16 +129,8 @@ In Coolify **"Advanced"** tab:
 Memory Limit: 1GB
 Memory Reservation: 512MB
 CPU Limit: 1 core
-CPU Reservation: 0.5 cores
+CPU Reservation: 0.25 cores
 ```
-
-### Custom Dockerfile
-
-If you need to customize the build:
-
-1. Fork/modify [Dockerfile](Dockerfile)
-2. Push changes to your repository
-3. Coolify will use the updated Dockerfile on next deployment
 
 ### Multiple Environments
 
@@ -186,17 +148,6 @@ Staging:
 - Env: NEXT_PUBLIC_SUPABASE_URL=staging-url
 ```
 
-### Database Migrations
-
-For Supabase schema changes:
-
-1. Apply migrations in Supabase dashboard
-2. Or use Supabase CLI in Coolify terminal:
-   ```bash
-   docker exec -it <container> sh
-   npx supabase db push
-   ```
-
 ## Monitoring
 
 ### Built-in Monitoring
@@ -213,45 +164,16 @@ Consider integrating:
 - **Error tracking**: Sentry
 - **APM**: New Relic, Datadog
 
-## Backup Strategy
-
-### Application Code
-- Git repository (already backed up)
-- No application-level state to backup
-
-### Database
-- Supabase handles automatic backups
-- Configure backup frequency in Supabase dashboard
-
-### Environment Variables
-- Export from Coolify and store securely
-- Use password manager or secrets vault
-
 ## Security Checklist
 
 - [x] HTTPS enabled (Coolify auto-SSL)
 - [x] Environment variables not in code
 - [x] Non-root user in container (UID 1001)
 - [x] Minimal base image (Alpine Linux)
-- [x] Health checks enabled
+- [x] `no-new-privileges` security option
 - [ ] Configure firewall rules on Coolify server
 - [ ] Set up monitoring/alerts
 - [ ] Regular dependency updates
-
-## Performance Optimization
-
-### Coolify Settings
-
-1. **Enable HTTP/2**: Automatic with Coolify reverse proxy
-2. **Enable compression**: Coolify handles this
-3. **CDN**: Consider Cloudflare in front of Coolify
-
-### Application Settings
-
-Already optimized:
-- Standalone Next.js output (minimal image size)
-- Production build optimizations
-- Static asset caching
 
 ## Getting Help
 
@@ -302,19 +224,6 @@ Health Check: https://cascade.your-domain.com/api/health
 Supabase Dashboard: https://app.supabase.com
 ```
 
-### Essential Commands
-
-```bash
-# Trigger manual deployment (via Coolify webhook)
-curl -X POST https://your-coolify-instance.com/api/deploy/webhook
-
-# Check container health
-docker inspect <container> | grep Health -A 10
-
-# View build logs
-# (Available in Coolify UI under "Deployments")
-```
-
 ## Next Steps
 
 After successful deployment:
@@ -327,6 +236,6 @@ After successful deployment:
 
 ---
 
-**Last Updated**: 2026-01-20
+**Last Updated**: 2026-02-01
 **Coolify Version**: Compatible with v4.x
 **Cascade Version**: Latest

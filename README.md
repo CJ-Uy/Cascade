@@ -127,27 +127,17 @@ npm run db:push  # Push schema changes
 
 Cascade includes production-ready Docker configuration for containerized deployments.
 
-**Quick Start with Docker:**
+**Quick Start with Docker Compose:**
 
 ```bash
-# Build the image
-docker build -t cascade-app \
-  --build-arg NEXT_PUBLIC_SUPABASE_URL=your-url \
-  --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=your-key \
-  .
+# Create .env with your Supabase credentials
+cp .env.example .env
 
-# Run the container
-docker run -p 3000:3000 cascade-app
-```
+# Edit .env with your values
+nano .env
 
-**With Docker Compose:**
-
-```bash
-# Create .env.local with your Supabase credentials
-cp .env.example .env.local
-
-# Start the application
-docker-compose up -d
+# Build and start the application
+docker-compose up -d --build
 
 # View logs
 docker-compose logs -f

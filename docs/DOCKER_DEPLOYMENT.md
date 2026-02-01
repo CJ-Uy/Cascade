@@ -10,7 +10,6 @@ This guide covers deploying the Cascade application using Docker and Docker Comp
 - [Environment Variables](#environment-variables)
 - [Building the Docker Image](#building-the-docker-image)
 - [Running with Docker Compose](#running-with-docker-compose)
-- [Health Checks](#health-checks)
 - [Troubleshooting](#troubleshooting)
 - [Production Considerations](#production-considerations)
 
@@ -30,24 +29,24 @@ This guide covers deploying the Cascade application using Docker and Docker Comp
 git clone <repository-url>
 cd Cascade
 
-# Copy environment template
-cp .env.example .env.local
+# Copy environment template (use .env for Docker, .env.local for local dev)
+cp .env.example .env
 
-# Edit .env.local with your Supabase credentials
-nano .env.local
+# Edit .env with your Supabase credentials
+nano .env
 ```
 
-### 2. Build and Run
+### 2. Build and Run with Docker Compose
 
 ```bash
-# Build the Docker image
-docker build -t cascade-app .
+# Build and start the container
+docker-compose up -d --build
 
-# Run the container
-docker run -p 3000:3000 \
-  -e NEXT_PUBLIC_SUPABASE_URL=your-supabase-url \
-  -e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=your-anon-key \
-  cascade-app
+# View logs
+docker-compose logs -f
+
+# Stop the container
+docker-compose down
 ```
 
 ### 3. Access the Application
@@ -63,7 +62,7 @@ Coolify is a self-hosted Heroku/Vercel/Netlify alternative. Here's how to deploy
 1. Log into your Coolify instance
 2. Navigate to your server/project
 3. Click "Add New Resource" → "Application"
-4. Select "Docker Compose" or "Dockerfile"
+4. Select "Dockerfile"
 
 ### Step 2: Configure Git Repository
 
@@ -75,10 +74,8 @@ Coolify is a self-hosted Heroku/Vercel/Netlify alternative. Here's how to deploy
 
 In Coolify's environment variables section, add:
 
-#### Required Variables
-
 ```env
-# Supabase Configuration
+# Supabase Configuration (REQUIRED)
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=your-anon-key-here
 
@@ -88,32 +85,13 @@ PORT=3000
 HOSTNAME=0.0.0.0
 ```
 
-#### Build Arguments
-
-Set these as **Build Arguments** in Coolify:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=your-anon-key-here
-```
-
 ### Step 4: Configure Ports
 
 - **Internal Port**: `3000`
 - **Public Port**: Your choice (Coolify will handle this)
 - **Protocol**: HTTP
 
-### Step 5: Health Check Configuration
-
-Coolify should auto-detect the health check from the Dockerfile, but you can manually configure:
-
-- **Path**: `/api/health`
-- **Interval**: 30 seconds
-- **Timeout**: 10 seconds
-- **Retries**: 3
-- **Start Period**: 40 seconds
-
-### Step 6: Deploy
+### Step 5: Deploy
 
 1. Click "Save" to save your configuration
 2. Click "Deploy" to start the deployment
@@ -148,7 +126,7 @@ Coolify should auto-detect the health check from the Dockerfile, but you can man
 
 ### Environment File Structure
 
-Create a `.env.local` file:
+For Docker deployment, create a `.env` file:
 
 ```env
 # Supabase Configuration
@@ -156,33 +134,25 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # Optional: Override defaults
-# NODE_ENV=production
-# PORT=3000
-# HOSTNAME=0.0.0.0
+NODE_ENV=production
+PORT=3000
+HOSTNAME=0.0.0.0
 ```
 
-⚠️ **Security Note**: Never commit `.env.local` to version control. It's already in `.gitignore`.
+⚠️ **Security Note**: Never commit `.env` or `.env.local` to version control. Both are already in `.gitignore`.
 
 ## Building the Docker Image
 
 ### Standard Build
 
 ```bash
-docker build \
-  --build-arg NEXT_PUBLIC_SUPABASE_URL=your-url \
-  --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=your-key \
-  -t cascade-app:latest \
-  .
+docker build -t cascade-app:latest .
 ```
 
 ### Build with Custom Tag
 
 ```bash
-docker build \
-  --build-arg NEXT_PUBLIC_SUPABASE_URL=your-url \
-  --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=your-key \
-  -t cascade-app:v1.0.0 \
-  .
+docker build -t cascade-app:v1.0.0 .
 ```
 
 ### Multi-platform Build (ARM64 + AMD64)
@@ -192,8 +162,6 @@ For deployment on different architectures:
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --build-arg NEXT_PUBLIC_SUPABASE_URL=your-url \
-  --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=your-key \
   -t cascade-app:latest \
   --push \
   .
@@ -203,10 +171,10 @@ docker buildx build \
 
 The Dockerfile uses multi-stage builds to minimize image size:
 
-1. **Base Stage**: Node.js 22 Alpine
-2. **Dependencies Stage**: Installs production dependencies
-3. **Builder Stage**: Builds the Next.js application
-4. **Runner Stage**: Minimal production runtime (~200MB)
+1. **Base Stage**: Node.js 24 Alpine
+2. **Dependencies Stage**: Installs all dependencies + Alpine-compatible SWC binary
+3. **Builder Stage**: Builds the Next.js application with optimized memory settings
+4. **Runner Stage**: Minimal production runtime with standalone output
 
 ## Running with Docker Compose
 
@@ -217,70 +185,28 @@ The Dockerfile uses multi-stage builds to minimize image size:
 docker-compose up -d
 
 # View logs
-docker-compose logs -f cascade-app
+docker-compose logs -f
 
 # Stop services
 docker-compose down
 ```
 
-### Development Mode with Hot Reload
-
-For local development with hot reload:
+### Rebuild and Restart
 
 ```bash
-# Use docker-compose.dev.yml (if you create one)
-docker-compose -f docker-compose.dev.yml up
-```
-
-### Restart Services
-
-```bash
-# Restart a single service
-docker-compose restart cascade-app
-
 # Rebuild and restart
 docker-compose up -d --build
 ```
 
-## Health Checks
+### Docker Compose Features
 
-The application includes built-in health checks:
+The included `docker-compose.yml` provides:
 
-### Docker Health Check
-
-The Dockerfile includes automatic health checks:
-
-```dockerfile
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', ...)"
-```
-
-### Manual Health Check
-
-```bash
-# Check container health
-docker inspect --format='{{.State.Health.Status}}' cascade-app
-
-# View health check logs
-docker inspect --format='{{range .State.Health.Log}}{{.Output}}{{end}}' cascade-app
-```
-
-### Create Health Check Endpoint
-
-You need to create an API route for health checks:
-
-**File**: `app/api/health/route.ts`
-
-```typescript
-import { NextResponse } from 'next/server';
-
-export async function GET() {
-  return NextResponse.json({
-    status: 'ok',
-    timestamp: new Date().toISOString()
-  });
-}
-```
+- **Resource Reservations**: Minimum 512MB memory, 0.25 CPU
+- **Security**: `no-new-privileges` security option
+- **Logging**: JSON file driver with rotation (10MB max, 3 files)
+- **Automatic Restart**: `unless-stopped` restart policy
+- **Flexible Port**: Uses `PORT` env var with default of 3000
 
 ## Troubleshooting
 
@@ -304,8 +230,8 @@ docker logs cascade-app
 # Verify environment variables are set
 docker exec cascade-app printenv | grep NEXT_PUBLIC
 
-# Rebuild with correct build args
-docker build --build-arg NEXT_PUBLIC_SUPABASE_URL=your-url ...
+# Make sure .env file exists and has correct values
+cat .env
 ```
 
 #### 3. Port Already in Use
@@ -315,8 +241,8 @@ docker build --build-arg NEXT_PUBLIC_SUPABASE_URL=your-url ...
 lsof -i :3000  # macOS/Linux
 netstat -ano | findstr :3000  # Windows
 
-# Use different port
-docker run -p 3001:3000 cascade-app
+# Use different port in .env
+PORT=3001
 ```
 
 #### 4. Build Fails with "npm ERR!"
@@ -329,14 +255,13 @@ docker builder prune -a
 docker build --no-cache -t cascade-app .
 ```
 
-#### 5. Health Check Failing
+#### 5. SWC Binary Issues
+
+The Dockerfile includes `@next/swc-linux-x64-musl` for Alpine compatibility. If you still see SWC errors:
 
 ```bash
-# Verify health endpoint exists
-curl http://localhost:3000/api/health
-
-# Check health check logs
-docker inspect cascade-app | grep -A 10 Health
+# Rebuild with no cache
+docker build --no-cache -t cascade-app .
 ```
 
 ### Debug Mode
@@ -345,8 +270,8 @@ Run container with debug output:
 
 ```bash
 docker run -p 3000:3000 \
+  --env-file .env \
   -e DEBUG=* \
-  -e NODE_ENV=production \
   cascade-app
 ```
 
@@ -371,32 +296,19 @@ docker exec cascade-app node --version
 2. **Environment Variables**: Never hardcode secrets in Dockerfile
 3. **Non-Root User**: Dockerfile runs as `nextjs` user (UID 1001)
 4. **Minimal Base Image**: Uses Alpine Linux for smaller attack surface
-5. **Update Dependencies**: Regularly update Node.js base image
+5. **No New Privileges**: docker-compose uses `no-new-privileges` security option
+6. **Update Dependencies**: Regularly update Node.js base image
 
 ### Performance
 
-1. **Output Tracing**: Dockerfile uses Next.js standalone output for smaller images
-2. **Production Build**: Always build with `NODE_ENV=production`
-3. **Resource Limits**: Set CPU and memory limits in Coolify or docker-compose
-
-```yaml
-# docker-compose.yml resource limits
-services:
-  cascade-app:
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-```
+1. **Standalone Output**: Dockerfile uses Next.js standalone output for smaller images
+2. **Memory Optimization**: Build uses `NODE_OPTIONS="--max-old-space-size=4096"`
+3. **Resource Reservations**: Minimum resources ensure stable operation
 
 ### Monitoring
 
-1. **Health Checks**: Monitor `/api/health` endpoint
-2. **Logs**: Aggregate logs using Coolify's log viewer or external service
+1. **Health Checks**: Use `/api/health` endpoint for monitoring
+2. **Logs**: Configured with JSON driver and rotation to prevent disk issues
 3. **Metrics**: Consider adding Prometheus metrics for production
 
 ### Backup and Recovery
@@ -412,28 +324,6 @@ For horizontal scaling:
 1. **Multiple Instances**: Run multiple containers behind a load balancer
 2. **Session Management**: Uses cookie-based auth (works with load balancing)
 3. **Database Connection Pooling**: Supabase handles this automatically
-
-### CI/CD Integration
-
-#### GitHub Actions Example
-
-```yaml
-name: Build and Deploy
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Trigger Coolify Deployment
-        run: |
-          curl -X POST https://your-coolify-instance/api/deploy/webhook
-```
 
 ## Additional Resources
 
@@ -451,8 +341,9 @@ For issues related to:
 
 ## Version History
 
+- **v1.1.0** (2026-02-01): Updated Docker configuration
+  - Node.js 24 Alpine base image
+  - Alpine-compatible SWC binary
+  - Simplified docker-compose with resource reservations
+  - Security options and logging configuration
 - **v1.0.0** (2026-01-20): Initial Docker configuration
-  - Multi-stage Dockerfile with Next.js 15 support
-  - Docker Compose for local development
-  - Coolify deployment instructions
-  - Health checks and monitoring

@@ -1,90 +1,71 @@
-# ===========================
-# Cascade - Production Dockerfile
-# Next.js 15 + React 19 + Supabase
-# Optimized for Coolify deployment
-# ===========================
+FROM node:24-alpine AS base
+WORKDIR /app
 
-# Stage 1: Base image with Node.js
-FROM node:22-alpine AS base
-
-# Install dependencies only when needed
+# ---- Dependencies ----
+# Install dependencies in a separate layer to leverage Docker's caching.
+# This layer is only rebuilt when package.json or package-lock.json changes.
 FROM base AS deps
-
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+# Install libc6-compat for compatibility with native modules
 RUN apk add --no-cache libc6-compat
 
-WORKDIR /app
-
-# Copy package files
 COPY package.json package-lock.json* ./
-
-# Install dependencies with clean install
-RUN npm ci --only=production --legacy-peer-deps && \
+# Install ALL dependencies (including devDependencies) needed for build
+RUN npm ci && \
     npm cache clean --force
 
-# Stage 2: Build the application
+# Install the Alpine-compatible SWC binary
+RUN npm install --no-save @next/swc-linux-x64-musl
+
+
+# ---- Builder ----
+# Rebuild the source code only when needed
 FROM base AS builder
-
-WORKDIR /app
-
-# Copy dependencies from deps stage
+# Copy dependencies
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy all source files
+# Copy application source
 COPY . .
 
-# Build arguments for environment variables
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY
-
-# Set environment variables for build
-ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY}
+# Don't set NODE_ENV=production here because we need devDependencies for the build
+# Next.js will use production mode automatically during build
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
 
-# Build the Next.js application
+# Optimize Node.js memory and build performance
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+# Build Next.js
 RUN npm run build
 
-# Stage 3: Production runner
-FROM base AS runner
 
+# ---- Runner ----
+# Production image, copy all the files and run next
+FROM node:24-alpine AS runner
 WORKDIR /app
 
-# Set production environment
+# Install CA certificates for SSL/TLS support
+RUN apk add --no-cache ca-certificates
+
+# Set the environment to production
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user for security
+# Create a non-root user for security best practices (combine RUN commands to reduce layers)
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy public assets
+# Copy the standalone output from the builder stage.
+# Note: Next.js standalone mode includes necessary node_modules in the output
 COPY --from=builder /app/public ./public
-
-# Set correct permissions for prerender cache
-RUN mkdir .next && \
-    chown nextjs:nodejs .next
-
-# Copy built application
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Switch to non-root user
+# Switch to the non-root user
 USER nextjs
 
-# Expose the application port
+# Expose the port the app will run on
 EXPOSE 3000
-
-# Set port environment variable
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-
-# Start the application
+# The command to start the production server
 CMD ["node", "server.js"]
