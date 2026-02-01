@@ -346,9 +346,36 @@ CREATE OR REPLACE FUNCTION "public"."approve_request"("p_request_id" "uuid", "p_
     AS $$
 DECLARE
   v_user_id UUID;
-  v_status request_status;
+  v_workflow_chain_id UUID;
+  v_last_send_back_time TIMESTAMPTZ;
+  v_approval_count INT;
+  v_current_section_order INT;
+  v_current_section_id UUID;
+  v_total_steps_in_current_section INT;
+  v_is_section_complete BOOLEAN;
+  v_has_next_section BOOLEAN;
+  v_next_section_result JSONB;
 BEGIN
   v_user_id := auth.uid();
+
+  -- Get workflow chain ID and current section
+  SELECT workflow_chain_id, current_section_order
+  INTO v_workflow_chain_id, v_current_section_order
+  FROM requests
+  WHERE id = p_request_id;
+
+  -- Get the most recent send-back timestamp (if any) FOR THIS SECTION
+  SELECT MAX(created_at) INTO v_last_send_back_time
+  FROM request_history
+  WHERE request_id = p_request_id
+    AND action = 'SEND_BACK_TO_INITIATOR';
+
+  -- Count VALID approvals in THIS REQUEST (only those after the last send-back)
+  SELECT COUNT(*) INTO v_approval_count
+  FROM request_history rh
+  WHERE rh.request_id = p_request_id
+    AND rh.action = 'APPROVE'
+    AND (v_last_send_back_time IS NULL OR rh.created_at > v_last_send_back_time);
 
   -- Log approval in history
   INSERT INTO request_history (
@@ -363,12 +390,55 @@ BEGIN
     p_comments
   );
 
-  -- Update request status to IN_REVIEW or APPROVED
-  -- (Additional logic needed to determine if all approvals complete)
-  UPDATE requests
-  SET status = 'IN_REVIEW',
-      updated_at = NOW()
-  WHERE id = p_request_id;
+  -- Increment approval count (we just added one)
+  v_approval_count := v_approval_count + 1;
+
+  -- Get total steps in the CURRENT section
+  SELECT ws.id, COUNT(wss.id)
+  INTO v_current_section_id, v_total_steps_in_current_section
+  FROM workflow_sections ws
+  LEFT JOIN workflow_section_steps wss ON wss.section_id = ws.id
+  WHERE ws.chain_id = v_workflow_chain_id
+    AND ws.section_order = v_current_section_order
+  GROUP BY ws.id;
+
+  -- Check if current section is complete
+  v_is_section_complete := (v_approval_count >= v_total_steps_in_current_section);
+
+  -- Check if there's a NEXT section (instead of comparing counts)
+  SELECT EXISTS (
+    SELECT 1
+    FROM workflow_sections
+    WHERE chain_id = v_workflow_chain_id
+      AND section_order > v_current_section_order
+  ) INTO v_has_next_section;
+
+  -- Update request status and trigger next section if needed
+  IF v_is_section_complete THEN
+    -- Section is complete - mark as APPROVED
+    UPDATE requests
+    SET status = 'APPROVED',
+        updated_at = NOW()
+    WHERE id = p_request_id;
+
+    -- If there's a next section, trigger it
+    IF v_has_next_section THEN
+      -- Trigger next section (notify initiators)
+      v_next_section_result := trigger_next_section(p_request_id);
+
+      -- Log for debugging
+      RAISE NOTICE 'Section complete. Triggered next section. Result: %', v_next_section_result;
+    ELSE
+      -- This was the last section, workflow fully complete
+      RAISE NOTICE 'Workflow fully complete. No more sections.';
+    END IF;
+  ELSE
+    -- Still in progress within this section
+    UPDATE requests
+    SET status = 'IN_REVIEW',
+        updated_at = NOW()
+    WHERE id = p_request_id;
+  END IF;
 
   RETURN true;
 END;
@@ -378,7 +448,7 @@ $$;
 ALTER FUNCTION "public"."approve_request"("p_request_id" "uuid", "p_comments" "text") OWNER TO "postgres";
 
 
-COMMENT ON FUNCTION "public"."approve_request"("p_request_id" "uuid", "p_comments" "text") IS 'Approve a request at current step';
+COMMENT ON FUNCTION "public"."approve_request"("p_request_id" "uuid", "p_comments" "text") IS 'Approve a request at current step. When section completes, triggers next section by notifying initiators to create a linked request. Each section is a separate request linked via parent_request_id.';
 
 
 
@@ -460,6 +530,133 @@ ALTER FUNCTION "public"."assign_workflow_to_template"("p_template_id" "uuid", "p
 
 
 COMMENT ON FUNCTION "public"."assign_workflow_to_template"("p_template_id" "uuid", "p_workflow_chain_id" "uuid") IS 'Assigns a workflow chain to a template - used to link Purchase Order template to its workflow';
+
+
+
+CREATE OR REPLACE FUNCTION "public"."auto_resolve_clarification_on_comment"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  v_request_status request_status;
+  v_has_clarification_request BOOLEAN;
+BEGIN
+  -- Only proceed if this is a new comment (not an update)
+  IF TG_OP != 'INSERT' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Get the current request status
+  SELECT status INTO v_request_status
+  FROM requests
+  WHERE id = NEW.request_id;
+
+  -- Only auto-resolve if status is NEEDS_REVISION
+  IF v_request_status != 'NEEDS_REVISION' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Check if there's a clarification request in history
+  SELECT EXISTS (
+    SELECT 1
+    FROM request_history
+    WHERE request_id = NEW.request_id
+      AND action = 'REQUEST_CLARIFICATION'
+      AND created_at > (
+        -- Get the most recent approval or status change
+        SELECT COALESCE(MAX(created_at), '1970-01-01'::timestamp)
+        FROM request_history
+        WHERE request_id = NEW.request_id
+          AND action IN ('APPROVE', 'SEND_BACK_TO_INITIATOR')
+      )
+  ) INTO v_has_clarification_request;
+
+  -- If there was a clarification request and someone just commented, resolve it
+  IF v_has_clarification_request THEN
+    UPDATE requests
+    SET status = 'IN_REVIEW',
+        updated_at = NOW()
+    WHERE id = NEW.request_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."auto_resolve_clarification_on_comment"() OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."auto_resolve_clarification_on_comment"() IS 'Automatically resolves NEEDS_REVISION status to IN_REVIEW when a comment is added after a clarification request.';
+
+
+
+CREATE OR REPLACE FUNCTION "public"."can_access_form_with_parent"("p_user_id" "uuid", "p_form_id" "uuid", "p_workflow_chain_id" "uuid", "p_section_order" integer, "p_parent_request_id" "uuid") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  v_can_access boolean := false;
+  v_parent_exists boolean := false;
+  v_section_initiator_type text;
+  v_section_initiator_role_id uuid;
+  v_last_approver_id uuid;
+BEGIN
+  -- First, verify the parent request exists and matches the workflow
+  SELECT EXISTS (
+    SELECT 1
+    FROM requests
+    WHERE id = p_parent_request_id
+      AND workflow_chain_id = p_workflow_chain_id
+  ) INTO v_parent_exists;
+
+  IF NOT v_parent_exists THEN
+    RETURN false;
+  END IF;
+
+  -- Get the section's initiator configuration
+  SELECT initiator_type, initiator_role_id
+  INTO v_section_initiator_type, v_section_initiator_role_id
+  FROM workflow_sections
+  WHERE chain_id = p_workflow_chain_id
+    AND section_order = p_section_order
+    AND form_id = p_form_id;
+
+  -- Check access based on initiator_type
+  IF v_section_initiator_type = 'last_approver' THEN
+    -- Get the last approver of the parent request
+    SELECT actor_id
+    INTO v_last_approver_id
+    FROM request_history
+    WHERE request_id = p_parent_request_id
+      AND action = 'APPROVE'
+    ORDER BY created_at DESC
+    LIMIT 1;
+
+    -- User can access if they are the last approver
+    v_can_access := (v_last_approver_id = p_user_id);
+
+  ELSIF v_section_initiator_type = 'specific_role' AND v_section_initiator_role_id IS NOT NULL THEN
+    -- User can access if they have the initiator role
+    SELECT EXISTS (
+      SELECT 1
+      FROM user_role_assignments ura
+      WHERE ura.user_id = p_user_id
+        AND ura.role_id = v_section_initiator_role_id
+    ) INTO v_can_access;
+
+  ELSE
+    -- No initiator type configured or unknown type - deny access
+    v_can_access := false;
+  END IF;
+
+  RETURN v_can_access;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."can_access_form_with_parent"("p_user_id" "uuid", "p_form_id" "uuid", "p_workflow_chain_id" "uuid", "p_section_order" integer, "p_parent_request_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."can_access_form_with_parent"("p_user_id" "uuid", "p_form_id" "uuid", "p_workflow_chain_id" "uuid", "p_section_order" integer, "p_parent_request_id" "uuid") IS 'Checks if a user can access a form when continuing a workflow (with parent_request). Validates: (1) parent request exists and matches workflow, (2) user is authorized based on section initiator_type (last_approver or specific_role).';
 
 
 
@@ -545,6 +742,87 @@ $$;
 ALTER FUNCTION "public"."can_delete_role_assignment"("assignment_user_id" "uuid", "assignment_role_id" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."can_manage_role_assignment"("assignment_user_id" "uuid", "assignment_role_id" "uuid") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  v_is_super_admin BOOLEAN;
+  v_is_org_admin BOOLEAN;
+  v_is_bu_admin BOOLEAN;
+  v_viewer_org_id UUID;
+  v_role_bu_id UUID;
+  v_role_scope role_scope;
+BEGIN
+  -- Check if viewer is Super Admin
+  v_is_super_admin := is_super_admin();
+
+  -- Super Admins can manage all assignments
+  IF v_is_super_admin THEN
+    RETURN TRUE;
+  END IF;
+
+  -- Get role details
+  SELECT business_unit_id, scope INTO v_role_bu_id, v_role_scope
+  FROM roles
+  WHERE id = assignment_role_id;
+
+  -- Cannot assign SYSTEM-scoped roles unless Super Admin
+  IF v_role_scope = 'SYSTEM' THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Check if viewer is Organization Admin
+  v_is_org_admin := is_organization_admin();
+
+  -- Get viewer's organization ID
+  SELECT organization_id INTO v_viewer_org_id
+  FROM profiles
+  WHERE id = auth.uid();
+
+  -- Organization Admins can assign roles to users in their organization
+  IF v_is_org_admin AND v_viewer_org_id IS NOT NULL THEN
+    -- Check if assignee is in same organization (via business units)
+    IF EXISTS (
+      SELECT 1
+      FROM user_business_units ubu
+      JOIN business_units bu ON bu.id = ubu.business_unit_id
+      WHERE ubu.user_id = assignment_user_id
+        AND bu.organization_id = v_viewer_org_id
+    ) THEN
+      RETURN TRUE;
+    END IF;
+  END IF;
+
+  -- Check if viewer is BU Admin for the role's business unit
+  IF v_role_bu_id IS NOT NULL THEN
+    v_is_bu_admin := is_bu_admin_for_unit(v_role_bu_id);
+
+    IF v_is_bu_admin THEN
+      -- BU Admins can assign roles in their BU to users who are members of that BU
+      IF EXISTS (
+        SELECT 1
+        FROM user_business_units
+        WHERE user_id = assignment_user_id
+          AND business_unit_id = v_role_bu_id
+      ) THEN
+        RETURN TRUE;
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN FALSE;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."can_manage_role_assignment"("assignment_user_id" "uuid", "assignment_role_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."can_manage_role_assignment"("assignment_user_id" "uuid", "assignment_role_id" "uuid") IS 'Determines if current user can create/delete a role assignment. Works with users without organization_id by checking via business units.';
+
+
+
 CREATE OR REPLACE FUNCTION "public"."can_manage_workflows_for_bu"("p_bu_id" "uuid") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -577,36 +855,61 @@ CREATE OR REPLACE FUNCTION "public"."can_view_role_assignment"("assignment_user_
     AS $$
 DECLARE
   v_viewer_org_id UUID;
-  v_assignee_org_id UUID;
   v_is_super_admin BOOLEAN;
+  v_is_org_admin BOOLEAN;
+  v_share_business_unit BOOLEAN;
 BEGIN
-  -- Get viewer's organization
+  -- Check if viewer is Super Admin
+  v_is_super_admin := is_super_admin();
+
+  -- Super Admins can view all assignments
+  IF v_is_super_admin THEN
+    RETURN TRUE;
+  END IF;
+
+  -- Check if viewer is Organization Admin
+  v_is_org_admin := is_organization_admin();
+
+  -- Get viewer's organization ID
   SELECT organization_id INTO v_viewer_org_id
   FROM profiles
   WHERE id = auth.uid();
 
-  -- Get assignee's organization
-  SELECT organization_id INTO v_assignee_org_id
-  FROM profiles
-  WHERE id = assignment_user_id;
+  -- If viewer is Org Admin, check if assignee is in same organization
+  -- This is checked via business units since users may not have organization_id in profiles
+  IF v_is_org_admin AND v_viewer_org_id IS NOT NULL THEN
+    -- Check if assignee is in any BU that belongs to viewer's organization
+    IF EXISTS (
+      SELECT 1
+      FROM user_business_units ubu
+      JOIN business_units bu ON bu.id = ubu.business_unit_id
+      WHERE ubu.user_id = assignment_user_id
+        AND bu.organization_id = v_viewer_org_id
+    ) THEN
+      RETURN TRUE;
+    END IF;
+  END IF;
 
-  -- Check if viewer is Super Admin
+  -- Check if viewer and assignee share any business unit
+  -- This allows BU Admins and members to view role assignments within their BUs
   SELECT EXISTS (
     SELECT 1
-    FROM user_role_assignments ura
-    JOIN roles r ON r.id = ura.role_id
-    WHERE ura.user_id = auth.uid()
-    AND r.name = 'Super Admin'
-    AND r.scope = 'SYSTEM'
-  ) INTO v_is_super_admin;
+    FROM user_business_units ubu_viewer
+    JOIN user_business_units ubu_assignee ON ubu_assignee.business_unit_id = ubu_viewer.business_unit_id
+    WHERE ubu_viewer.user_id = auth.uid()
+      AND ubu_assignee.user_id = assignment_user_id
+  ) INTO v_share_business_unit;
 
-  -- Super Admins can view all assignments, others can only view within their org
-  RETURN v_is_super_admin OR (v_viewer_org_id = v_assignee_org_id);
+  RETURN v_share_business_unit;
 END;
 $$;
 
 
 ALTER FUNCTION "public"."can_view_role_assignment"("assignment_user_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."can_view_role_assignment"("assignment_user_id" "uuid") IS 'Determines if current user can view a role assignment. Super Admins can view all. Org Admins can view within their org. Users can view assignments for people in their shared business units.';
+
 
 
 CREATE OR REPLACE FUNCTION "public"."cancel_request_by_approver"("p_request_id" "uuid", "p_reason" "text") RETURNS boolean
@@ -854,6 +1157,42 @@ COMMENT ON FUNCTION "public"."debug_document_workflow"("p_document_id" "uuid") I
 
 
 
+CREATE OR REPLACE FUNCTION "public"."debug_workflow_initiators"("p_workflow_chain_id" "uuid") RETURNS TABLE("section_order" integer, "section_name" "text", "section_id" "uuid", "initiator_count" bigint, "initiator_roles" "jsonb")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    ws.section_order,
+    ws.section_name,
+    ws.id as section_id,
+    COUNT(wsi.role_id) as initiator_count,
+    COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'role_id', r.id,
+          'role_name', r.name
+        )
+      ) FILTER (WHERE r.id IS NOT NULL),
+      '[]'::jsonb
+    ) as initiator_roles
+  FROM workflow_sections ws
+  LEFT JOIN workflow_section_initiators wsi ON wsi.section_id = ws.id
+  LEFT JOIN roles r ON r.id = wsi.role_id
+  WHERE ws.chain_id = p_workflow_chain_id
+  GROUP BY ws.id, ws.section_order, ws.section_name
+  ORDER BY ws.section_order;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."debug_workflow_initiators"("p_workflow_chain_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."debug_workflow_initiators"("p_workflow_chain_id" "uuid") IS 'Debug function to check which sections have initiator roles configured';
+
+
+
 CREATE OR REPLACE FUNCTION "public"."delete_workflow_chain"("p_chain_id" "uuid") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -1014,6 +1353,79 @@ CREATE OR REPLACE FUNCTION "public"."get_administered_bu_ids"() RETURNS TABLE("i
 
 
 ALTER FUNCTION "public"."get_administered_bu_ids"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_all_user_requests"("p_user_id" "uuid") RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "status" "text", "data" "jsonb", "initiator_id" "uuid", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "current_section_order" integer, "parent_request_id" "uuid", "forms" "jsonb", "workflow_chains" "jsonb", "business_units" "jsonb", "initiator" "jsonb")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT
+    r.id,
+    r.form_id,
+    r.workflow_chain_id,
+    r.business_unit_id,
+    r.status,
+    r.data,
+    r.initiator_id,
+    r.created_at,
+    r.updated_at,
+    r.current_section_order,
+    r.parent_request_id,
+    jsonb_build_object(
+      'id', f.id,
+      'name', f.name,
+      'icon', f.icon
+    ) AS forms,
+    jsonb_build_object(
+      'id', wc.id,
+      'name', wc.name
+    ) AS workflow_chains,
+    jsonb_build_object(
+      'id', bu.id,
+      'name', bu.name
+    ) AS business_units,
+    jsonb_build_object(
+      'first_name', p.first_name,
+      'last_name', p.last_name
+    ) AS initiator
+  FROM requests r
+  LEFT JOIN forms f ON r.form_id = f.id
+  LEFT JOIN workflow_chains wc ON r.workflow_chain_id = wc.id
+  LEFT JOIN business_units bu ON r.business_unit_id = bu.id
+  LEFT JOIN profiles p ON r.initiator_id = p.id
+  WHERE
+    -- User created the request
+    r.initiator_id = p_user_id
+    OR
+    -- User is an approver in the workflow
+    EXISTS (
+      SELECT 1
+      FROM workflow_section_steps wss
+      JOIN user_role_assignments ura ON ura.role_id = wss.approver_role_id
+      JOIN workflow_sections ws ON ws.id = wss.section_id
+      WHERE ws.chain_id = r.workflow_chain_id
+        AND ura.user_id = p_user_id
+    )
+    OR
+    -- User has approved/rejected this request in history
+    EXISTS (
+      SELECT 1
+      FROM request_history rh
+      WHERE rh.request_id = r.id
+        AND rh.actor_id = p_user_id
+        AND rh.action IN ('APPROVE', 'REJECT')
+    )
+  ORDER BY r.updated_at DESC;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_all_user_requests"("p_user_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."get_all_user_requests"("p_user_id" "uuid") IS 'Returns all requests that a user has visibility to: requests they created, requests they are/were/will be approvers on, and requests they have interacted with in the workflow history.';
+
 
 
 CREATE OR REPLACE FUNCTION "public"."get_approved_requests_for_bu"() RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "organization_id" "uuid", "status" "public"."request_status", "data" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "form_name" "text", "workflow_name" "text")
@@ -1847,12 +2259,21 @@ BEGIN
   INNER JOIN workflow_sections ws ON ws.form_id = f.id
   -- Get the workflow chain
   INNER JOIN workflow_chains wc ON wc.id = ws.chain_id
-  -- Check if user has one of the initiator roles for this section
-  INNER JOIN workflow_section_initiators wsi ON wsi.section_id = ws.id
-  INNER JOIN user_role_assignments ura ON ura.role_id = wsi.role_id
-  WHERE ura.user_id = p_user_id
-    AND f.status = 'active'
+  -- Check if user has the initiator role for this section
+  -- For sections with initiator_type = 'specific_role', check if user has that role
+  -- For sections with initiator_type = 'last_approver', don't show in general list
+  --   (these are only accessible via parent_request notification links)
+  LEFT JOIN user_role_assignments ura ON ura.role_id = ws.initiator_role_id AND ura.user_id = p_user_id
+  WHERE f.status = 'active'
     AND wc.status = 'active'
+    -- Show form if:
+    -- 1. Section has initiator_type = 'specific_role' AND user has the role, OR
+    -- 2. Section has no initiator_role_id (NULL) - open access
+    -- Do NOT show if initiator_type = 'last_approver' (only accessible via notifications)
+    AND (
+      (ws.initiator_type = 'specific_role' AND ura.user_id IS NOT NULL) OR
+      (ws.initiator_role_id IS NULL)
+    )
   ORDER BY f.name, ws.section_order;
 END;
 $$;
@@ -1861,11 +2282,11 @@ $$;
 ALTER FUNCTION "public"."get_initiatable_forms"("p_user_id" "uuid") OWNER TO "postgres";
 
 
-COMMENT ON FUNCTION "public"."get_initiatable_forms"("p_user_id" "uuid") IS 'Get all forms that a user can initiate based on workflow section initiator roles. Returns forms from ALL sections of workflow chains where the user has an initiator role. Includes section_order and needs_prior_section flag to warn if earlier sections are missing forms.';
+COMMENT ON FUNCTION "public"."get_initiatable_forms"("p_user_id" "uuid") IS 'Get all forms that a user can initiate based on workflow section initiator roles. Shows Section 0 forms AND mid-workflow forms (Section 1+) if user has initiator_type = specific_role. Forms with initiator_type = last_approver are hidden (only accessible via parent_request notification links). Mid-workflow forms will prompt for skip reason when initiated manually.';
 
 
 
-CREATE OR REPLACE FUNCTION "public"."get_my_active_requests"() RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "organization_id" "uuid", "status" "public"."request_status", "data" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "form_name" "text", "workflow_name" "text")
+CREATE OR REPLACE FUNCTION "public"."get_my_active_requests"() RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "organization_id" "uuid", "status" "public"."request_status", "data" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "form_name" "text", "workflow_name" "text", "workflow_progress" "jsonb")
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
@@ -1881,7 +2302,8 @@ BEGIN
     r.created_at,
     r.updated_at,
     f.name as form_name,
-    wc.name as workflow_name
+    wc.name as workflow_name,
+    get_request_workflow_progress(r.id) as workflow_progress
   FROM requests r
   INNER JOIN forms f ON f.id = r.form_id
   LEFT JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
@@ -1895,7 +2317,7 @@ $$;
 ALTER FUNCTION "public"."get_my_active_requests"() OWNER TO "postgres";
 
 
-COMMENT ON FUNCTION "public"."get_my_active_requests"() IS 'Get all active requests created by current user (in review or submitted)';
+COMMENT ON FUNCTION "public"."get_my_active_requests"() IS 'Get all active requests created by current user with workflow progress';
 
 
 
@@ -1932,7 +2354,7 @@ $$;
 ALTER FUNCTION "public"."get_my_organization_id"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."get_my_pending_approvals"() RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "organization_id" "uuid", "status" "public"."request_status", "data" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "form_name" "text", "workflow_name" "text")
+CREATE OR REPLACE FUNCTION "public"."get_my_pending_approvals"() RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "organization_id" "uuid", "status" "public"."request_status", "data" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "form_name" "text", "workflow_name" "text", "workflow_progress" "jsonb")
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
@@ -1948,7 +2370,8 @@ BEGIN
     r.created_at,
     r.updated_at,
     f.name as form_name,
-    wc.name as workflow_name
+    wc.name as workflow_name,
+    get_request_workflow_progress(r.id) as workflow_progress
   FROM requests r
   INNER JOIN forms f ON f.id = r.form_id
   LEFT JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
@@ -1972,11 +2395,187 @@ $$;
 ALTER FUNCTION "public"."get_my_pending_approvals"() OWNER TO "postgres";
 
 
-COMMENT ON FUNCTION "public"."get_my_pending_approvals"() IS 'Get all requests pending approval by current user';
+COMMENT ON FUNCTION "public"."get_my_pending_approvals"() IS 'Get all requests pending approval by current user with workflow progress';
 
 
 
-CREATE OR REPLACE FUNCTION "public"."get_my_requests_needing_revision"() RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "organization_id" "uuid", "status" "public"."request_status", "data" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "form_name" "text", "workflow_name" "text")
+CREATE OR REPLACE FUNCTION "public"."get_my_pending_section_forms"() RETURNS TABLE("notification_id" "uuid", "message" "text", "link_url" "text", "created_at" timestamp with time zone, "parent_request_id" "uuid", "parent_form_name" "text", "parent_status" "text", "section_order" integer, "section_name" "text", "form_name" "text")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    n.id as notification_id,
+    n.message,
+    n.link_url,
+    n.created_at,
+    -- Extract parent_request ID from link_url
+    NULLIF(
+      regexp_replace(n.link_url, '.*parent_request=([a-f0-9-]+).*', '\1'),
+      n.link_url
+    )::uuid as parent_request_id,
+    pf.name as parent_form_name,
+    pr.status::text as parent_status,
+    ws.section_order,
+    ws.section_name,
+    f.name as form_name
+  FROM notifications n
+  -- Extract workflow and section info from URL pattern
+  -- /requests/create/{workflow_chain_id}/{section_order}/{template_id}/{bu_id}
+  LEFT JOIN LATERAL (
+    SELECT
+      split_part(split_part(n.link_url, '/requests/create/', 2), '/', 1) as workflow_id,
+      split_part(split_part(n.link_url, '/requests/create/', 2), '/', 2) as section_order_str,
+      split_part(split_part(n.link_url, '/requests/create/', 2), '/', 3) as form_id
+  ) url_parts ON true
+  LEFT JOIN workflow_sections ws ON
+    ws.chain_id::text = url_parts.workflow_id
+    AND ws.section_order::text = url_parts.section_order_str
+  LEFT JOIN forms f ON f.id::text = url_parts.form_id
+  -- Get parent request info
+  LEFT JOIN LATERAL (
+    SELECT id, form_id, status
+    FROM requests
+    WHERE id::text = regexp_replace(n.link_url, '.*parent_request=([a-f0-9-]+).*', '\1')
+    LIMIT 1
+  ) pr ON n.link_url LIKE '%parent_request=%'
+  LEFT JOIN forms pf ON pf.id = pr.form_id
+  WHERE n.recipient_id = auth.uid()
+    AND NOT n.is_read
+    AND n.link_url LIKE '/requests/create/%'
+    AND n.link_url LIKE '%parent_request=%'
+  ORDER BY n.created_at DESC;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_my_pending_section_forms"() OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."get_my_pending_section_forms"() IS 'Get unread notifications for pending section forms that need to be filled. These are forms where a previous section was completed and the user needs to fill the next section. Used for dashboard call-to-action table.';
+
+
+
+CREATE OR REPLACE FUNCTION "public"."get_my_request_history"("p_business_unit_id" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "organization_id" "uuid", "status" "public"."request_status", "data" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "form_name" "text", "form_icon" "text", "workflow_name" "text", "business_unit_name" "text", "initiator_id" "uuid", "initiator_name" "text", "initiator_email" "text", "current_section_order" integer, "my_role" "text")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  v_user_id uuid;
+  v_is_org_admin boolean := false;
+  v_is_bu_admin boolean := false;
+  v_org_id uuid;
+BEGIN
+  v_user_id := auth.uid();
+
+  -- Check if user is organization admin
+  SELECT EXISTS (
+    SELECT 1
+    FROM user_role_assignments ura
+    JOIN roles r ON r.id = ura.role_id
+    WHERE ura.user_id = v_user_id
+      AND r.scope = 'ORGANIZATION'
+      AND r.name = 'Organization Admin'
+  ) INTO v_is_org_admin;
+
+  -- Get user's organization ID (if they have one)
+  IF v_is_org_admin THEN
+    SELECT r.organization_id
+    INTO v_org_id
+    FROM user_role_assignments ura
+    JOIN roles r ON r.id = ura.role_id
+    WHERE ura.user_id = v_user_id
+      AND r.scope = 'ORGANIZATION'
+      AND r.name = 'Organization Admin'
+    LIMIT 1;
+  END IF;
+
+  -- Check if user is BU admin for the specified business unit
+  IF p_business_unit_id IS NOT NULL THEN
+    SELECT EXISTS (
+      SELECT 1
+      FROM user_business_units ubu
+      WHERE ubu.user_id = v_user_id
+        AND ubu.business_unit_id = p_business_unit_id
+        AND ubu.membership_type IN ('BU_ADMIN', 'Head')
+    ) INTO v_is_bu_admin;
+  END IF;
+
+  RETURN QUERY
+  SELECT DISTINCT
+    r.id,
+    r.form_id,
+    r.workflow_chain_id,
+    r.business_unit_id,
+    r.organization_id,
+    r.status,
+    r.data,
+    r.created_at,
+    r.updated_at,
+    f.name as form_name,
+    f.icon as form_icon,
+    wc.name as workflow_name,
+    bu.name as business_unit_name,
+    r.initiator_id,
+    COALESCE(p.first_name || ' ' || p.last_name, p.email) as initiator_name,
+    p.email as initiator_email,
+    r.current_section_order,
+    -- Determine user's role in this request
+    CASE
+      WHEN r.initiator_id = v_user_id THEN 'Initiator'
+      WHEN EXISTS (
+        SELECT 1 FROM request_history rh
+        WHERE rh.request_id = r.id
+          AND rh.actor_id = v_user_id
+          AND rh.action = 'APPROVE'
+      ) THEN 'Approver'
+      WHEN EXISTS (
+        SELECT 1 FROM comments c
+        WHERE c.request_id = r.id
+          AND c.author_id = v_user_id
+      ) THEN 'Commenter'
+      WHEN v_is_org_admin OR v_is_bu_admin THEN 'Admin'
+      ELSE 'Viewer'
+    END as my_role
+  FROM requests r
+  LEFT JOIN forms f ON f.id = r.form_id
+  LEFT JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
+  LEFT JOIN business_units bu ON bu.id = r.business_unit_id
+  LEFT JOIN profiles p ON p.id = r.initiator_id
+  WHERE
+    -- Org Admin: See all requests in their organization
+    (v_is_org_admin AND r.organization_id = v_org_id)
+    OR
+    -- BU Admin: See all requests in the specified BU
+    (v_is_bu_admin AND r.business_unit_id = p_business_unit_id)
+    OR
+    -- Regular User: See requests they created
+    (r.initiator_id = v_user_id)
+    OR
+    -- Regular User: See requests they interacted with (approved, commented, etc.)
+    EXISTS (
+      SELECT 1 FROM request_history rh
+      WHERE rh.request_id = r.id
+        AND rh.actor_id = v_user_id
+    )
+    OR
+    EXISTS (
+      SELECT 1 FROM comments c
+      WHERE c.request_id = r.id
+        AND c.author_id = v_user_id
+    )
+  ORDER BY r.updated_at DESC;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_my_request_history"("p_business_unit_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."get_my_request_history"("p_business_unit_id" "uuid") IS 'Get comprehensive request history. Regular users see requests they created or interacted with. BU Admins see ALL requests in their BU (including ongoing). Org Admins see ALL requests in their organization (including ongoing). Returns with user role indication.';
+
+
+
+CREATE OR REPLACE FUNCTION "public"."get_my_requests_needing_revision"() RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "organization_id" "uuid", "status" "public"."request_status", "data" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "form_name" "text", "workflow_name" "text", "workflow_progress" "jsonb")
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
@@ -1992,7 +2591,8 @@ BEGIN
     r.created_at,
     r.updated_at,
     f.name as form_name,
-    wc.name as workflow_name
+    wc.name as workflow_name,
+    get_request_workflow_progress(r.id) as workflow_progress
   FROM requests r
   INNER JOIN forms f ON f.id = r.form_id
   LEFT JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
@@ -2006,7 +2606,7 @@ $$;
 ALTER FUNCTION "public"."get_my_requests_needing_revision"() OWNER TO "postgres";
 
 
-COMMENT ON FUNCTION "public"."get_my_requests_needing_revision"() IS 'Get all requests created by current user that need revision';
+COMMENT ON FUNCTION "public"."get_my_requests_needing_revision"() IS 'Get all requests created by current user that need revision with workflow progress';
 
 
 
@@ -2107,6 +2707,52 @@ COMMENT ON FUNCTION "public"."get_org_admin_users"() IS 'Returns users with role
 
 
 
+CREATE OR REPLACE FUNCTION "public"."get_request_chain"("p_request_id" "uuid") RETURNS TABLE("id" "uuid", "form_id" "uuid", "form_name" "text", "form_icon" "text", "section_order" integer, "section_name" "text", "status" "text", "data" "jsonb", "initiator_id" "uuid", "initiator_name" "text", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "is_current" boolean)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  v_root_id UUID;
+BEGIN
+  -- Find the root request (either this request's root, or this request if it's the root)
+  SELECT COALESCE(r.root_request_id, r.id)
+  INTO v_root_id
+  FROM requests r
+  WHERE r.id = p_request_id;
+
+  -- Return all requests in the chain, ordered by section
+  RETURN QUERY
+  SELECT
+    r.id,
+    r.form_id,
+    f.name as form_name,
+    f.icon as form_icon,
+    r.current_section_order as section_order,
+    ws.section_name,
+    r.status::text,
+    r.data,
+    r.initiator_id,
+    COALESCE(p.first_name || ' ' || p.last_name, p.email) as initiator_name,
+    r.created_at,
+    r.updated_at,
+    (r.id = p_request_id) as is_current
+  FROM requests r
+  LEFT JOIN forms f ON f.id = r.form_id
+  LEFT JOIN workflow_sections ws ON ws.chain_id = r.workflow_chain_id
+    AND ws.section_order = r.current_section_order
+  LEFT JOIN profiles p ON p.id = r.initiator_id
+  WHERE (r.id = v_root_id OR r.root_request_id = v_root_id)
+  ORDER BY r.current_section_order ASC;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_request_chain"("p_request_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."get_request_chain"("p_request_id" "uuid") IS 'Gets all linked requests in a workflow chain, showing complete history across sections';
+
+
+
 CREATE OR REPLACE FUNCTION "public"."get_request_comments"("p_request_id" "uuid") RETURNS TABLE("id" "uuid", "created_at" timestamp with time zone, "content" "text", "author_id" "uuid", "author_name" "text", "author_email" "text", "author_image_url" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -2164,10 +2810,11 @@ DECLARE
   v_total_sections INT;
   v_sections JSONB;
   v_waiting_on TEXT;
+  v_last_send_back_time TIMESTAMPTZ;
 BEGIN
   -- Get request details
-  SELECT workflow_chain_id, status::TEXT
-  INTO v_workflow_chain_id, v_request_status
+  SELECT workflow_chain_id, status::TEXT, current_section_order
+  INTO v_workflow_chain_id, v_request_status, v_current_section
   FROM requests
   WHERE id = p_request_id;
 
@@ -2185,19 +2832,26 @@ BEGIN
   FROM workflow_chains
   WHERE id = v_workflow_chain_id;
 
-  -- Count approvals to determine current position
+  -- Get the most recent send-back timestamp (if any)
+  SELECT MAX(created_at)
+  INTO v_last_send_back_time
+  FROM request_history
+  WHERE request_id = p_request_id
+  AND action = 'SEND_BACK_TO_INITIATOR';
+
+  -- Count VALID approvals (only those after the last send-back AND for the current section)
   SELECT COUNT(*)
   INTO v_approval_count
   FROM request_history rh
   WHERE rh.request_id = p_request_id
-  AND rh.action = 'APPROVE';
+  AND rh.action = 'APPROVE'
+  AND (
+    v_last_send_back_time IS NULL
+    OR rh.created_at > v_last_send_back_time
+  );
 
-  -- Current step is approval_count + 1 (1-indexed)
+  -- Current step is valid_approval_count + 1 (1-indexed)
   v_current_step := v_approval_count + 1;
-
-  -- For now, we only support section 0 (single section workflows)
-  -- In future, multi-section support would require tracking which section we're in
-  v_current_section := 0;
 
   -- Get total sections
   SELECT COUNT(*)
@@ -2215,7 +2869,7 @@ BEGIN
   AND ws.section_order = v_current_section
   AND wss.step_number = v_current_step;
 
-  -- Build sections array with progress information
+  -- Build sections array with progress information INCLUDING initiator roles
   SELECT jsonb_agg(section_data ORDER BY section_order)
   INTO v_sections
   FROM (
@@ -2228,9 +2882,13 @@ BEGIN
         'section_description', ws.section_description,
         'form_id', ws.form_id,
         'form_name', f.name,
+        'form_icon', f.icon,
         'is_form', (ws.form_id IS NOT NULL),
         'is_completed', (ws.section_order < v_current_section),
         'is_current', (ws.section_order = v_current_section),
+        'is_upcoming', (ws.section_order > v_current_section),
+        'initiator_role_id', ws.initiator_role_id,
+        'initiator_role_name', init_role.name,
         'steps', COALESCE((
           SELECT jsonb_agg(
             jsonb_build_object(
@@ -2239,26 +2897,54 @@ BEGIN
               'approver_role_id', wss.approver_role_id,
               'approver_role_name', r.name,
               'is_completed', (
-                ws.section_order < v_current_section
-                OR (ws.section_order = v_current_section AND wss.step_number < v_current_step)
-              ),
-              'is_current', (ws.section_order = v_current_section AND wss.step_number = v_current_step),
-              'approved_by', (
-                -- Get the Nth approval where N = step_number
-                SELECT jsonb_build_object(
-                  'user_id', approval.actor_id,
-                  'user_name', COALESCE(p.first_name || ' ' || p.last_name, p.email),
-                  'approved_at', approval.created_at
+                -- FIXED: Only mark as complete if:
+                -- 1. This section is already completed (section_order < current_section), OR
+                -- 2. This is the current section AND there's an approval for this step number
+                (ws.section_order < v_current_section) OR
+                (
+                  ws.section_order = v_current_section AND
+                  EXISTS (
+                    SELECT 1
+                    FROM request_history rh
+                    WHERE rh.request_id = p_request_id
+                    AND rh.action = 'APPROVE'
+                    AND (v_last_send_back_time IS NULL OR rh.created_at > v_last_send_back_time)
+                    AND (
+                      SELECT COUNT(*)
+                      FROM request_history rh2
+                      WHERE rh2.request_id = p_request_id
+                      AND rh2.action = 'APPROVE'
+                      AND (v_last_send_back_time IS NULL OR rh2.created_at > v_last_send_back_time)
+                      AND rh2.created_at <= rh.created_at
+                    ) = wss.step_number
+                  )
                 )
-                FROM (
-                  SELECT actor_id, created_at,
-                         ROW_NUMBER() OVER (ORDER BY created_at ASC) as approval_num
-                  FROM request_history
-                  WHERE request_id = p_request_id
-                  AND action = 'APPROVE'
-                ) approval
-                INNER JOIN profiles p ON p.id = approval.actor_id
-                WHERE approval.approval_num = wss.step_number
+              ),
+              'is_current', (
+                wss.step_number = v_current_step
+                AND ws.section_order = v_current_section
+              ),
+              'approved_by', (
+                -- Only show approver if this section is current or completed
+                CASE
+                  WHEN ws.section_order <= v_current_section THEN
+                    (SELECT jsonb_build_object(
+                      'user_id', approval.actor_id,
+                      'user_name', COALESCE(p.first_name || ' ' || p.last_name, p.email),
+                      'approved_at', approval.created_at
+                    )
+                    FROM (
+                      SELECT actor_id, created_at,
+                             ROW_NUMBER() OVER (ORDER BY created_at ASC) as approval_num
+                      FROM request_history
+                      WHERE request_id = p_request_id
+                      AND action = 'APPROVE'
+                      AND (v_last_send_back_time IS NULL OR created_at > v_last_send_back_time)
+                    ) approval
+                    INNER JOIN profiles p ON p.id = approval.actor_id
+                    WHERE approval.approval_num = wss.step_number)
+                  ELSE NULL
+                END
               )
             )
             ORDER BY wss.step_number
@@ -2270,18 +2956,22 @@ BEGIN
       ) as section_data
     FROM workflow_sections ws
     LEFT JOIN forms f ON f.id = ws.form_id
+    LEFT JOIN roles init_role ON init_role.id = ws.initiator_role_id
     WHERE ws.chain_id = v_workflow_chain_id
-  ) sections_query;
+    ORDER BY ws.section_order
+  ) sections;
 
-  -- Build and return result
+  -- Build final result
   v_result := jsonb_build_object(
     'has_workflow', true,
-    'chain_name', v_workflow_name,
-    'current_section', v_current_section + 1,  -- 1-indexed for display
-    'current_step', v_current_step,
-    'total_sections', v_total_sections,
-    'waiting_on', v_waiting_on,
+    'workflow_id', v_workflow_chain_id,
+    'workflow_name', v_workflow_name,
     'request_status', v_request_status,
+    'current_section', v_current_section,
+    'total_sections', v_total_sections,
+    'current_step', v_current_step,
+    'total_approvals_received', v_approval_count,
+    'waiting_on_role', v_waiting_on,
     'sections', COALESCE(v_sections, '[]'::jsonb)
   );
 
@@ -2293,7 +2983,7 @@ $$;
 ALTER FUNCTION "public"."get_request_workflow_progress"("p_request_id" "uuid") OWNER TO "postgres";
 
 
-COMMENT ON FUNCTION "public"."get_request_workflow_progress"("p_request_id" "uuid") IS 'Get workflow progress for a request including sections, steps, and current position based on approval history.';
+COMMENT ON FUNCTION "public"."get_request_workflow_progress"("p_request_id" "uuid") IS 'Returns complete workflow progress for a request including all sections with their initiator roles, approval steps, and current status. FIXED: Steps are only marked complete within their own section, not across all sections. Used for displaying workflow details in request viewer.';
 
 
 
@@ -2923,7 +3613,7 @@ BEGIN
       updated_at = NOW()
   WHERE id = p_request_id;
 
-  -- Add comment
+  -- Add comment WITHOUT the prefix
   INSERT INTO comments (
     request_id,
     author_id,
@@ -2931,7 +3621,7 @@ BEGIN
   ) VALUES (
     p_request_id,
     v_user_id,
-    '[OFFICIAL CLARIFICATION REQUEST] ' || p_question
+    p_question  -- REMOVED PREFIX
   );
 
   -- Log in history
@@ -2973,7 +3663,7 @@ $$;
 ALTER FUNCTION "public"."official_request_clarification"("p_request_id" "uuid", "p_question" "text") OWNER TO "postgres";
 
 
-COMMENT ON FUNCTION "public"."official_request_clarification"("p_request_id" "uuid", "p_question" "text") IS 'Official clarification request that notifies all approvers who already approved in current section';
+COMMENT ON FUNCTION "public"."official_request_clarification"("p_request_id" "uuid", "p_question" "text") IS 'Request clarification from approvers in current section. Sends clean message without prefix.';
 
 
 
@@ -3326,41 +4016,76 @@ DECLARE
   v_user_id UUID;
   v_initiator_id UUID;
   v_current_section_order INT;
+  v_current_section_id UUID;
+  v_send_back_timestamp TIMESTAMPTZ;
 BEGIN
   v_user_id := auth.uid();
+  v_send_back_timestamp := NOW();
 
-  -- Get request details
-  SELECT initiator_id INTO v_initiator_id
-  FROM requests
-  WHERE id = p_request_id;
-
-  -- Get current section order (find the section this request is in)
-  SELECT ws.section_order INTO v_current_section_order
+  -- Get request details and current section
+  SELECT
+    r.initiator_id,
+    ws.section_order,
+    ws.id
+  INTO
+    v_initiator_id,
+    v_current_section_order,
+    v_current_section_id
   FROM requests r
-  INNER JOIN workflow_sections ws ON ws.chain_id = r.workflow_chain_id
+  INNER JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
+  INNER JOIN workflow_sections ws ON ws.chain_id = wc.id
+  -- Get the section we're currently in by counting approvals
   WHERE r.id = p_request_id
+  AND ws.section_order = (
+    -- Determine current section based on approvals
+    SELECT COALESCE(
+      (SELECT COUNT(*)
+       FROM request_history rh2
+       WHERE rh2.request_id = p_request_id
+       AND rh2.action = 'APPROVE'
+       AND NOT EXISTS (
+         -- Exclude approvals that were invalidated by a previous send-back
+         SELECT 1 FROM request_history rh3
+         WHERE rh3.request_id = p_request_id
+         AND rh3.action = 'SEND_BACK_TO_INITIATOR'
+         AND rh3.created_at > rh2.created_at
+       )
+      ),
+      0
+    )
+  )
   LIMIT 1;
 
-  -- Update request status
+  -- Update request status to NEEDS_REVISION
   UPDATE requests
   SET status = 'NEEDS_REVISION',
-      updated_at = NOW()
+      updated_at = v_send_back_timestamp
   WHERE id = p_request_id;
 
-  -- Log in history
+  -- Mark all approvals for this section as invalidated
+  -- We do this by adding a comment in the SEND_BACK_TO_INITIATOR action
+  -- The workflow progress function will check for send-backs after approvals
+
+  -- Log the send-back action in history
   INSERT INTO request_history (
     request_id,
     actor_id,
     action,
-    comments
+    comments,
+    created_at
   ) VALUES (
     p_request_id,
     v_user_id,
     'SEND_BACK_TO_INITIATOR',
-    p_comments
+    jsonb_build_object(
+      'reason', p_comments,
+      'section_order', v_current_section_order,
+      'invalidates_approvals_before', v_send_back_timestamp
+    )::text,
+    v_send_back_timestamp
   );
 
-  -- Create notification for section initiator
+  -- Create notification for initiator
   INSERT INTO notifications (
     recipient_id,
     message,
@@ -3379,7 +4104,7 @@ $$;
 ALTER FUNCTION "public"."send_back_to_initiator"("p_request_id" "uuid", "p_comments" "text") OWNER TO "postgres";
 
 
-COMMENT ON FUNCTION "public"."send_back_to_initiator"("p_request_id" "uuid", "p_comments" "text") IS 'Send request back to section initiator for edits';
+COMMENT ON FUNCTION "public"."send_back_to_initiator"("p_request_id" "uuid", "p_comments" "text") IS 'Send request back to section initiator for edits. Invalidates all approvals for the current section, requiring re-approval from the start.';
 
 
 
@@ -3441,6 +4166,120 @@ COMMENT ON FUNCTION "public"."submit_request"("p_form_id" "uuid", "p_data" "json
 
 
 
+CREATE OR REPLACE FUNCTION "public"."trigger_next_section"("p_current_request_id" "uuid") RETURNS "jsonb"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  v_workflow_chain_id UUID;
+  v_current_section_order INT;
+  v_next_section RECORD;
+  v_initiator_role_id UUID;
+  v_initiator_user_ids UUID[];
+  v_business_unit_id UUID;
+  v_organization_id UUID;
+  v_root_request_id UUID;
+  v_last_approver_id UUID;
+  v_result JSONB;
+BEGIN
+  -- Get current request details
+  SELECT
+    workflow_chain_id,
+    current_section_order,
+    business_unit_id,
+    organization_id,
+    COALESCE(root_request_id, id)
+  INTO
+    v_workflow_chain_id,
+    v_current_section_order,
+    v_business_unit_id,
+    v_organization_id,
+    v_root_request_id
+  FROM requests
+  WHERE id = p_current_request_id;
+
+  -- Get the last approver of the current request (most recent APPROVE action)
+  SELECT actor_id
+  INTO v_last_approver_id
+  FROM request_history
+  WHERE request_id = p_current_request_id
+    AND action = 'APPROVE'
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  -- Get next section details including initiator info
+  SELECT
+    ws.id as section_id,
+    ws.section_order,
+    ws.section_name,
+    ws.form_id,
+    ws.initiator_type,
+    ws.initiator_role_id,
+    f.name as form_name
+  INTO v_next_section
+  FROM workflow_sections ws
+  LEFT JOIN forms f ON f.id = ws.form_id
+  WHERE ws.chain_id = v_workflow_chain_id
+    AND ws.section_order = v_current_section_order + 1
+  LIMIT 1;
+
+  -- If no next section, return null
+  IF v_next_section IS NULL THEN
+    RETURN jsonb_build_object(
+      'has_next_section', false,
+      'message', 'Workflow complete - no next section'
+    );
+  END IF;
+
+  -- Determine who should be notified based on initiator_type
+  IF v_next_section.initiator_type = 'last_approver' THEN
+    -- Notify the last approver of the current section
+    IF v_last_approver_id IS NOT NULL THEN
+      v_initiator_user_ids := ARRAY[v_last_approver_id];
+    END IF;
+  ELSIF v_next_section.initiator_type = 'specific_role' AND v_next_section.initiator_role_id IS NOT NULL THEN
+    -- Get user IDs who have the initiator role in this business unit
+    SELECT ARRAY_AGG(DISTINCT ura.user_id)
+    INTO v_initiator_user_ids
+    FROM user_role_assignments ura
+    JOIN roles r ON r.id = ura.role_id
+    WHERE ura.role_id = v_next_section.initiator_role_id
+      AND r.business_unit_id = v_business_unit_id;
+  END IF;
+
+  -- Create notifications for all initiators
+  IF v_initiator_user_ids IS NOT NULL AND array_length(v_initiator_user_ids, 1) > 0 THEN
+    INSERT INTO notifications (recipient_id, message, link_url)
+    SELECT
+      user_id,
+      'Section ' || (v_next_section.section_order + 1) || ' (' || v_next_section.section_name || ') is ready. Please fill out the ' || v_next_section.form_name || ' form.',
+      '/requests/create/' || v_workflow_chain_id || '/' || v_next_section.section_order || '/' || v_next_section.form_id || '/' || v_business_unit_id || '?parent_request=' || p_current_request_id
+    FROM UNNEST(v_initiator_user_ids) AS user_id;
+  END IF;
+
+  -- Return information about the next section
+  RETURN jsonb_build_object(
+    'has_next_section', true,
+    'next_section_order', v_next_section.section_order,
+    'next_section_name', v_next_section.section_name,
+    'next_section_form_id', v_next_section.form_id,
+    'next_section_form_name', v_next_section.form_name,
+    'initiator_type', v_next_section.initiator_type,
+    'initiator_role_id', v_next_section.initiator_role_id,
+    'last_approver_id', v_last_approver_id,
+    'initiator_count', COALESCE(array_length(v_initiator_user_ids, 1), 0),
+    'message', 'Next section triggered. ' || COALESCE(array_length(v_initiator_user_ids, 1), 0) || ' initiators notified.'
+  );
+END;
+$$;
+
+
+ALTER FUNCTION "public"."trigger_next_section"("p_current_request_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."trigger_next_section"("p_current_request_id" "uuid") IS 'Triggers the next section in a workflow chain by notifying initiators to fill out the next form. Handles two initiator types: (1) last_approver - notifies the person who just approved the current section, (2) specific_role - notifies users with workflow_sections.initiator_role_id. Called when current section is fully approved.';
+
+
+
 CREATE OR REPLACE FUNCTION "public"."update_avatar_url"("profile_id" "uuid", "avatar_url" "text") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -3454,6 +4293,76 @@ $$;
 
 
 ALTER FUNCTION "public"."update_avatar_url"("profile_id" "uuid", "avatar_url" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_employee_roles_in_bu"("p_employee_id" "uuid", "p_business_unit_id" "uuid", "p_role_names" "text"[]) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  v_current_user_id UUID;
+  v_is_bu_admin BOOLEAN;
+  v_role_ids UUID[];
+BEGIN
+  -- Get current user ID
+  v_current_user_id := auth.uid();
+
+  IF v_current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Check if current user is a BU Admin for this business unit
+  v_is_bu_admin := is_bu_admin_for_unit(p_business_unit_id);
+
+  IF NOT v_is_bu_admin THEN
+    -- Also allow Organization Admins and Super Admins
+    IF NOT (is_organization_admin() OR is_super_admin()) THEN
+      RAISE EXCEPTION 'Unauthorized: User must be a BU Admin, Organization Admin, or Super Admin';
+    END IF;
+  END IF;
+
+  -- Verify business unit is in the same organization as the admin (for Org/BU Admins)
+  IF NOT is_super_admin() THEN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM business_units bu
+      JOIN profiles p_admin ON p_admin.id = v_current_user_id
+      WHERE bu.id = p_business_unit_id
+        AND bu.organization_id = p_admin.organization_id
+    ) THEN
+      RAISE EXCEPTION 'Unauthorized: Business unit not in your organization';
+    END IF;
+  END IF;
+
+  -- Get all role IDs for this business unit
+  SELECT ARRAY_AGG(id)
+  INTO v_role_ids
+  FROM roles
+  WHERE business_unit_id = p_business_unit_id;
+
+  -- Delete existing role assignments for this BU
+  DELETE FROM user_role_assignments
+  WHERE user_id = p_employee_id
+    AND role_id = ANY(v_role_ids);
+
+  -- If role names provided, insert new assignments
+  IF p_role_names IS NOT NULL AND array_length(p_role_names, 1) > 0 THEN
+    INSERT INTO user_role_assignments (user_id, role_id)
+    SELECT
+      p_employee_id,
+      r.id
+    FROM roles r
+    WHERE r.business_unit_id = p_business_unit_id
+      AND r.name = ANY(p_role_names);
+  END IF;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."update_employee_roles_in_bu"("p_employee_id" "uuid", "p_business_unit_id" "uuid", "p_role_names" "text"[]) OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."update_employee_roles_in_bu"("p_employee_id" "uuid", "p_business_unit_id" "uuid", "p_role_names" "text"[]) IS 'Allows BU Admins to update employee roles within their business unit. Also usable by Organization Admins and Super Admins.';
+
 
 
 CREATE OR REPLACE FUNCTION "public"."update_updated_at"() RETURNS "trigger"
@@ -3852,7 +4761,10 @@ CREATE TABLE IF NOT EXISTS "public"."requests" (
     "status" "public"."request_status" DEFAULT 'DRAFT'::"public"."request_status" NOT NULL,
     "data" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "parent_request_id" "uuid",
+    "current_section_order" integer DEFAULT 0,
+    "root_request_id" "uuid"
 );
 
 
@@ -3864,6 +4776,18 @@ COMMENT ON TABLE "public"."requests" IS 'User-submitted requests (formerly docum
 
 
 COMMENT ON COLUMN "public"."requests"."workflow_chain_id" IS 'Denormalized for performance - auto-populated from form mappings';
+
+
+
+COMMENT ON COLUMN "public"."requests"."parent_request_id" IS 'Links to the previous section request in a multi-section workflow chain';
+
+
+
+COMMENT ON COLUMN "public"."requests"."current_section_order" IS 'The section order (0, 1, 2...) that this request represents within the workflow chain';
+
+
+
+COMMENT ON COLUMN "public"."requests"."root_request_id" IS 'Points to the first request in the chain (Section 0) for quick lookup of all related requests';
 
 
 
@@ -4293,11 +5217,23 @@ CREATE INDEX "idx_requests_org" ON "public"."requests" USING "btree" ("organizat
 
 
 
+CREATE INDEX "idx_requests_parent_request_id" ON "public"."requests" USING "btree" ("parent_request_id");
+
+
+
+CREATE INDEX "idx_requests_root_request_id" ON "public"."requests" USING "btree" ("root_request_id");
+
+
+
 CREATE INDEX "idx_requests_status" ON "public"."requests" USING "btree" ("status");
 
 
 
 CREATE INDEX "idx_requests_workflow" ON "public"."requests" USING "btree" ("workflow_chain_id");
+
+
+
+CREATE INDEX "idx_requests_workflow_chain_section" ON "public"."requests" USING "btree" ("workflow_chain_id", "current_section_order");
 
 
 
@@ -4346,6 +5282,10 @@ CREATE INDEX "idx_workflow_sections_chain" ON "public"."workflow_sections" USING
 
 
 CREATE INDEX "idx_workflow_sections_order" ON "public"."workflow_sections" USING "btree" ("chain_id", "section_order");
+
+
+
+CREATE OR REPLACE TRIGGER "auto_resolve_clarification_trigger" AFTER INSERT ON "public"."comments" FOR EACH ROW EXECUTE FUNCTION "public"."auto_resolve_clarification_on_comment"();
 
 
 
@@ -4548,6 +5488,16 @@ ALTER TABLE ONLY "public"."requests"
 
 
 ALTER TABLE ONLY "public"."requests"
+    ADD CONSTRAINT "requests_parent_request_id_fkey" FOREIGN KEY ("parent_request_id") REFERENCES "public"."requests"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."requests"
+    ADD CONSTRAINT "requests_root_request_id_fkey" FOREIGN KEY ("root_request_id") REFERENCES "public"."requests"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."requests"
     ADD CONSTRAINT "requests_workflow_chain_id_fkey" FOREIGN KEY ("workflow_chain_id") REFERENCES "public"."workflow_chains"("id") ON DELETE SET NULL;
 
 
@@ -4637,10 +5587,6 @@ ALTER TABLE ONLY "public"."workflow_sections"
 
 
 
-CREATE POLICY "Admins can delete role assignments" ON "public"."user_role_assignments" FOR DELETE TO "authenticated" USING ("public"."can_delete_role_assignment"("user_id", "role_id"));
-
-
-
 CREATE POLICY "All authenticated users can view organizations" ON "public"."organizations" FOR SELECT TO "authenticated" USING (true);
 
 
@@ -4722,18 +5668,6 @@ CREATE POLICY "Enable read access for all users" ON "public"."roles" FOR SELECT 
 
 
 CREATE POLICY "Enable read access for all users" ON "public"."tags" FOR SELECT USING (true);
-
-
-
-CREATE POLICY "Organization Admins can assign roles within their organization" ON "public"."user_role_assignments" FOR INSERT TO "authenticated" WITH CHECK (((EXISTS ( SELECT 1
-   FROM ("public"."user_role_assignments" "ura_admin"
-     JOIN "public"."roles" "r_admin" ON (("ura_admin"."role_id" = "r_admin"."id")))
-  WHERE (("ura_admin"."user_id" = "auth"."uid"()) AND ("r_admin"."name" = 'Organization Admin'::"text")))) AND (EXISTS ( SELECT 1
-   FROM ("public"."profiles" "p_assignee"
-     JOIN "public"."profiles" "p_admin" ON (("p_admin"."id" = "auth"."uid"())))
-  WHERE (("p_assignee"."id" = "user_role_assignments"."user_id") AND ("p_assignee"."organization_id" = "p_admin"."organization_id")))) AND (NOT (EXISTS ( SELECT 1
-   FROM "public"."roles" "r_assigned"
-  WHERE (("r_assigned"."id" = "user_role_assignments"."role_id") AND ("r_assigned"."scope" = 'SYSTEM'::"public"."role_scope")))))));
 
 
 
@@ -4824,13 +5758,6 @@ CREATE POLICY "Super Admins can UPDATE organizations" ON "public"."organizations
 
 
 
-CREATE POLICY "Super Admins can assign any role" ON "public"."user_role_assignments" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
-   FROM ("public"."user_role_assignments" "ura_admin"
-     JOIN "public"."roles" "r_admin" ON (("ura_admin"."role_id" = "r_admin"."id")))
-  WHERE (("ura_admin"."user_id" = "auth"."uid"()) AND ("r_admin"."name" = 'Super Admin'::"text")))));
-
-
-
 CREATE POLICY "Super Admins can create invitations" ON "public"."organization_invitations" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM ("public"."user_role_assignments" "ura"
      JOIN "public"."roles" "r" ON (("r"."id" = "ura"."role_id")))
@@ -4842,13 +5769,6 @@ CREATE POLICY "Super Admins can delete invitations" ON "public"."organization_in
    FROM ("public"."user_role_assignments" "ura"
      JOIN "public"."roles" "r" ON (("r"."id" = "ura"."role_id")))
   WHERE (("ura"."user_id" = "auth"."uid"()) AND ("r"."name" = 'Super Admin'::"text")))));
-
-
-
-CREATE POLICY "Super Admins can delete role assignments" ON "public"."user_role_assignments" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
-   FROM ("public"."user_role_assignments" "ura_admin"
-     JOIN "public"."roles" "r_admin" ON (("ura_admin"."role_id" = "r_admin"."id")))
-  WHERE (("ura_admin"."user_id" = "auth"."uid"()) AND ("r_admin"."name" = 'Super Admin'::"text")))));
 
 
 
@@ -4910,11 +5830,39 @@ CREATE POLICY "Users can add comments to requests" ON "public"."comments" FOR IN
 
 
 
+CREATE POLICY "Users can delete role assignments they can manage" ON "public"."user_role_assignments" FOR DELETE TO "authenticated" USING ("public"."can_manage_role_assignment"("user_id", "role_id"));
+
+
+
+COMMENT ON POLICY "Users can delete role assignments they can manage" ON "public"."user_role_assignments" IS 'Allows Super Admins, Org Admins, and BU Admins to remove role assignments within their scope. Works with users without organization_id.';
+
+
+
+CREATE POLICY "Users can delete their own attachments" ON "public"."attachments" FOR DELETE TO "authenticated" USING (("auth"."uid"() = "uploader_id"));
+
+
+
+CREATE POLICY "Users can insert role assignments they can manage" ON "public"."user_role_assignments" FOR INSERT TO "authenticated" WITH CHECK ("public"."can_manage_role_assignment"("user_id", "role_id"));
+
+
+
+COMMENT ON POLICY "Users can insert role assignments they can manage" ON "public"."user_role_assignments" IS 'Allows Super Admins, Org Admins, and BU Admins to assign roles within their scope. Works with users without organization_id.';
+
+
+
+CREATE POLICY "Users can insert their own attachments" ON "public"."attachments" FOR INSERT TO "authenticated" WITH CHECK (("auth"."uid"() = "uploader_id"));
+
+
+
 CREATE POLICY "Users can insert their own profile" ON "public"."profiles" FOR INSERT TO "authenticated" WITH CHECK (("auth"."uid"() = "id"));
 
 
 
 CREATE POLICY "Users can only see their own notifications" ON "public"."notifications" FOR SELECT USING (("recipient_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can update their own attachments" ON "public"."attachments" FOR UPDATE TO "authenticated" USING (("auth"."uid"() = "uploader_id")) WITH CHECK (("auth"."uid"() = "uploader_id"));
 
 
 
@@ -4937,6 +5885,10 @@ CREATE POLICY "Users can view BU memberships" ON "public"."user_business_units" 
 CREATE POLICY "Users can view BUs they are members of" ON "public"."business_units" FOR SELECT TO "authenticated" USING (("id" IN ( SELECT "user_business_units"."business_unit_id"
    FROM "public"."user_business_units"
   WHERE ("user_business_units"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can view attachments" ON "public"."attachments" FOR SELECT TO "authenticated" USING (true);
 
 
 
@@ -5282,6 +6234,10 @@ GRANT ALL ON FUNCTION "public"."debug_document_workflow"("p_document_id" "uuid")
 
 
 
+GRANT ALL ON FUNCTION "public"."debug_workflow_initiators"("p_workflow_chain_id" "uuid") TO "authenticated";
+
+
+
 GRANT ALL ON FUNCTION "public"."delete_workflow_chain"("p_chain_id" "uuid") TO "authenticated";
 
 
@@ -5330,19 +6286,7 @@ GRANT ALL ON FUNCTION "public"."get_initiatable_forms"("p_user_id" "uuid") TO "a
 
 
 
-GRANT ALL ON FUNCTION "public"."get_my_active_requests"() TO "authenticated";
-
-
-
 GRANT ALL ON FUNCTION "public"."get_my_notifications"("p_limit" integer) TO "authenticated";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_my_pending_approvals"() TO "authenticated";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_my_requests_needing_revision"() TO "authenticated";
 
 
 
@@ -5351,6 +6295,10 @@ GRANT ALL ON FUNCTION "public"."get_org_admin_business_units"() TO "authenticate
 
 
 GRANT ALL ON FUNCTION "public"."get_org_admin_users"() TO "authenticated";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_request_chain"("p_request_id" "uuid") TO "authenticated";
 
 
 
@@ -5426,8 +6374,16 @@ GRANT ALL ON FUNCTION "public"."send_back_to_initiator"("p_request_id" "uuid", "
 
 
 
+GRANT ALL ON FUNCTION "public"."trigger_next_section"("p_current_request_id" "uuid") TO "authenticated";
+
+
+
 GRANT ALL ON FUNCTION "public"."update_avatar_url"("profile_id" "uuid", "avatar_url" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."update_avatar_url"("profile_id" "uuid", "avatar_url" "text") TO "authenticated";
+
+
+
+GRANT ALL ON FUNCTION "public"."update_employee_roles_in_bu"("p_employee_id" "uuid", "p_business_unit_id" "uuid", "p_role_names" "text"[]) TO "authenticated";
 
 
 
@@ -5698,6 +6654,24 @@ using ((bucket_id = 'avatars'::text));
 
 
 
+  create policy "Anyone can view attachments"
+  on "storage"."objects"
+  as permissive
+  for select
+  to public
+using ((bucket_id = 'attachments'::text));
+
+
+
+  create policy "Authenticated users can upload attachments"
+  on "storage"."objects"
+  as permissive
+  for insert
+  to authenticated
+with check ((bucket_id = 'attachments'::text));
+
+
+
   create policy "Give users authenticated access vv753h_0"
   on "storage"."objects"
   as permissive
@@ -5713,6 +6687,25 @@ with check (((bucket_id = 'requisition_attachments'::text) AND (auth.role() = 'a
   for select
   to authenticated
 using (((bucket_id = 'requisition_attachments'::text) AND (auth.role() = 'authenticated'::text)));
+
+
+
+  create policy "Users can delete their own attachments"
+  on "storage"."objects"
+  as permissive
+  for delete
+  to authenticated
+using (((bucket_id = 'attachments'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])));
+
+
+
+  create policy "Users can update their own attachments"
+  on "storage"."objects"
+  as permissive
+  for update
+  to authenticated
+using (((bucket_id = 'attachments'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])))
+with check (((bucket_id = 'attachments'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])));
 
 
 
