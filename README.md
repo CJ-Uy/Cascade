@@ -155,6 +155,7 @@ Cascade is optimized for [Coolify](https://coolify.io) deployment.
 4. Deploy!
 
 See detailed instructions in:
+
 - **[docs/COOLIFY_QUICK_START.md](docs/COOLIFY_QUICK_START.md)** - 5-minute deployment guide
 - **[docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md)** - Comprehensive Docker documentation
 
@@ -163,6 +164,7 @@ See detailed instructions in:
 While Cascade can be deployed to Vercel, it's primarily designed for Docker/Coolify deployment due to its multi-tenant architecture and database requirements.
 
 For Vercel deployment, ensure you:
+
 1. Set up Supabase project
 2. Configure environment variables
 3. Use the Vercel CLI or GitHub integration
@@ -280,6 +282,7 @@ For issues and questions:
 ## Acknowledgments
 
 Built with:
+
 - [Next.js](https://nextjs.org) by Vercel
 - [Supabase](https://supabase.com)
 - [shadcn/ui](https://ui.shadcn.com/)

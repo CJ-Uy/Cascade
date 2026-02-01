@@ -110,19 +110,19 @@ HOSTNAME=0.0.0.0
 
 ### Required Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL | `https://xxx.supabase.co` |
+| Variable                                       | Description                 | Example                                   |
+| ---------------------------------------------- | --------------------------- | ----------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`                     | Your Supabase project URL   | `https://xxx.supabase.co`                 |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY` | Your Supabase anonymous key | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
 
 ### Optional Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NODE_ENV` | Node environment | `production` |
-| `PORT` | Application port | `3000` |
-| `HOSTNAME` | Bind hostname | `0.0.0.0` |
-| `NEXT_TELEMETRY_DISABLED` | Disable Next.js telemetry | `1` |
+| Variable                  | Description               | Default      |
+| ------------------------- | ------------------------- | ------------ |
+| `NODE_ENV`                | Node environment          | `production` |
+| `PORT`                    | Application port          | `3000`       |
+| `HOSTNAME`                | Bind hostname             | `0.0.0.0`    |
+| `NEXT_TELEMETRY_DISABLED` | Disable Next.js telemetry | `1`          |
 
 ### Environment File Structure
 
@@ -335,6 +335,7 @@ For horizontal scaling:
 ## Support
 
 For issues related to:
+
 - **Docker**: Check Docker logs and this guide
 - **Coolify**: Visit Coolify documentation or Discord
 - **Cascade Application**: Check application logs and CLAUDE.md

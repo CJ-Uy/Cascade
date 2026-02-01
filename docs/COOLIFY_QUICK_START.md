@@ -153,6 +153,7 @@ Staging:
 ### Built-in Monitoring
 
 Coolify provides:
+
 - **Logs**: Real-time application logs
 - **Metrics**: CPU, memory, network usage
 - **Health**: Container health status
@@ -160,6 +161,7 @@ Coolify provides:
 ### External Monitoring
 
 Consider integrating:
+
 - **Uptime monitoring**: UptimeRobot, Better Uptime
 - **Error tracking**: Sentry
 - **APM**: New Relic, Datadog
