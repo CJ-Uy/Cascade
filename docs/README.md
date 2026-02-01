@@ -42,6 +42,14 @@ Welcome to the comprehensive documentation for the Cascade project - a Digital M
 - **[Mobile Responsiveness](./MOBILE_RESPONSIVENESS.md)** 📱
   Comprehensive guide to mobile-first design patterns, responsive breakpoints, component patterns, and best practices for building mobile-friendly interfaces.
 
+### Deployment Documentation
+
+- **[Docker Deployment](./DOCKER_DEPLOYMENT.md)** 🐳
+  Comprehensive Docker deployment guide covering containerization, Docker Compose, environment configuration, health checks, troubleshooting, and production best practices.
+
+- **[Coolify Quick Start](./COOLIFY_QUICK_START.md)** ⚡
+  Streamlined 5-minute guide for deploying Cascade on Coolify with step-by-step instructions, auto-deploy setup, custom domains, and quick troubleshooting fixes.
+
 ---
 
 ## Quick Start
@@ -59,6 +67,12 @@ Welcome to the comprehensive documentation for the Cascade project - a Digital M
 2. Review relevant **RPC functions** in RPC_FUNCTIONS.md
 3. Check **RLS policies** for your tables in RLS_POLICIES.md
 4. Follow established patterns from System Architecture
+
+### For Deployment
+
+1. Review [Docker Deployment](./DOCKER_DEPLOYMENT.md) for containerization
+2. Follow [Coolify Quick Start](./COOLIFY_QUICK_START.md) for rapid deployment
+3. Check [GitHub Actions workflow](../.github/workflows/docker-build.yml) for CI/CD
 
 ### For Security Audits
 
@@ -106,6 +120,10 @@ See [RLS_POLICIES.md](./RLS_POLICIES.md) for details.
 
 ### January 2026
 
+- ✅ **Docker Deployment Setup** - Production-ready Dockerfile, docker-compose.yml, and comprehensive deployment documentation
+- ✅ **Coolify Integration** - Optimized configuration for Coolify self-hosted deployment with 5-minute quick start guide
+- ✅ **CI/CD Pipeline** - GitHub Actions workflow for automated Docker builds and deployments
+- ✅ **Health Check Endpoint** - Built-in health monitoring for container orchestration
 - ✅ **Request Chain Linking System** - Automatic linking and progression through multi-section workflows with parent request tracking
 - ✅ **LinkedRequestsChain Component** - Visual timeline showing all sections in a workflow chain
 - ✅ **Pending Section Forms Dashboard** - Dashboard widget showing workflows waiting for user action
