@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -28,35 +27,82 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormTemplate } from "./page";
+import { columns } from "./columns";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
-interface FormTemplatesClientProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
+interface FormTemplatesClientProps {
+  data: FormTemplate[];
   isOrgAdmin: boolean;
   organizationId: string | null;
 }
 
-export function FormTemplatesClient<TData extends FormTemplate, TValue>({
-  columns,
+export function FormTemplatesClient({
   data: initialData,
   isOrgAdmin,
   organizationId,
-}: FormTemplatesClientProps<TData, TValue>) {
+}: FormTemplatesClientProps) {
   const [data, setData] = useState(initialData);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<FormTemplate | null>(
+    null,
+  );
+  const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
+
+  const handleDeleteTemplate = async () => {
+    if (!templateToDelete) return;
+
+    setIsDeleting(true);
+    const response = await fetch(`/api/form-templates/${templateToDelete.id}`, {
+      method: "DELETE",
+    });
+
+    if (response.ok) {
+      setData((prev) => prev.filter((t) => t.id !== templateToDelete.id));
+      toast.success("Template deleted successfully");
+      router.refresh();
+    } else {
+      const error = await response.json();
+      toast.error(`Failed to delete template: ${error.error}`);
+    }
+    setIsDeleting(false);
+    setDeleteDialogOpen(false);
+    setTemplateToDelete(null);
+  };
+
+  const tableColumns = useMemo(
+    () =>
+      columns({
+        isOrgAdmin,
+        onDelete: (template) => {
+          setTemplateToDelete(template);
+          setDeleteDialogOpen(true);
+        },
+      }),
+    [isOrgAdmin],
+  );
 
   const table = useReactTable({
     data,
-    columns,
+    columns: tableColumns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
@@ -177,7 +223,7 @@ export function FormTemplatesClient<TData extends FormTemplate, TValue>({
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={tableColumns.length}
                   className="h-24 text-center"
                 >
                   No results.
@@ -205,6 +251,29 @@ export function FormTemplatesClient<TData extends FormTemplate, TValue>({
           Next
         </Button>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Form Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{templateToDelete?.name}
+              &quot;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTemplate}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

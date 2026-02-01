@@ -18,10 +18,12 @@ import { FormTemplate } from "./page";
 
 type ColumnsProps = {
   isOrgAdmin: boolean;
+  onDelete?: (template: FormTemplate) => void;
 };
 
 export const columns = ({
   isOrgAdmin,
+  onDelete,
 }: ColumnsProps): ColumnDef<FormTemplate>[] => [
   {
     accessorKey: "name",
@@ -93,23 +95,15 @@ export const columns = ({
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={!canEdit}
-              onClick={() => {
-                // Here you would typically trigger the edit modal
-                // For now, we just log it.
-                console.log("Edit template:", template.id);
-              }}
-            >
-              Edit Template
+            <DropdownMenuItem asChild disabled={!canEdit}>
+              <Link href={`/management/form-templates/edit/${template.id}`}>
+                Edit Template
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-red-600"
               disabled={!canEdit}
-              onClick={() => {
-                // Here you would trigger a confirmation and then the delete API
-                console.log("Delete template:", template.id);
-              }}
+              onClick={() => onDelete?.(template)}
             >
               Delete
             </DropdownMenuItem>

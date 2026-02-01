@@ -12,8 +12,9 @@ import { UsersSection } from "./(components)/users-section";
 export default async function OrganizationDetailsPage({
   params,
 }: {
-  params: { org_id: string };
+  params: Promise<{ org_id: string }>;
 }) {
+  const { org_id } = await params;
   const authContext = await getUserAuthContext();
   const isSuperAdmin = authContext?.system_roles?.includes("Super Admin");
 
@@ -27,7 +28,7 @@ export default async function OrganizationDetailsPage({
   const { data: organization, error: orgError } = await supabase
     .from("organizations")
     .select("*")
-    .eq("id", params.org_id)
+    .eq("id", org_id)
     .single();
 
   if (orgError || !organization) {
@@ -52,14 +53,14 @@ export default async function OrganizationDetailsPage({
   const { data: businessUnits } = await supabase
     .from("business_units")
     .select("*, profiles!business_units_head_id_fkey(first_name, last_name)")
-    .eq("organization_id", params.org_id)
+    .eq("organization_id", org_id)
     .order("name");
 
   // Fetch users for this organization
   const { data: users } = await supabase
     .from("profiles")
     .select("id, first_name, last_name, email, status")
-    .eq("organization_id", params.org_id)
+    .eq("organization_id", org_id)
     .order("last_name");
 
   return (
@@ -90,12 +91,12 @@ export default async function OrganizationDetailsPage({
 
         {/* Business Units Section */}
         <BusinessUnitsSection
-          organizationId={params.org_id}
+          organizationId={org_id}
           businessUnits={businessUnits || []}
         />
 
         {/* Users Section */}
-        <UsersSection organizationId={params.org_id} users={users || []} />
+        <UsersSection organizationId={org_id} users={users || []} />
       </div>
     </div>
   );

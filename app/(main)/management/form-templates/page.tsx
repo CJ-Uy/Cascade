@@ -1,7 +1,6 @@
 // app/(main)/management/form-templates/page.tsx
 import { createClient } from "@/lib/supabase/server";
 import { FormTemplatesClient } from "./client";
-import { columns } from "./columns";
 
 // Define the type for our template data explicitly
 export type FormTemplate = {
@@ -59,7 +58,6 @@ export default async function FormTemplatesPage() {
         </div>
       </div>
       <FormTemplatesClient
-        columns={columns({ isOrgAdmin })}
         data={templates}
         isOrgAdmin={isOrgAdmin}
         organizationId={organizationId}

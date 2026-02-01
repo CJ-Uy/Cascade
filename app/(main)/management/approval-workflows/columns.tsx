@@ -18,10 +18,12 @@ import { WorkflowTemplate } from "./page";
 
 type ColumnsProps = {
   isOrgAdmin: boolean;
+  onDelete?: (template: WorkflowTemplate) => void;
 };
 
 export const columns = ({
   isOrgAdmin,
+  onDelete,
 }: ColumnsProps): ColumnDef<WorkflowTemplate>[] => [
   {
     accessorKey: "name",
@@ -93,22 +95,15 @@ export const columns = ({
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={!canEdit}
-              onClick={() => {
-                // Here you would typically trigger the edit modal
-                console.log("Edit workflow:", template.id);
-              }}
-            >
-              Edit Workflow
+            <DropdownMenuItem asChild disabled={!canEdit}>
+              <Link href={`/management/approval-workflows/${template.id}`}>
+                Edit Workflow
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-red-600"
               disabled={!canEdit}
-              onClick={() => {
-                // Here you would trigger a confirmation and then the delete API
-                console.log("Delete workflow:", template.id);
-              }}
+              onClick={() => onDelete?.(template)}
             >
               Delete
             </DropdownMenuItem>

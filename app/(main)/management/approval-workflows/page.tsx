@@ -1,7 +1,6 @@
 // app/(main)/management/approval-workflows/page.tsx
 import { createClient } from "@/lib/supabase/server";
 import { WorkflowTemplatesClient } from "./client";
-import { columns } from "./columns";
 
 export type WorkflowTemplate = {
   id: string;
@@ -60,7 +59,6 @@ export default async function WorkflowTemplatesPage() {
         </div>
       </div>
       <WorkflowTemplatesClient
-        columns={columns({ isOrgAdmin })}
         data={templates}
         isOrgAdmin={isOrgAdmin}
         organizationId={organizationId}

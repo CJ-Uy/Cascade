@@ -165,3 +165,232 @@ export async function getOrganizationDetailsAction(organizationId: string) {
     },
   };
 }
+
+// Business Unit Actions for Super Admin
+
+export async function createBusinessUnitForOrgAction(
+  organizationId: string,
+  data: {
+    name: string;
+    headId: string;
+  },
+) {
+  const authContext = await getUserAuthContext();
+  const isSuperAdmin = authContext?.system_roles?.includes("Super Admin");
+
+  if (!isSuperAdmin) {
+    return { error: "Unauthorized: Super Admin access required" };
+  }
+
+  const supabase = await createClient();
+
+  // Verify organization exists
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("id", organizationId)
+    .single();
+
+  if (!org) {
+    return { error: "Organization not found" };
+  }
+
+  const { data: bu, error } = await supabase
+    .from("business_units")
+    .insert({
+      name: data.name,
+      head_id: data.headId,
+      organization_id: organizationId,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating business unit:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath(`/admin/organizations/${organizationId}`);
+  return { success: true, data: bu };
+}
+
+export async function updateBusinessUnitForOrgAction(
+  organizationId: string,
+  buId: string,
+  data: {
+    name: string;
+    headId: string;
+  },
+) {
+  const authContext = await getUserAuthContext();
+  const isSuperAdmin = authContext?.system_roles?.includes("Super Admin");
+
+  if (!isSuperAdmin) {
+    return { error: "Unauthorized: Super Admin access required" };
+  }
+
+  const supabase = await createClient();
+
+  // Verify the BU belongs to this organization
+  const { data: existing } = await supabase
+    .from("business_units")
+    .select("organization_id")
+    .eq("id", buId)
+    .single();
+
+  if (!existing || existing.organization_id !== organizationId) {
+    return { error: "Business unit not found in this organization" };
+  }
+
+  const { data: bu, error } = await supabase
+    .from("business_units")
+    .update({
+      name: data.name,
+      head_id: data.headId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", buId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating business unit:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath(`/admin/organizations/${organizationId}`);
+  revalidatePath(
+    `/admin/organizations/${organizationId}/business-units/${buId}`,
+  );
+  return { success: true, data: bu };
+}
+
+export async function deleteBusinessUnitForOrgAction(
+  organizationId: string,
+  buId: string,
+) {
+  const authContext = await getUserAuthContext();
+  const isSuperAdmin = authContext?.system_roles?.includes("Super Admin");
+
+  if (!isSuperAdmin) {
+    return { error: "Unauthorized: Super Admin access required" };
+  }
+
+  const supabase = await createClient();
+
+  // Verify the BU belongs to this organization
+  const { data: existing } = await supabase
+    .from("business_units")
+    .select("organization_id")
+    .eq("id", buId)
+    .single();
+
+  if (!existing || existing.organization_id !== organizationId) {
+    return { error: "Business unit not found in this organization" };
+  }
+
+  // Check for dependencies (requests, etc.)
+  const { count: requestsCount } = await supabase
+    .from("requests")
+    .select("*", { count: "exact", head: true })
+    .eq("business_unit_id", buId);
+
+  if (requestsCount && requestsCount > 0) {
+    return {
+      error: "Cannot delete business unit with existing requests",
+    };
+  }
+
+  const { error } = await supabase
+    .from("business_units")
+    .delete()
+    .eq("id", buId);
+
+  if (error) {
+    console.error("Error deleting business unit:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath(`/admin/organizations/${organizationId}`);
+  return { success: true };
+}
+
+export async function getBusinessUnitDetailsAction(
+  organizationId: string,
+  buId: string,
+) {
+  const authContext = await getUserAuthContext();
+  const isSuperAdmin = authContext?.system_roles?.includes("Super Admin");
+
+  if (!isSuperAdmin) {
+    return { error: "Unauthorized: Super Admin access required" };
+  }
+
+  const supabase = await createClient();
+
+  const { data: bu, error } = await supabase
+    .from("business_units")
+    .select(
+      `
+      id,
+      name,
+      created_at,
+      organization_id,
+      head:profiles!business_units_head_id_fkey(id, first_name, last_name, email)
+    `,
+    )
+    .eq("id", buId)
+    .single();
+
+  if (error || !bu) {
+    return { error: "Business unit not found" };
+  }
+
+  if (bu.organization_id !== organizationId) {
+    return { error: "Business unit not found in this organization" };
+  }
+
+  // Fetch members
+  const { data: members } = await supabase
+    .from("user_business_units")
+    .select(
+      `
+      user_id,
+      membership_type,
+      profiles(id, first_name, last_name, email),
+      user_role_assignments(roles(name))
+    `,
+    )
+    .eq("business_unit_id", buId);
+
+  return {
+    success: true,
+    data: {
+      ...bu,
+      members: members || [],
+    },
+  };
+}
+
+export async function getOrganizationUsersAction(organizationId: string) {
+  const authContext = await getUserAuthContext();
+  const isSuperAdmin = authContext?.system_roles?.includes("Super Admin");
+
+  if (!isSuperAdmin) {
+    return { error: "Unauthorized: Super Admin access required" };
+  }
+
+  const supabase = await createClient();
+
+  const { data: users, error } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, email")
+    .eq("organization_id", organizationId)
+    .order("last_name");
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { success: true, data: users || [] };
+}

@@ -116,11 +116,6 @@ const systemAdminItems = [
     icon: Building,
   },
   {
-    title: "Business Units",
-    url: "/management/business-units",
-    icon: Building2,
-  },
-  {
     title: "Form Templates",
     url: "/management/form-templates",
     icon: ClipboardEdit,
