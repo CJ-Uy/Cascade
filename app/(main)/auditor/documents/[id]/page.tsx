@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUserAuthContext } from "@/lib/supabase/auth";
-import { getAuditorDocumentDetails } from "../actions";
+import { getAuditorRequestDetails } from "../actions";
 import { DocumentDetailView } from "./(components)/DocumentDetailView";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Suspense } from "react";
@@ -48,7 +48,7 @@ export default async function AuditorDocumentDetailPage({
 async function DocumentDetailContent({ documentId }: { documentId: string }) {
   // Fetch document details (RPC will verify access)
   const { data: documentDetails, error } =
-    await getAuditorDocumentDetails(documentId);
+    await getAuditorRequestDetails(documentId);
 
   if (error || !documentDetails) {
     // If access denied or document not found, redirect

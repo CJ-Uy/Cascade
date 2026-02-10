@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUserAuthContext } from "@/lib/supabase/auth";
-import { getAuditorDocuments, getTags } from "./actions";
+import { getAuditorRequests, getTags } from "./actions";
 import { AuditorDocumentsClient } from "./(components)/AuditorDocumentsClient";
 
 /**
@@ -27,7 +27,7 @@ export default async function AuditorDocumentsPage() {
 
   // Fetch initial data (no filters)
   const { data: initialDocuments, error: documentsError } =
-    await getAuditorDocuments();
+    await getAuditorRequests();
 
   // Fetch available tags for filter
   const { data: tags, error: tagsError } = await getTags();

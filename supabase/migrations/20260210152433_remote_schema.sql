@@ -284,6 +284,7 @@ ALTER TYPE "public"."workflow_status" OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."add_document_comment"("p_document_id" "uuid", "p_content" "text", "p_parent_comment_id" "uuid" DEFAULT NULL::"uuid") RETURNS "void"
     LANGUAGE "plpgsql"
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
     -- The RLS policy on the comments table will enforce insert permissions,
@@ -299,6 +300,7 @@ ALTER FUNCTION "public"."add_document_comment"("p_document_id" "uuid", "p_conten
 
 CREATE OR REPLACE FUNCTION "public"."add_request_comment"("p_request_id" "uuid", "p_content" "text") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
     v_comment_id UUID;
@@ -343,6 +345,7 @@ COMMENT ON FUNCTION "public"."add_request_comment"("p_request_id" "uuid", "p_con
 
 CREATE OR REPLACE FUNCTION "public"."approve_request"("p_request_id" "uuid", "p_comments" "text" DEFAULT NULL::"text") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_user_id UUID;
@@ -500,6 +503,7 @@ COMMENT ON FUNCTION "public"."archive_workflow_chain"("p_chain_id" "uuid") IS 'A
 
 CREATE OR REPLACE FUNCTION "public"."assign_workflow_to_template"("p_template_id" "uuid", "p_workflow_chain_id" "uuid") RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_result JSONB;
@@ -535,6 +539,7 @@ COMMENT ON FUNCTION "public"."assign_workflow_to_template"("p_template_id" "uuid
 
 CREATE OR REPLACE FUNCTION "public"."auto_resolve_clarification_on_comment"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_request_status request_status;
@@ -592,6 +597,7 @@ COMMENT ON FUNCTION "public"."auto_resolve_clarification_on_comment"() IS 'Autom
 
 CREATE OR REPLACE FUNCTION "public"."can_access_form_with_parent"("p_user_id" "uuid", "p_form_id" "uuid", "p_workflow_chain_id" "uuid", "p_section_order" integer, "p_parent_request_id" "uuid") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_can_access boolean := false;
@@ -825,6 +831,7 @@ COMMENT ON FUNCTION "public"."can_manage_role_assignment"("assignment_user_id" "
 
 CREATE OR REPLACE FUNCTION "public"."can_manage_workflows_for_bu"("p_bu_id" "uuid") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   -- Super Admin can manage all workflows
@@ -914,6 +921,7 @@ COMMENT ON FUNCTION "public"."can_view_role_assignment"("assignment_user_id" "uu
 
 CREATE OR REPLACE FUNCTION "public"."cancel_request_by_approver"("p_request_id" "uuid", "p_reason" "text") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_user_id UUID;
@@ -985,6 +993,7 @@ COMMENT ON FUNCTION "public"."cancel_request_by_approver"("p_request_id" "uuid",
 
 CREATE OR REPLACE FUNCTION "public"."check_document_workflow"("p_document_id" "uuid") RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_result JSONB;
@@ -1026,6 +1035,7 @@ COMMENT ON FUNCTION "public"."check_document_workflow"("p_document_id" "uuid") I
 
 CREATE OR REPLACE FUNCTION "public"."check_workflow_chain_circular"("p_source_workflow_id" "uuid", "p_target_workflow_id" "uuid") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_visited UUID[];
@@ -1078,6 +1088,7 @@ COMMENT ON FUNCTION "public"."check_workflow_chain_circular"("p_source_workflow_
 
 CREATE OR REPLACE FUNCTION "public"."create_new_template_version"("old_template_id" "uuid", "new_name" "text", "new_description" "text", "business_unit_id" "uuid", "new_version_number" integer, "parent_id" "uuid") RETURNS "uuid"
     LANGUAGE "plpgsql"
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   new_template_id uuid;
@@ -1101,6 +1112,7 @@ ALTER FUNCTION "public"."create_new_template_version"("old_template_id" "uuid", 
 
 CREATE OR REPLACE FUNCTION "public"."create_notification"("p_recipient_id" "uuid", "p_message" "text", "p_link_url" "text" DEFAULT NULL::"text", "p_document_id" "uuid" DEFAULT NULL::"uuid") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
     -- This function runs with the privileges of the definer, bypassing user RLS for the insert.
@@ -1116,6 +1128,7 @@ ALTER FUNCTION "public"."create_notification"("p_recipient_id" "uuid", "p_messag
 
 CREATE OR REPLACE FUNCTION "public"."debug_document_workflow"("p_document_id" "uuid") RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_result JSONB;
@@ -1159,6 +1172,7 @@ COMMENT ON FUNCTION "public"."debug_document_workflow"("p_document_id" "uuid") I
 
 CREATE OR REPLACE FUNCTION "public"."debug_workflow_initiators"("p_workflow_chain_id" "uuid") RETURNS TABLE("section_order" integer, "section_name" "text", "section_id" "uuid", "initiator_count" bigint, "initiator_roles" "jsonb")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   RETURN QUERY
@@ -1286,6 +1300,7 @@ COMMENT ON FUNCTION "public"."delete_workflow_chain_transitions"("p_workflow_ids
 
 CREATE OR REPLACE FUNCTION "public"."delete_workflow_transition"("p_transition_id" "uuid", "p_business_unit_id" "uuid" DEFAULT NULL::"uuid") RETURNS json
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_source_workflow_id UUID;
@@ -1341,6 +1356,7 @@ COMMENT ON FUNCTION "public"."delete_workflow_transition"("p_transition_id" "uui
 
 CREATE OR REPLACE FUNCTION "public"."get_administered_bu_ids"() RETURNS TABLE("id" "uuid")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
  BEGIN
    RETURN QUERY
@@ -1357,6 +1373,7 @@ ALTER FUNCTION "public"."get_administered_bu_ids"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."get_all_user_requests"("p_user_id" "uuid") RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "status" "text", "data" "jsonb", "initiator_id" "uuid", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "current_section_order" integer, "parent_request_id" "uuid", "forms" "jsonb", "workflow_chains" "jsonb", "business_units" "jsonb", "initiator" "jsonb")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   RETURN QUERY
@@ -1430,6 +1447,7 @@ COMMENT ON FUNCTION "public"."get_all_user_requests"("p_user_id" "uuid") IS 'Ret
 
 CREATE OR REPLACE FUNCTION "public"."get_approved_requests_for_bu"() RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "organization_id" "uuid", "status" "public"."request_status", "data" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "form_name" "text", "workflow_name" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   RETURN QUERY
@@ -1465,6 +1483,7 @@ COMMENT ON FUNCTION "public"."get_approved_requests_for_bu"() IS 'Get all approv
 
 CREATE OR REPLACE FUNCTION "public"."get_approver_requests"("p_user_id" "uuid") RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "organization_id" "uuid", "initiator_id" "uuid", "status" "public"."request_status", "data" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "current_section_order" integer, "current_step_number" integer, "waiting_on_role_id" "uuid")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   RETURN QUERY
@@ -1509,6 +1528,7 @@ COMMENT ON FUNCTION "public"."get_approver_requests"("p_user_id" "uuid") IS 'Get
 
 CREATE OR REPLACE FUNCTION "public"."get_approvers_for_step"("p_step_id" "uuid") RETURNS TABLE("approver_id" "uuid")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
     v_role_id UUID;
@@ -1541,6 +1561,7 @@ ALTER FUNCTION "public"."get_approvers_for_step"("p_step_id" "uuid") OWNER TO "p
 
 CREATE OR REPLACE FUNCTION "public"."get_auditor_document_details"("p_document_id" "uuid") RETURNS json
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
     document_data JSON;
@@ -1695,6 +1716,7 @@ COMMENT ON FUNCTION "public"."get_auditor_document_details"("p_document_id" "uui
 
 CREATE OR REPLACE FUNCTION "public"."get_auditor_documents"("p_tag_ids" "uuid"[] DEFAULT NULL::"uuid"[], "p_status_filter" "public"."document_status" DEFAULT NULL::"public"."document_status", "p_search_text" "text" DEFAULT NULL::"text") RETURNS TABLE("id" "uuid", "status" "public"."document_status", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "template_id" "uuid", "template_name" "text", "initiator_id" "uuid", "initiator_name" "text", "initiator_email" "text", "business_unit_id" "uuid", "business_unit_name" "text", "organization_id" "uuid", "organization_name" "text", "tags" "jsonb")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
     v_is_system_auditor BOOLEAN;
@@ -1794,6 +1816,7 @@ COMMENT ON FUNCTION "public"."get_auditor_documents"("p_tag_ids" "uuid"[], "p_st
 
 CREATE OR REPLACE FUNCTION "public"."get_available_target_workflows"("p_source_workflow_id" "uuid", "p_business_unit_id" "uuid") RETURNS TABLE("workflow_id" "uuid", "workflow_name" "text", "workflow_description" "text", "workflow_status" "text", "form_id" "uuid", "form_name" "text", "initiator_roles" "jsonb", "approval_steps" "jsonb", "would_create_circular" boolean)
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   RETURN QUERY
@@ -1856,6 +1879,7 @@ COMMENT ON FUNCTION "public"."get_available_target_workflows"("p_source_workflow
 
 CREATE OR REPLACE FUNCTION "public"."get_business_unit_options"() RETURNS TABLE("id" "uuid", "name" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   user_org_id UUID;
@@ -1901,6 +1925,7 @@ COMMENT ON FUNCTION "public"."get_business_unit_options"() IS 'Returns business 
 
 CREATE OR REPLACE FUNCTION "public"."get_business_units_for_user"() RETURNS TABLE("id" "uuid", "name" "text", "created_at" timestamp with time zone, "head_id" "uuid", "head_first_name" "text", "head_last_name" "text", "head_email" "text", "organization_id" "uuid")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   user_org_id UUID;
@@ -1974,6 +1999,7 @@ COMMENT ON FUNCTION "public"."get_business_units_for_user"() IS 'Returns busines
 
 CREATE OR REPLACE FUNCTION "public"."get_document_comments"("p_document_id" "uuid") RETURNS TABLE("id" "uuid", "created_at" timestamp with time zone, "content" "text", "author_id" "uuid", "author_name" "text", "parent_comment_id" "uuid")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
     -- First, ensure the calling user has access to the parent document before returning comments.
@@ -2002,6 +2028,7 @@ ALTER FUNCTION "public"."get_document_comments"("p_document_id" "uuid") OWNER TO
 
 CREATE OR REPLACE FUNCTION "public"."get_document_details"("p_document_id" "uuid") RETURNS json
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
     document_data json;
@@ -2054,6 +2081,7 @@ ALTER FUNCTION "public"."get_document_details"("p_document_id" "uuid") OWNER TO 
 
 CREATE OR REPLACE FUNCTION "public"."get_enhanced_approver_requests"("p_user_id" "uuid") RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "organization_id" "uuid", "initiator_id" "uuid", "status" "public"."request_status", "data" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "form_name" "text", "form_icon" "text", "form_description" "text", "initiator_name" "text", "initiator_email" "text", "business_unit_name" "text", "workflow_name" "text", "current_section_order" integer, "current_section_name" "text", "current_step_number" integer, "total_steps_in_section" integer, "waiting_on_role_id" "uuid", "waiting_on_role_name" "text", "is_my_turn" boolean, "is_in_my_workflow" boolean, "has_already_approved" boolean, "my_approval_position" integer, "section_initiator_name" "text", "section_initiator_email" "text", "previous_section_order" integer, "previous_section_name" "text", "previous_section_initiator_id" "uuid", "previous_section_initiator_name" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   RETURN QUERY
@@ -2227,6 +2255,7 @@ COMMENT ON FUNCTION "public"."get_enhanced_approver_requests"("p_user_id" "uuid"
 
 CREATE OR REPLACE FUNCTION "public"."get_initiatable_forms"("p_user_id" "uuid") RETURNS TABLE("id" "uuid", "name" "text", "description" "text", "icon" "text", "scope" "public"."scope_type", "business_unit_id" "uuid", "organization_id" "uuid", "status" "public"."form_status", "has_workflow" boolean, "workflow_chain_id" "uuid", "workflow_name" "text", "section_order" integer, "section_name" "text", "needs_prior_section" boolean)
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   RETURN QUERY
@@ -2323,6 +2352,7 @@ COMMENT ON FUNCTION "public"."get_my_active_requests"() IS 'Get all active reque
 
 CREATE OR REPLACE FUNCTION "public"."get_my_notifications"("p_limit" integer DEFAULT 10) RETURNS TABLE("id" "uuid", "created_at" timestamp with time zone, "message" "text", "is_read" boolean, "link_url" "text", "document_id" "uuid")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
     RETURN QUERY
@@ -2346,6 +2376,7 @@ ALTER FUNCTION "public"."get_my_notifications"("p_limit" integer) OWNER TO "post
 
 CREATE OR REPLACE FUNCTION "public"."get_my_organization_id"() RETURNS "uuid"
     LANGUAGE "sql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
     SELECT organization_id FROM public.profiles WHERE id = auth.uid();
 $$;
@@ -2401,6 +2432,7 @@ COMMENT ON FUNCTION "public"."get_my_pending_approvals"() IS 'Get all requests p
 
 CREATE OR REPLACE FUNCTION "public"."get_my_pending_section_forms"() RETURNS TABLE("notification_id" "uuid", "message" "text", "link_url" "text", "created_at" timestamp with time zone, "parent_request_id" "uuid", "parent_form_name" "text", "parent_status" "text", "section_order" integer, "section_name" "text", "form_name" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   RETURN QUERY
@@ -2458,6 +2490,7 @@ COMMENT ON FUNCTION "public"."get_my_pending_section_forms"() IS 'Get unread not
 
 CREATE OR REPLACE FUNCTION "public"."get_my_request_history"("p_business_unit_id" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("id" "uuid", "form_id" "uuid", "workflow_chain_id" "uuid", "business_unit_id" "uuid", "organization_id" "uuid", "status" "public"."request_status", "data" "jsonb", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "form_name" "text", "form_icon" "text", "workflow_name" "text", "business_unit_name" "text", "initiator_id" "uuid", "initiator_name" "text", "initiator_email" "text", "current_section_order" integer, "my_role" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_user_id uuid;
@@ -2612,6 +2645,7 @@ COMMENT ON FUNCTION "public"."get_my_requests_needing_revision"() IS 'Get all re
 
 CREATE OR REPLACE FUNCTION "public"."get_org_admin_business_units"() RETURNS TABLE("id" "uuid", "name" "text", "head_id" "uuid", "head_name" "text", "head_email" "text", "created_at" timestamp with time zone, "user_count" bigint)
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   user_org_id UUID;
@@ -2654,6 +2688,7 @@ COMMENT ON FUNCTION "public"."get_org_admin_business_units"() IS 'Returns busine
 
 CREATE OR REPLACE FUNCTION "public"."get_org_admin_users"() RETURNS TABLE("id" "uuid", "first_name" "text", "last_name" "text", "email" "text", "created_at" timestamp with time zone, "system_roles" "text"[], "business_units" "jsonb")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   user_org_id UUID;
@@ -2709,6 +2744,7 @@ COMMENT ON FUNCTION "public"."get_org_admin_users"() IS 'Returns users with role
 
 CREATE OR REPLACE FUNCTION "public"."get_request_chain"("p_request_id" "uuid") RETURNS TABLE("id" "uuid", "form_id" "uuid", "form_name" "text", "form_icon" "text", "section_order" integer, "section_name" "text", "status" "text", "data" "jsonb", "initiator_id" "uuid", "initiator_name" "text", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "is_current" boolean)
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_root_id UUID;
@@ -2755,6 +2791,7 @@ COMMENT ON FUNCTION "public"."get_request_chain"("p_request_id" "uuid") IS 'Gets
 
 CREATE OR REPLACE FUNCTION "public"."get_request_comments"("p_request_id" "uuid") RETURNS TABLE("id" "uuid", "created_at" timestamp with time zone, "content" "text", "author_id" "uuid", "author_name" "text", "author_email" "text", "author_image_url" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
     -- Verify user has access to the request
@@ -2989,6 +3026,7 @@ COMMENT ON FUNCTION "public"."get_request_workflow_progress"("p_request_id" "uui
 
 CREATE OR REPLACE FUNCTION "public"."get_requisitions_for_bu"("bu_id" "uuid") RETURNS TABLE("id" "uuid", "created_at" timestamp with time zone, "initiator_id" "uuid", "business_unit_id" "uuid", "template_id" "uuid", "overall_status" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   -- Verify user has access to this BU
@@ -3019,6 +3057,7 @@ COMMENT ON FUNCTION "public"."get_requisitions_for_bu"("bu_id" "uuid") IS 'Retur
 
 CREATE OR REPLACE FUNCTION "public"."get_templates_for_transition"("p_business_unit_id" "uuid") RETURNS TABLE("template_id" "uuid", "template_name" "text", "template_description" "text", "template_icon" "text", "has_workflow" boolean)
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   RETURN QUERY
@@ -3046,6 +3085,7 @@ COMMENT ON FUNCTION "public"."get_templates_for_transition"("p_business_unit_id"
 
 CREATE OR REPLACE FUNCTION "public"."get_user_auth_context"() RETURNS json
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
     auth_context json;
@@ -3138,6 +3178,7 @@ COMMENT ON FUNCTION "public"."get_user_auth_context"() IS 'Returns user authenti
 
 CREATE OR REPLACE FUNCTION "public"."get_user_organization_id"() RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   org_id UUID;
@@ -3156,6 +3197,7 @@ ALTER FUNCTION "public"."get_user_organization_id"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."get_users_in_organization"() RETURNS TABLE("id" "uuid", "first_name" "text", "last_name" "text", "email" "text", "organization_id" "uuid")
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   user_org_id UUID;
@@ -3190,6 +3232,7 @@ COMMENT ON FUNCTION "public"."get_users_in_organization"() IS 'Returns users wit
 
 CREATE OR REPLACE FUNCTION "public"."get_workflow_business_unit_id"("p_workflow_id" "uuid") RETURNS "uuid"
     LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_bu_id UUID;
@@ -3335,6 +3378,7 @@ COMMENT ON FUNCTION "public"."get_workflow_chains_for_bu"("p_bu_id" "uuid") IS '
 
 CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   -- Insert the user's ID, EMAIL, and metadata into the profiles table.
@@ -3360,6 +3404,7 @@ COMMENT ON FUNCTION "public"."handle_new_user"() IS 'Creates a profile for a new
 
 CREATE OR REPLACE FUNCTION "public"."handle_updated_at"() RETURNS "trigger"
     LANGUAGE "plpgsql"
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   NEW.updated_at = now();
@@ -3373,6 +3418,7 @@ ALTER FUNCTION "public"."handle_updated_at"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."is_auditor"() RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   -- Check if user is a system auditor (role with scope='AUDITOR' or scope='SYSTEM' with name='AUDITOR')
@@ -3410,6 +3456,7 @@ COMMENT ON FUNCTION "public"."is_auditor"() IS 'Checks if the current user is an
 
 CREATE OR REPLACE FUNCTION "public"."is_bu_admin"() RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   -- The EXISTS clause is very efficient as it stops searching
@@ -3430,6 +3477,7 @@ ALTER FUNCTION "public"."is_bu_admin"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."is_bu_admin_for_unit"("bu_id" "uuid") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   -- Check if user has a role with is_bu_admin = true for this business unit
@@ -3454,6 +3502,7 @@ COMMENT ON FUNCTION "public"."is_bu_admin_for_unit"("bu_id" "uuid") IS 'Check if
 
 CREATE OR REPLACE FUNCTION "public"."is_member_of_bu"("p_bu_id" "uuid") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
     RETURN EXISTS (
@@ -3469,6 +3518,7 @@ ALTER FUNCTION "public"."is_member_of_bu"("p_bu_id" "uuid") OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."is_organization_admin"() RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   RETURN EXISTS (
@@ -3487,6 +3537,7 @@ ALTER FUNCTION "public"."is_organization_admin"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."is_super_admin"() RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   RETURN EXISTS (
@@ -3505,6 +3556,7 @@ ALTER FUNCTION "public"."is_super_admin"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."notify_approvers_on_document_submission"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_workflow_chain_id UUID;
@@ -3585,6 +3637,7 @@ COMMENT ON FUNCTION "public"."notify_approvers_on_document_submission"() IS 'Aut
 
 CREATE OR REPLACE FUNCTION "public"."official_request_clarification"("p_request_id" "uuid", "p_question" "text") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_user_id UUID;
@@ -3669,6 +3722,7 @@ COMMENT ON FUNCTION "public"."official_request_clarification"("p_request_id" "uu
 
 CREATE OR REPLACE FUNCTION "public"."process_document_action"("p_document_id" "uuid", "p_action" "public"."document_action", "p_comments" "text") RETURNS "void"
     LANGUAGE "plpgsql"
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
     v_actor_id UUID := auth.uid();
@@ -3734,6 +3788,7 @@ ALTER FUNCTION "public"."process_document_action"("p_document_id" "uuid", "p_act
 
 CREATE OR REPLACE FUNCTION "public"."reject_request"("p_request_id" "uuid", "p_comments" "text") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_user_id UUID;
@@ -3773,6 +3828,7 @@ COMMENT ON FUNCTION "public"."reject_request"("p_request_id" "uuid", "p_comments
 
 CREATE OR REPLACE FUNCTION "public"."request_previous_section_clarification"("p_request_id" "uuid", "p_question" "text") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_user_id UUID;
@@ -3844,6 +3900,7 @@ COMMENT ON FUNCTION "public"."request_previous_section_clarification"("p_request
 
 CREATE OR REPLACE FUNCTION "public"."resolve_clarification_request"("p_history_id" "uuid") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
     v_user_id UUID;
@@ -4011,6 +4068,7 @@ COMMENT ON FUNCTION "public"."save_workflow_chain"("p_chain_id" "uuid", "p_name"
 
 CREATE OR REPLACE FUNCTION "public"."send_back_to_initiator"("p_request_id" "uuid", "p_comments" "text") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_user_id UUID;
@@ -4110,6 +4168,7 @@ COMMENT ON FUNCTION "public"."send_back_to_initiator"("p_request_id" "uuid", "p_
 
 CREATE OR REPLACE FUNCTION "public"."submit_request"("p_form_id" "uuid", "p_data" "jsonb", "p_business_unit_id" "uuid") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_request_id UUID;
@@ -4168,6 +4227,7 @@ COMMENT ON FUNCTION "public"."submit_request"("p_form_id" "uuid", "p_data" "json
 
 CREATE OR REPLACE FUNCTION "public"."trigger_next_section"("p_current_request_id" "uuid") RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_workflow_chain_id UUID;
@@ -4282,6 +4342,7 @@ COMMENT ON FUNCTION "public"."trigger_next_section"("p_current_request_id" "uuid
 
 CREATE OR REPLACE FUNCTION "public"."update_avatar_url"("profile_id" "uuid", "avatar_url" "text") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   -- The function updates the image_url for the given profile_id
@@ -4297,6 +4358,7 @@ ALTER FUNCTION "public"."update_avatar_url"("profile_id" "uuid", "avatar_url" "t
 
 CREATE OR REPLACE FUNCTION "public"."update_employee_roles_in_bu"("p_employee_id" "uuid", "p_business_unit_id" "uuid", "p_role_names" "text"[]) RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_current_user_id UUID;
@@ -4367,6 +4429,7 @@ COMMENT ON FUNCTION "public"."update_employee_roles_in_bu"("p_employee_id" "uuid
 
 CREATE OR REPLACE FUNCTION "public"."update_updated_at"() RETURNS "trigger"
     LANGUAGE "plpgsql"
+    SET "search_path" TO 'public'
     AS $$
 BEGIN
   NEW.updated_at = NOW();
@@ -4441,6 +4504,7 @@ ALTER FUNCTION "public"."user_is_chat_participant"("p_chat_id" "uuid", "p_user_i
 
 CREATE OR REPLACE FUNCTION "public"."validate_workflow_transition"("p_source_workflow_id" "uuid", "p_target_workflow_id" "uuid", "p_target_template_id" "uuid", "p_business_unit_id" "uuid" DEFAULT NULL::"uuid") RETURNS json
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
     AS $$
 DECLARE
   v_is_circular BOOLEAN;
@@ -5587,6 +5651,14 @@ ALTER TABLE ONLY "public"."workflow_sections"
 
 
 
+CREATE POLICY "Admins can manage form fields" ON "public"."form_fields" TO "authenticated" USING (("public"."is_super_admin"() OR "public"."is_organization_admin"() OR (EXISTS ( SELECT 1
+   FROM "public"."forms" "f"
+  WHERE (("f"."id" = "form_fields"."form_id") AND ("f"."business_unit_id" IS NOT NULL) AND "public"."is_bu_admin_for_unit"("f"."business_unit_id")))))) WITH CHECK (("public"."is_super_admin"() OR "public"."is_organization_admin"() OR (EXISTS ( SELECT 1
+   FROM "public"."forms" "f"
+  WHERE (("f"."id" = "form_fields"."form_id") AND ("f"."business_unit_id" IS NOT NULL) AND "public"."is_bu_admin_for_unit"("f"."business_unit_id"))))));
+
+
+
 CREATE POLICY "All authenticated users can view organizations" ON "public"."organizations" FOR SELECT TO "authenticated" USING (true);
 
 
@@ -5604,6 +5676,10 @@ COMMENT ON POLICY "Auditors can create tags" ON "public"."tags" IS 'Allows audit
 
 
 CREATE POLICY "Authenticated users can view all profiles" ON "public"."profiles" FOR SELECT TO "authenticated" USING (true);
+
+
+
+CREATE POLICY "Authenticated users can view form fields" ON "public"."form_fields" FOR SELECT TO "authenticated" USING (true);
 
 
 
@@ -5644,6 +5720,16 @@ CREATE POLICY "BU Admins can manage workflows" ON "public"."workflow_chains" USI
 
 
 COMMENT ON POLICY "BU Admins can manage workflows" ON "public"."workflow_chains" IS 'Allow BU Admins and Super Admins to manage workflows';
+
+
+
+CREATE POLICY "Chat creator can remove participants" ON "public"."chat_participants" FOR DELETE TO "authenticated" USING ((("user_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
+   FROM "public"."chats" "c"
+  WHERE (("c"."id" = "chat_participants"."chat_id") AND ("c"."creator_id" = "auth"."uid"()))))));
+
+
+
+CREATE POLICY "Chat creator can update chat" ON "public"."chats" FOR UPDATE TO "authenticated" USING (("creator_id" = "auth"."uid"()));
 
 
 
@@ -5830,6 +5916,14 @@ CREATE POLICY "Users can add comments to requests" ON "public"."comments" FOR IN
 
 
 
+CREATE POLICY "Users can create chats" ON "public"."chats" FOR INSERT TO "authenticated" WITH CHECK (("creator_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can create requests" ON "public"."requests" FOR INSERT TO "authenticated" WITH CHECK (("initiator_id" = "auth"."uid"()));
+
+
+
 CREATE POLICY "Users can delete role assignments they can manage" ON "public"."user_role_assignments" FOR DELETE TO "authenticated" USING ("public"."can_manage_role_assignment"("user_id", "role_id"));
 
 
@@ -5839,6 +5933,16 @@ COMMENT ON POLICY "Users can delete role assignments they can manage" ON "public
 
 
 CREATE POLICY "Users can delete their own attachments" ON "public"."attachments" FOR DELETE TO "authenticated" USING (("auth"."uid"() = "uploader_id"));
+
+
+
+CREATE POLICY "Users can insert chat participants" ON "public"."chat_participants" FOR INSERT TO "authenticated" WITH CHECK ((("user_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
+   FROM "public"."chats" "c"
+  WHERE (("c"."id" = "chat_participants"."chat_id") AND ("c"."creator_id" = "auth"."uid"()))))));
+
+
+
+CREATE POLICY "Users can insert request history" ON "public"."request_history" FOR INSERT TO "authenticated" WITH CHECK (("actor_id" = "auth"."uid"()));
 
 
 
@@ -5859,6 +5963,22 @@ CREATE POLICY "Users can insert their own profile" ON "public"."profiles" FOR IN
 
 
 CREATE POLICY "Users can only see their own notifications" ON "public"."notifications" FOR SELECT USING (("recipient_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can send messages in their chats" ON "public"."chat_messages" FOR INSERT TO "authenticated" WITH CHECK ((("sender_id" = "auth"."uid"()) AND (EXISTS ( SELECT 1
+   FROM "public"."chat_participants" "cp"
+  WHERE (("cp"."chat_id" = "chat_messages"."chat_id") AND ("cp"."user_id" = "auth"."uid"()))))));
+
+
+
+CREATE POLICY "Users can update accessible requests" ON "public"."requests" FOR UPDATE TO "authenticated" USING ((("initiator_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
+   FROM "public"."user_business_units" "ubu"
+  WHERE (("ubu"."business_unit_id" = "requests"."business_unit_id") AND ("ubu"."user_id" = "auth"."uid"())))) OR "public"."is_super_admin"()));
+
+
+
+CREATE POLICY "Users can update own participation" ON "public"."chat_participants" FOR UPDATE TO "authenticated" USING (("user_id" = "auth"."uid"()));
 
 
 
@@ -5885,6 +6005,20 @@ CREATE POLICY "Users can view BU memberships" ON "public"."user_business_units" 
 CREATE POLICY "Users can view BUs they are members of" ON "public"."business_units" FOR SELECT TO "authenticated" USING (("id" IN ( SELECT "user_business_units"."business_unit_id"
    FROM "public"."user_business_units"
   WHERE ("user_business_units"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can view accessible request history" ON "public"."request_history" FOR SELECT TO "authenticated" USING ((("actor_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
+   FROM "public"."requests" "r"
+  WHERE (("r"."id" = "request_history"."request_id") AND (("r"."initiator_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
+           FROM "public"."user_business_units" "ubu"
+          WHERE (("ubu"."business_unit_id" = "r"."business_unit_id") AND ("ubu"."user_id" = "auth"."uid"())))))))) OR "public"."is_super_admin"()));
+
+
+
+CREATE POLICY "Users can view accessible requests" ON "public"."requests" FOR SELECT TO "authenticated" USING ((("initiator_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
+   FROM "public"."user_business_units" "ubu"
+  WHERE (("ubu"."business_unit_id" = "requests"."business_unit_id") AND ("ubu"."user_id" = "auth"."uid"())))) OR "public"."is_super_admin"()));
 
 
 
@@ -5922,6 +6056,18 @@ CREATE POLICY "Users can view initiators in their BUs" ON "public"."workflow_sec
 
 
 
+CREATE POLICY "Users can view messages in their chats" ON "public"."chat_messages" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."chat_participants" "cp"
+  WHERE (("cp"."chat_id" = "chat_messages"."chat_id") AND ("cp"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "Users can view participants of their chats" ON "public"."chat_participants" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."chat_participants" "cp"
+  WHERE (("cp"."chat_id" = "chat_participants"."chat_id") AND ("cp"."user_id" = "auth"."uid"())))));
+
+
+
 CREATE POLICY "Users can view role assignments within their organization" ON "public"."user_role_assignments" FOR SELECT TO "authenticated" USING ("public"."can_view_role_assignment"("user_id"));
 
 
@@ -5938,6 +6084,12 @@ CREATE POLICY "Users can view steps in their BUs" ON "public"."workflow_section_
      JOIN "public"."workflow_chains" "wc" ON (("wc"."id" = "ws"."chain_id")))
      JOIN "public"."user_business_units" "ubu" ON (("ubu"."business_unit_id" = "wc"."business_unit_id")))
   WHERE (("ws"."id" = "workflow_section_steps"."section_id") AND ("ubu"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "Users can view their chats" ON "public"."chats" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."chat_participants" "cp"
+  WHERE (("cp"."chat_id" = "chats"."id") AND ("cp"."user_id" = "auth"."uid"())))));
 
 
 
@@ -5964,10 +6116,22 @@ ALTER TABLE "public"."attachments" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."business_units" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."chat_messages" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."chat_participants" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."chats" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."comments" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."document_tags" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."form_fields" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."forms" ENABLE ROW LEVEL SECURITY;
@@ -5983,6 +6147,12 @@ ALTER TABLE "public"."organizations" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."request_history" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."requests" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."roles" ENABLE ROW LEVEL SECURITY;
@@ -6591,11 +6761,699 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 
 drop extension if exists "pg_net";
 
+drop trigger if exists "on_business_units_updated" on "public"."business_units";
+
+drop trigger if exists "on_chats_updated" on "public"."chats";
+
+drop trigger if exists "auto_resolve_clarification_trigger" on "public"."comments";
+
+drop trigger if exists "trigger_update_forms_updated_at" on "public"."forms";
+
+drop trigger if exists "on_profiles_updated" on "public"."profiles";
+
+drop trigger if exists "trigger_update_requests_updated_at" on "public"."requests";
+
+drop trigger if exists "on_roles_updated" on "public"."roles";
+
+drop trigger if exists "trigger_update_workflow_chains_updated_at" on "public"."workflow_chains";
+
+drop policy "Organization Admins can create BUs in their organization" on "public"."business_units";
+
+drop policy "Organization Admins can manage BUs in their organization" on "public"."business_units";
+
+drop policy "Super Admins can manage all business units" on "public"."business_units";
+
+drop policy "Users can view BUs they are members of" on "public"."business_units";
+
+drop policy "Users can view business units" on "public"."business_units";
+
+drop policy "Users can send messages in their chats" on "public"."chat_messages";
+
+drop policy "Users can view messages in their chats" on "public"."chat_messages";
+
+drop policy "Chat creator can remove participants" on "public"."chat_participants";
+
+drop policy "Users can insert chat participants" on "public"."chat_participants";
+
+drop policy "Users can view participants of their chats" on "public"."chat_participants";
+
+drop policy "Users can view their chats" on "public"."chats";
+
+drop policy "Users can add comments to requests" on "public"."comments";
+
+drop policy "Users can view comments on requests" on "public"."comments";
+
+drop policy "Admins can manage form fields" on "public"."form_fields";
+
+drop policy "Super Admins can create invitations" on "public"."organization_invitations";
+
+drop policy "Super Admins can delete invitations" on "public"."organization_invitations";
+
+drop policy "Super Admins can update invitations" on "public"."organization_invitations";
+
+drop policy "Super Admins can view all invitations" on "public"."organization_invitations";
+
+drop policy "Organization Admins can update their organization" on "public"."organizations";
+
+drop policy "Organization Admins can view their organization" on "public"."organizations";
+
+drop policy "Super Admins can DELETE organizations" on "public"."organizations";
+
+drop policy "Super Admins can INSERT organizations" on "public"."organizations";
+
+drop policy "Super Admins can SELECT organizations" on "public"."organizations";
+
+drop policy "Super Admins can UPDATE organizations" on "public"."organizations";
+
+drop policy "Organization Admins can update users in their organization" on "public"."profiles";
+
+drop policy "Organization Admins can view users in their organization" on "public"."profiles";
+
+drop policy "Super Admins can manage all profiles" on "public"."profiles";
+
+drop policy "Users can view accessible request history" on "public"."request_history";
+
+drop policy "Users can update accessible requests" on "public"."requests";
+
+drop policy "Users can view accessible requests" on "public"."requests";
+
+drop policy "Enable Delete for BU Admin" on "public"."roles";
+
+drop policy "Enable Update for BU Admin" on "public"."roles";
+
+drop policy "Enable insert for BU Admin" on "public"."roles";
+
+drop policy "Auditors can create tags" on "public"."tags";
+
+drop policy "Enable BU Admins" on "public"."user_business_units";
+
+drop policy "Users can view BU memberships" on "public"."user_business_units";
+
+drop policy "Super Admins can update role assignments" on "public"."user_role_assignments";
+
+drop policy "Users can delete role assignments they can manage" on "public"."user_role_assignments";
+
+drop policy "Users can insert role assignments they can manage" on "public"."user_role_assignments";
+
+drop policy "Users can view role assignments within their organization" on "public"."user_role_assignments";
+
+drop policy "BU Admins can manage chains in their BU" on "public"."workflow_chains";
+
+drop policy "BU Admins can manage workflows" on "public"."workflow_chains";
+
+drop policy "Organization Admins can manage chains in their org" on "public"."workflow_chains";
+
+drop policy "Super Admins can manage all workflow chains" on "public"."workflow_chains";
+
+drop policy "Users can view chains in their BUs" on "public"."workflow_chains";
+
+drop policy "Users can view workflows in their BUs" on "public"."workflow_chains";
+
+drop policy "BU Admins can manage initiators in their BU" on "public"."workflow_section_initiators";
+
+drop policy "Organization Admins can manage initiators in their org" on "public"."workflow_section_initiators";
+
+drop policy "Super Admins can manage all section initiators" on "public"."workflow_section_initiators";
+
+drop policy "Users can view initiators in their BUs" on "public"."workflow_section_initiators";
+
+drop policy "BU Admins can manage steps in their BU" on "public"."workflow_section_steps";
+
+drop policy "Organization Admins can manage steps in their org" on "public"."workflow_section_steps";
+
+drop policy "Super Admins can manage all section steps" on "public"."workflow_section_steps";
+
+drop policy "Users can view steps in their BUs" on "public"."workflow_section_steps";
+
+drop policy "BU Admins can manage sections in their BU" on "public"."workflow_sections";
+
+drop policy "Organization Admins can manage sections in their org" on "public"."workflow_sections";
+
+drop policy "Super Admins can manage all workflow sections" on "public"."workflow_sections";
+
+drop policy "Users can view sections in their BUs" on "public"."workflow_sections";
+
+alter table "public"."attachments" drop constraint "attachments_chat_message_id_fkey";
+
+alter table "public"."attachments" drop constraint "attachments_comment_id_fkey";
+
+alter table "public"."attachments" drop constraint "attachments_uploader_id_fkey";
+
+alter table "public"."business_units" drop constraint "business_units_head_id_fkey";
+
+alter table "public"."business_units" drop constraint "business_units_organization_id_fkey";
+
+alter table "public"."chat_messages" drop constraint "chat_messages_sender_id_fkey";
+
+alter table "public"."chat_messages" drop constraint "fk_chat";
+
+alter table "public"."chat_participants" drop constraint "chat_participants_chat_id_fkey";
+
+alter table "public"."chat_participants" drop constraint "chat_participants_user_id_fkey";
+
+alter table "public"."chats" drop constraint "chats_creator_id_fkey";
+
+alter table "public"."comments" drop constraint "comments_author_id_fkey";
+
+alter table "public"."comments" drop constraint "comments_parent_comment_id_fkey";
+
+alter table "public"."comments" drop constraint "comments_request_id_fkey";
+
+alter table "public"."document_tags" drop constraint "document_tags_assigned_by_id_fkey";
+
+alter table "public"."document_tags" drop constraint "document_tags_tag_id_fkey";
+
+alter table "public"."form_fields" drop constraint "form_fields_form_id_fkey";
+
+alter table "public"."form_fields" drop constraint "form_fields_parent_list_field_id_fkey";
+
+alter table "public"."forms" drop constraint "forms_business_unit_id_fkey";
+
+alter table "public"."forms" drop constraint "forms_created_by_fkey";
+
+alter table "public"."forms" drop constraint "forms_organization_id_fkey";
+
+alter table "public"."forms" drop constraint "forms_parent_form_id_fkey";
+
+alter table "public"."forms" drop constraint "forms_scope_check";
+
+alter table "public"."notifications" drop constraint "notifications_recipient_id_fkey";
+
+alter table "public"."organization_invitations" drop constraint "organization_invitations_invited_by_fkey";
+
+alter table "public"."organization_invitations" drop constraint "organization_invitations_organization_id_fkey";
+
+alter table "public"."organization_invitations" drop constraint "organization_invitations_user_id_fkey";
+
+alter table "public"."profiles" drop constraint "profiles_organization_id_fkey";
+
+alter table "public"."request_history" drop constraint "request_history_actor_id_fkey";
+
+alter table "public"."request_history" drop constraint "request_history_request_id_fkey";
+
+alter table "public"."request_history" drop constraint "request_history_resolved_by_fkey";
+
+alter table "public"."requests" drop constraint "requests_business_unit_id_fkey";
+
+alter table "public"."requests" drop constraint "requests_form_id_fkey";
+
+alter table "public"."requests" drop constraint "requests_initiator_id_fkey";
+
+alter table "public"."requests" drop constraint "requests_organization_id_fkey";
+
+alter table "public"."requests" drop constraint "requests_parent_request_id_fkey";
+
+alter table "public"."requests" drop constraint "requests_root_request_id_fkey";
+
+alter table "public"."requests" drop constraint "requests_workflow_chain_id_fkey";
+
+alter table "public"."roles" drop constraint "roles_business_unit_id_fkey";
+
+alter table "public"."tags" drop constraint "tags_creator_id_fkey";
+
+alter table "public"."user_business_units" drop constraint "user_business_units_business_unit_id_fkey";
+
+alter table "public"."user_business_units" drop constraint "user_business_units_user_id_fkey";
+
+alter table "public"."user_role_assignments" drop constraint "user_role_assignments_role_id_fkey";
+
+alter table "public"."user_role_assignments" drop constraint "user_role_assignments_user_id_fkey";
+
+alter table "public"."workflow_chains" drop constraint "workflow_chains_business_unit_id_fkey";
+
+alter table "public"."workflow_chains" drop constraint "workflow_chains_created_by_fkey";
+
+alter table "public"."workflow_chains" drop constraint "workflow_chains_organization_id_fkey";
+
+alter table "public"."workflow_chains" drop constraint "workflow_chains_parent_chain_id_fkey";
+
+alter table "public"."workflow_chains" drop constraint "workflow_chains_scope_check";
+
+alter table "public"."workflow_section_initiators" drop constraint "workflow_section_initiators_role_id_fkey";
+
+alter table "public"."workflow_section_initiators" drop constraint "workflow_section_initiators_section_id_fkey";
+
+alter table "public"."workflow_section_steps" drop constraint "workflow_section_steps_approver_role_id_fkey";
+
+alter table "public"."workflow_section_steps" drop constraint "workflow_section_steps_section_id_fkey";
+
+alter table "public"."workflow_sections" drop constraint "workflow_sections_chain_id_fkey";
+
+alter table "public"."workflow_sections" drop constraint "workflow_sections_form_id_fkey";
+
+alter table "public"."workflow_sections" drop constraint "workflow_sections_initiator_role_id_fkey";
+
+drop function if exists "public"."get_auditor_documents"(p_tag_ids uuid[], p_status_filter document_status, p_search_text text);
+
+drop function if exists "public"."process_document_action"(p_document_id uuid, p_action document_action, p_comments text);
+
+drop function if exists "public"."get_approved_requests_for_bu"();
+
+drop function if exists "public"."get_approver_requests"(p_user_id uuid);
+
+drop function if exists "public"."get_enhanced_approver_requests"(p_user_id uuid);
+
+drop function if exists "public"."get_initiatable_forms"(p_user_id uuid);
+
+drop function if exists "public"."get_my_active_requests"();
+
+drop function if exists "public"."get_my_pending_approvals"();
+
+drop function if exists "public"."get_my_request_history"(p_business_unit_id uuid);
+
+drop function if exists "public"."get_my_requests_needing_revision"();
+
+drop function if exists "public"."get_workflow_chains_for_bu"(p_bu_id uuid);
+
+drop index if exists "public"."idx_request_history_unresolved_clarifications";
+
+alter table "public"."chats" alter column "chat_type" set data type public.chat_type using "chat_type"::text::public.chat_type;
+
+alter table "public"."comments" alter column "action" set data type public.action_type using "action"::text::public.action_type;
+
+alter table "public"."form_fields" alter column "field_type" set data type public.field_type using "field_type"::text::public.field_type;
+
+alter table "public"."forms" alter column "scope" set default 'BU'::public.scope_type;
+
+alter table "public"."forms" alter column "scope" set data type public.scope_type using "scope"::text::public.scope_type;
+
+alter table "public"."forms" alter column "status" set default 'draft'::public.form_status;
+
+alter table "public"."forms" alter column "status" set data type public.form_status using "status"::text::public.form_status;
+
+alter table "public"."profiles" alter column "status" set default 'ACTIVE'::public.user_status;
+
+alter table "public"."profiles" alter column "status" set data type public.user_status using "status"::text::public.user_status;
+
+alter table "public"."request_history" alter column "action" set data type public.request_action using "action"::text::public.request_action;
+
+alter table "public"."requests" alter column "status" set default 'DRAFT'::public.request_status;
+
+alter table "public"."requests" alter column "status" set data type public.request_status using "status"::text::public.request_status;
+
+alter table "public"."roles" alter column "scope" set default 'BU'::public.role_scope;
+
+alter table "public"."roles" alter column "scope" set data type public.role_scope using "scope"::text::public.role_scope;
+
+alter table "public"."user_business_units" alter column "membership_type" set default 'MEMBER'::public.bu_membership_type;
+
+alter table "public"."user_business_units" alter column "membership_type" set data type public.bu_membership_type using "membership_type"::text::public.bu_membership_type;
+
+alter table "public"."workflow_chains" alter column "scope" set default 'BU'::public.scope_type;
+
+alter table "public"."workflow_chains" alter column "scope" set data type public.scope_type using "scope"::text::public.scope_type;
+
+alter table "public"."workflow_chains" alter column "status" set default 'draft'::public.approval_workflow_status;
+
+alter table "public"."workflow_chains" alter column "status" set data type public.approval_workflow_status using "status"::text::public.approval_workflow_status;
+
+CREATE INDEX idx_request_history_unresolved_clarifications ON public.request_history USING btree (request_id, action) WHERE ((action = 'REQUEST_CLARIFICATION'::public.request_action) AND (resolved_at IS NULL));
+
+alter table "public"."attachments" add constraint "attachments_chat_message_id_fkey" FOREIGN KEY (chat_message_id) REFERENCES public.chat_messages(id) ON DELETE SET NULL not valid;
+
+alter table "public"."attachments" validate constraint "attachments_chat_message_id_fkey";
+
+alter table "public"."attachments" add constraint "attachments_comment_id_fkey" FOREIGN KEY (comment_id) REFERENCES public.comments(id) ON DELETE SET NULL not valid;
+
+alter table "public"."attachments" validate constraint "attachments_comment_id_fkey";
+
+alter table "public"."attachments" add constraint "attachments_uploader_id_fkey" FOREIGN KEY (uploader_id) REFERENCES public.profiles(id) ON DELETE RESTRICT not valid;
+
+alter table "public"."attachments" validate constraint "attachments_uploader_id_fkey";
+
+alter table "public"."business_units" add constraint "business_units_head_id_fkey" FOREIGN KEY (head_id) REFERENCES public.profiles(id) ON DELETE RESTRICT not valid;
+
+alter table "public"."business_units" validate constraint "business_units_head_id_fkey";
+
+alter table "public"."business_units" add constraint "business_units_organization_id_fkey" FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE SET NULL not valid;
+
+alter table "public"."business_units" validate constraint "business_units_organization_id_fkey";
+
+alter table "public"."chat_messages" add constraint "chat_messages_sender_id_fkey" FOREIGN KEY (sender_id) REFERENCES public.profiles(id) ON DELETE RESTRICT not valid;
+
+alter table "public"."chat_messages" validate constraint "chat_messages_sender_id_fkey";
+
+alter table "public"."chat_messages" add constraint "fk_chat" FOREIGN KEY (chat_id) REFERENCES public.chats(id) ON DELETE CASCADE not valid;
+
+alter table "public"."chat_messages" validate constraint "fk_chat";
+
+alter table "public"."chat_participants" add constraint "chat_participants_chat_id_fkey" FOREIGN KEY (chat_id) REFERENCES public.chats(id) ON DELETE CASCADE not valid;
+
+alter table "public"."chat_participants" validate constraint "chat_participants_chat_id_fkey";
+
+alter table "public"."chat_participants" add constraint "chat_participants_user_id_fkey" FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."chat_participants" validate constraint "chat_participants_user_id_fkey";
+
+alter table "public"."chats" add constraint "chats_creator_id_fkey" FOREIGN KEY (creator_id) REFERENCES public.profiles(id) ON DELETE SET NULL not valid;
+
+alter table "public"."chats" validate constraint "chats_creator_id_fkey";
+
+alter table "public"."comments" add constraint "comments_author_id_fkey" FOREIGN KEY (author_id) REFERENCES public.profiles(id) ON DELETE RESTRICT not valid;
+
+alter table "public"."comments" validate constraint "comments_author_id_fkey";
+
+alter table "public"."comments" add constraint "comments_parent_comment_id_fkey" FOREIGN KEY (parent_comment_id) REFERENCES public.comments(id) ON DELETE CASCADE not valid;
+
+alter table "public"."comments" validate constraint "comments_parent_comment_id_fkey";
+
+alter table "public"."comments" add constraint "comments_request_id_fkey" FOREIGN KEY (request_id) REFERENCES public.requests(id) ON DELETE CASCADE not valid;
+
+alter table "public"."comments" validate constraint "comments_request_id_fkey";
+
+alter table "public"."document_tags" add constraint "document_tags_assigned_by_id_fkey" FOREIGN KEY (assigned_by_id) REFERENCES public.profiles(id) not valid;
+
+alter table "public"."document_tags" validate constraint "document_tags_assigned_by_id_fkey";
+
+alter table "public"."document_tags" add constraint "document_tags_tag_id_fkey" FOREIGN KEY (tag_id) REFERENCES public.tags(id) ON DELETE CASCADE not valid;
+
+alter table "public"."document_tags" validate constraint "document_tags_tag_id_fkey";
+
+alter table "public"."form_fields" add constraint "form_fields_form_id_fkey" FOREIGN KEY (form_id) REFERENCES public.forms(id) ON DELETE CASCADE not valid;
+
+alter table "public"."form_fields" validate constraint "form_fields_form_id_fkey";
+
+alter table "public"."form_fields" add constraint "form_fields_parent_list_field_id_fkey" FOREIGN KEY (parent_list_field_id) REFERENCES public.form_fields(id) ON DELETE CASCADE not valid;
+
+alter table "public"."form_fields" validate constraint "form_fields_parent_list_field_id_fkey";
+
+alter table "public"."forms" add constraint "forms_business_unit_id_fkey" FOREIGN KEY (business_unit_id) REFERENCES public.business_units(id) ON DELETE CASCADE not valid;
+
+alter table "public"."forms" validate constraint "forms_business_unit_id_fkey";
+
+alter table "public"."forms" add constraint "forms_created_by_fkey" FOREIGN KEY (created_by) REFERENCES public.profiles(id) ON DELETE SET NULL not valid;
+
+alter table "public"."forms" validate constraint "forms_created_by_fkey";
+
+alter table "public"."forms" add constraint "forms_organization_id_fkey" FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE not valid;
+
+alter table "public"."forms" validate constraint "forms_organization_id_fkey";
+
+alter table "public"."forms" add constraint "forms_parent_form_id_fkey" FOREIGN KEY (parent_form_id) REFERENCES public.forms(id) ON DELETE SET NULL not valid;
+
+alter table "public"."forms" validate constraint "forms_parent_form_id_fkey";
+
+alter table "public"."forms" add constraint "forms_scope_check" CHECK ((((scope = 'BU'::public.scope_type) AND (business_unit_id IS NOT NULL) AND (organization_id IS NULL)) OR ((scope = 'ORGANIZATION'::public.scope_type) AND (organization_id IS NOT NULL) AND (business_unit_id IS NULL)) OR ((scope = 'SYSTEM'::public.scope_type) AND (organization_id IS NULL) AND (business_unit_id IS NULL)))) not valid;
+
+alter table "public"."forms" validate constraint "forms_scope_check";
+
+alter table "public"."notifications" add constraint "notifications_recipient_id_fkey" FOREIGN KEY (recipient_id) REFERENCES public.profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."notifications" validate constraint "notifications_recipient_id_fkey";
+
+alter table "public"."organization_invitations" add constraint "organization_invitations_invited_by_fkey" FOREIGN KEY (invited_by) REFERENCES public.profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."organization_invitations" validate constraint "organization_invitations_invited_by_fkey";
+
+alter table "public"."organization_invitations" add constraint "organization_invitations_organization_id_fkey" FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE not valid;
+
+alter table "public"."organization_invitations" validate constraint "organization_invitations_organization_id_fkey";
+
+alter table "public"."organization_invitations" add constraint "organization_invitations_user_id_fkey" FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."organization_invitations" validate constraint "organization_invitations_user_id_fkey";
+
+alter table "public"."profiles" add constraint "profiles_organization_id_fkey" FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE SET NULL not valid;
+
+alter table "public"."profiles" validate constraint "profiles_organization_id_fkey";
+
+alter table "public"."request_history" add constraint "request_history_actor_id_fkey" FOREIGN KEY (actor_id) REFERENCES public.profiles(id) ON DELETE SET NULL not valid;
+
+alter table "public"."request_history" validate constraint "request_history_actor_id_fkey";
+
+alter table "public"."request_history" add constraint "request_history_request_id_fkey" FOREIGN KEY (request_id) REFERENCES public.requests(id) ON DELETE CASCADE not valid;
+
+alter table "public"."request_history" validate constraint "request_history_request_id_fkey";
+
+alter table "public"."request_history" add constraint "request_history_resolved_by_fkey" FOREIGN KEY (resolved_by) REFERENCES public.profiles(id) not valid;
+
+alter table "public"."request_history" validate constraint "request_history_resolved_by_fkey";
+
+alter table "public"."requests" add constraint "requests_business_unit_id_fkey" FOREIGN KEY (business_unit_id) REFERENCES public.business_units(id) ON DELETE CASCADE not valid;
+
+alter table "public"."requests" validate constraint "requests_business_unit_id_fkey";
+
+alter table "public"."requests" add constraint "requests_form_id_fkey" FOREIGN KEY (form_id) REFERENCES public.forms(id) ON DELETE RESTRICT not valid;
+
+alter table "public"."requests" validate constraint "requests_form_id_fkey";
+
+alter table "public"."requests" add constraint "requests_initiator_id_fkey" FOREIGN KEY (initiator_id) REFERENCES public.profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."requests" validate constraint "requests_initiator_id_fkey";
+
+alter table "public"."requests" add constraint "requests_organization_id_fkey" FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE not valid;
+
+alter table "public"."requests" validate constraint "requests_organization_id_fkey";
+
+alter table "public"."requests" add constraint "requests_parent_request_id_fkey" FOREIGN KEY (parent_request_id) REFERENCES public.requests(id) ON DELETE SET NULL not valid;
+
+alter table "public"."requests" validate constraint "requests_parent_request_id_fkey";
+
+alter table "public"."requests" add constraint "requests_root_request_id_fkey" FOREIGN KEY (root_request_id) REFERENCES public.requests(id) ON DELETE SET NULL not valid;
+
+alter table "public"."requests" validate constraint "requests_root_request_id_fkey";
+
+alter table "public"."requests" add constraint "requests_workflow_chain_id_fkey" FOREIGN KEY (workflow_chain_id) REFERENCES public.workflow_chains(id) ON DELETE SET NULL not valid;
+
+alter table "public"."requests" validate constraint "requests_workflow_chain_id_fkey";
+
+alter table "public"."roles" add constraint "roles_business_unit_id_fkey" FOREIGN KEY (business_unit_id) REFERENCES public.business_units(id) ON DELETE CASCADE not valid;
+
+alter table "public"."roles" validate constraint "roles_business_unit_id_fkey";
+
+alter table "public"."tags" add constraint "tags_creator_id_fkey" FOREIGN KEY (creator_id) REFERENCES public.profiles(id) ON DELETE RESTRICT not valid;
+
+alter table "public"."tags" validate constraint "tags_creator_id_fkey";
+
+alter table "public"."user_business_units" add constraint "user_business_units_business_unit_id_fkey" FOREIGN KEY (business_unit_id) REFERENCES public.business_units(id) ON DELETE CASCADE not valid;
+
+alter table "public"."user_business_units" validate constraint "user_business_units_business_unit_id_fkey";
+
+alter table "public"."user_business_units" add constraint "user_business_units_user_id_fkey" FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."user_business_units" validate constraint "user_business_units_user_id_fkey";
+
+alter table "public"."user_role_assignments" add constraint "user_role_assignments_role_id_fkey" FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."user_role_assignments" validate constraint "user_role_assignments_role_id_fkey";
+
+alter table "public"."user_role_assignments" add constraint "user_role_assignments_user_id_fkey" FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."user_role_assignments" validate constraint "user_role_assignments_user_id_fkey";
+
+alter table "public"."workflow_chains" add constraint "workflow_chains_business_unit_id_fkey" FOREIGN KEY (business_unit_id) REFERENCES public.business_units(id) ON DELETE CASCADE not valid;
+
+alter table "public"."workflow_chains" validate constraint "workflow_chains_business_unit_id_fkey";
+
+alter table "public"."workflow_chains" add constraint "workflow_chains_created_by_fkey" FOREIGN KEY (created_by) REFERENCES public.profiles(id) ON DELETE SET NULL not valid;
+
+alter table "public"."workflow_chains" validate constraint "workflow_chains_created_by_fkey";
+
+alter table "public"."workflow_chains" add constraint "workflow_chains_organization_id_fkey" FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE not valid;
+
+alter table "public"."workflow_chains" validate constraint "workflow_chains_organization_id_fkey";
+
+alter table "public"."workflow_chains" add constraint "workflow_chains_parent_chain_id_fkey" FOREIGN KEY (parent_chain_id) REFERENCES public.workflow_chains(id) ON DELETE SET NULL not valid;
+
+alter table "public"."workflow_chains" validate constraint "workflow_chains_parent_chain_id_fkey";
+
+alter table "public"."workflow_chains" add constraint "workflow_chains_scope_check" CHECK ((((scope = 'BU'::public.scope_type) AND (business_unit_id IS NOT NULL) AND (organization_id IS NULL)) OR ((scope = 'ORGANIZATION'::public.scope_type) AND (organization_id IS NOT NULL) AND (business_unit_id IS NULL)) OR ((scope = 'SYSTEM'::public.scope_type) AND (organization_id IS NULL) AND (business_unit_id IS NULL)))) not valid;
+
+alter table "public"."workflow_chains" validate constraint "workflow_chains_scope_check";
+
+alter table "public"."workflow_section_initiators" add constraint "workflow_section_initiators_role_id_fkey" FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."workflow_section_initiators" validate constraint "workflow_section_initiators_role_id_fkey";
+
+alter table "public"."workflow_section_initiators" add constraint "workflow_section_initiators_section_id_fkey" FOREIGN KEY (section_id) REFERENCES public.workflow_sections(id) ON DELETE CASCADE not valid;
+
+alter table "public"."workflow_section_initiators" validate constraint "workflow_section_initiators_section_id_fkey";
+
+alter table "public"."workflow_section_steps" add constraint "workflow_section_steps_approver_role_id_fkey" FOREIGN KEY (approver_role_id) REFERENCES public.roles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."workflow_section_steps" validate constraint "workflow_section_steps_approver_role_id_fkey";
+
+alter table "public"."workflow_section_steps" add constraint "workflow_section_steps_section_id_fkey" FOREIGN KEY (section_id) REFERENCES public.workflow_sections(id) ON DELETE CASCADE not valid;
+
+alter table "public"."workflow_section_steps" validate constraint "workflow_section_steps_section_id_fkey";
+
+alter table "public"."workflow_sections" add constraint "workflow_sections_chain_id_fkey" FOREIGN KEY (chain_id) REFERENCES public.workflow_chains(id) ON DELETE CASCADE not valid;
+
+alter table "public"."workflow_sections" validate constraint "workflow_sections_chain_id_fkey";
+
+alter table "public"."workflow_sections" add constraint "workflow_sections_form_id_fkey" FOREIGN KEY (form_id) REFERENCES public.forms(id) ON DELETE SET NULL not valid;
+
+alter table "public"."workflow_sections" validate constraint "workflow_sections_form_id_fkey";
+
+alter table "public"."workflow_sections" add constraint "workflow_sections_initiator_role_id_fkey" FOREIGN KEY (initiator_role_id) REFERENCES public.roles(id) ON DELETE SET NULL not valid;
+
+alter table "public"."workflow_sections" validate constraint "workflow_sections_initiator_role_id_fkey";
+
 set check_function_bodies = off;
+
+CREATE OR REPLACE FUNCTION public.get_auditor_documents(p_tag_ids uuid[] DEFAULT NULL::uuid[], p_status_filter public.document_status DEFAULT NULL::public.document_status, p_search_text text DEFAULT NULL::text)
+ RETURNS TABLE(id uuid, status public.document_status, created_at timestamp with time zone, updated_at timestamp with time zone, template_id uuid, template_name text, initiator_id uuid, initiator_name text, initiator_email text, business_unit_id uuid, business_unit_name text, organization_id uuid, organization_name text, tags jsonb)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+    v_is_system_auditor BOOLEAN;
+    v_accessible_bu_ids UUID[];
+BEGIN
+    -- Security check: User must be an auditor
+    IF NOT is_auditor() THEN
+        RAISE EXCEPTION 'Access Denied: User is not an auditor';
+    END IF;
+
+    -- Determine if user is a system auditor
+    SELECT EXISTS (
+        SELECT 1
+        FROM user_role_assignments ura
+        JOIN roles r ON r.id = ura.role_id
+        WHERE ura.user_id = auth.uid()
+        AND (r.scope = 'AUDITOR' OR (r.scope = 'SYSTEM' AND r.name = 'AUDITOR'))
+    ) INTO v_is_system_auditor;
+
+    -- Get accessible BU IDs for BU auditors
+    IF NOT v_is_system_auditor THEN
+        SELECT ARRAY_AGG(business_unit_id)
+        INTO v_accessible_bu_ids
+        FROM user_business_units
+        WHERE user_id = auth.uid()
+        AND membership_type = 'AUDITOR';
+    END IF;
+
+    -- Return documents with filters
+    RETURN QUERY
+    SELECT
+        d.id,
+        d.status,
+        d.created_at,
+        d.updated_at,
+        d.form_template_id as template_id,
+        ft.name as template_name,
+        d.initiator_id,
+        (p.first_name || ' ' || COALESCE(p.last_name, '')) as initiator_name,
+        p.email as initiator_email,
+        d.business_unit_id,
+        bu.name as business_unit_name,
+        d.organization_id,
+        o.name as organization_name,
+        COALESCE(
+            (
+                SELECT jsonb_agg(
+                    jsonb_build_object(
+                        'id', t.id,
+                        'label', t.label,
+                        'color', t.color
+                    )
+                )
+                FROM document_tags dt
+                JOIN tags t ON t.id = dt.tag_id
+                WHERE dt.document_id = d.id
+            ),
+            '[]'::jsonb
+        ) as tags
+    FROM public.documents d
+    JOIN public.form_templates ft ON d.form_template_id = ft.id
+    JOIN public.profiles p ON d.initiator_id = p.id
+    JOIN public.business_units bu ON d.business_unit_id = bu.id
+    JOIN public.organizations o ON d.organization_id = o.id
+    WHERE
+        -- Scope filtering: System auditors see all, BU auditors see only their BUs
+        (v_is_system_auditor OR d.business_unit_id = ANY(v_accessible_bu_ids))
+        -- Status filter
+        AND (p_status_filter IS NULL OR d.status = p_status_filter)
+        -- Search filter (template name or initiator name)
+        AND (
+            p_search_text IS NULL OR
+            ft.name ILIKE '%' || p_search_text || '%' OR
+            (p.first_name || ' ' || COALESCE(p.last_name, '')) ILIKE '%' || p_search_text || '%'
+        )
+        -- Tag filter (if any tag_ids provided, document must have at least one of those tags)
+        AND (
+            p_tag_ids IS NULL OR
+            EXISTS (
+                SELECT 1
+                FROM document_tags dt
+                WHERE dt.document_id = d.id
+                AND dt.tag_id = ANY(p_tag_ids)
+            )
+        )
+    ORDER BY d.created_at DESC;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.process_document_action(p_document_id uuid, p_action public.document_action, p_comments text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+    v_actor_id UUID := auth.uid();
+    v_current_step_id UUID;
+    v_next_step_id UUID;
+    v_workflow_id UUID;
+    v_current_step_number INT;
+    approver RECORD;
+    v_initiator_id UUID;
+BEGIN
+    -- Security Check: In a real-world scenario, you'd have a robust function
+    -- here to verify if v_actor_id is the designated approver for the current step.
+    SELECT current_step_id, initiator_id INTO v_current_step_id, v_initiator_id FROM public.documents WHERE id = p_document_id;
+
+    -- Log the action that was taken
+    INSERT INTO public.document_history(document_id, actor_id, action, comments, from_step_id)
+    VALUES (p_document_id, v_actor_id, p_action, p_comments, v_current_step_id);
+
+    IF p_action = 'APPROVED' THEN
+        -- Find the next step in the workflow
+        SELECT ws.workflow_template_id, ws.step_number INTO v_workflow_id, v_current_step_number
+        FROM public.workflow_steps ws WHERE id = v_current_step_id;
+        
+        SELECT id INTO v_next_step_id FROM public.workflow_steps
+        WHERE workflow_template_id = v_workflow_id AND step_number > v_current_step_number
+        ORDER BY step_number ASC LIMIT 1;
+        
+        IF v_next_step_id IS NOT NULL THEN
+            -- There is a next step, so move the document forward
+            UPDATE public.documents SET current_step_id = v_next_step_id WHERE id = p_document_id;
+            
+            -- Notify all approvers for the next step
+            FOR approver IN SELECT approver_id FROM get_approvers_for_step(v_next_step_id) LOOP
+                PERFORM create_notification(
+                    p_recipient_id := approver.approver_id,
+                    p_message := 'A document is waiting for your approval.',
+                    p_link_url := '/approvals/document/' || p_document_id,
+                    p_document_id := p_document_id
+                );
+            END LOOP;
+        ELSE
+            -- This was the final approval step
+            UPDATE public.documents SET status = 'APPROVED', current_step_id = NULL WHERE id = p_document_id;
+            PERFORM create_notification(v_initiator_id, 'Your document has been fully approved.', '/documents/' || p_document_id, p_document_id);
+        END IF;
+
+    ELSIF p_action = 'REJECTED' THEN
+        UPDATE public.documents SET status = 'REJECTED', current_step_id = NULL WHERE id = p_document_id;
+        PERFORM create_notification(v_initiator_id, 'Your document has been rejected.', '/documents/' || p_document_id, p_document_id);
+
+    ELSIF p_action = 'REVISION_REQUESTED' THEN
+        UPDATE public.documents SET status = 'NEEDS_REVISION', current_step_id = NULL WHERE id = p_document_id;
+        PERFORM create_notification(v_initiator_id, 'Your document requires revision.', '/documents/' || p_document_id, p_document_id);
+    
+    END IF;
+
+END;
+$function$
+;
 
 CREATE OR REPLACE FUNCTION public.create_new_template_version(old_template_id uuid, new_name text, new_description text, business_unit_id uuid, new_version_number integer, parent_id uuid)
  RETURNS uuid
  LANGUAGE plpgsql
+ SET search_path TO 'public'
 AS $function$
 DECLARE
   new_template_id uuid;
@@ -6614,6 +7472,1233 @@ BEGIN
   END;
   $function$
 ;
+
+CREATE OR REPLACE FUNCTION public.get_approved_requests_for_bu()
+ RETURNS TABLE(id uuid, form_id uuid, workflow_chain_id uuid, business_unit_id uuid, organization_id uuid, status public.request_status, data jsonb, created_at timestamp with time zone, updated_at timestamp with time zone, form_name text, workflow_name text)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT
+    r.id,
+    r.form_id,
+    r.workflow_chain_id,
+    r.business_unit_id,
+    r.organization_id,
+    r.status,
+    r.data,
+    r.created_at,
+    r.updated_at,
+    f.name as form_name,
+    wc.name as workflow_name
+  FROM requests r
+  INNER JOIN forms f ON f.id = r.form_id
+  LEFT JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
+  INNER JOIN user_business_units ubu ON ubu.business_unit_id = r.business_unit_id
+  WHERE ubu.user_id = auth.uid()
+    AND r.status = 'APPROVED'
+  ORDER BY r.updated_at DESC;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.get_approver_requests(p_user_id uuid)
+ RETURNS TABLE(id uuid, form_id uuid, workflow_chain_id uuid, business_unit_id uuid, organization_id uuid, initiator_id uuid, status public.request_status, data jsonb, created_at timestamp with time zone, updated_at timestamp with time zone, current_section_order integer, current_step_number integer, waiting_on_role_id uuid)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT
+    r.id,
+    r.form_id,
+    r.workflow_chain_id,
+    r.business_unit_id,
+    r.organization_id,
+    r.initiator_id,
+    r.status,
+    r.data,
+    r.created_at,
+    r.updated_at,
+    ws.section_order as current_section_order,
+    wss.step_number as current_step_number,
+    wss.approver_role_id as waiting_on_role_id
+  FROM requests r
+  INNER JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
+  INNER JOIN workflow_sections ws ON ws.chain_id = wc.id
+  INNER JOIN workflow_section_steps wss ON wss.section_id = ws.id
+  INNER JOIN user_role_assignments ura ON ura.role_id = wss.approver_role_id
+  WHERE ura.user_id = p_user_id
+    AND r.status IN ('SUBMITTED', 'IN_REVIEW')
+    -- Only show requests that haven't been approved at this step yet
+    AND NOT EXISTS (
+      SELECT 1 FROM request_history rh
+      WHERE rh.request_id = r.id
+        AND rh.action = 'APPROVE'
+        AND rh.actor_id = p_user_id
+    );
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.get_enhanced_approver_requests(p_user_id uuid)
+ RETURNS TABLE(id uuid, form_id uuid, workflow_chain_id uuid, business_unit_id uuid, organization_id uuid, initiator_id uuid, status public.request_status, data jsonb, created_at timestamp with time zone, updated_at timestamp with time zone, form_name text, form_icon text, form_description text, initiator_name text, initiator_email text, business_unit_name text, workflow_name text, current_section_order integer, current_section_name text, current_step_number integer, total_steps_in_section integer, waiting_on_role_id uuid, waiting_on_role_name text, is_my_turn boolean, is_in_my_workflow boolean, has_already_approved boolean, my_approval_position integer, section_initiator_name text, section_initiator_email text, previous_section_order integer, previous_section_name text, previous_section_initiator_id uuid, previous_section_initiator_name text)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  RETURN QUERY
+  WITH user_roles AS (
+    -- Get all roles assigned to the current user
+    SELECT ura.role_id
+    FROM user_role_assignments ura
+    WHERE ura.user_id = p_user_id
+  ),
+  request_approval_counts AS (
+    -- Count the number of APPROVE actions for each request in the FIRST section
+    -- This determines which step we're currently on (1-indexed: count + 1)
+    SELECT
+      rh.request_id,
+      COUNT(*) as approval_count
+    FROM request_history rh
+    WHERE rh.action = 'APPROVE'
+    GROUP BY rh.request_id
+  ),
+  request_current_position AS (
+    -- For each active request, determine:
+    -- 1. The current section (section_order 0 for now - we only support single section)
+    -- 2. The current step number based on approval count
+    -- 3. The role that should approve at the current step
+    SELECT DISTINCT ON (r.id)
+      r.id as request_id,
+      r.workflow_chain_id,
+      ws.id as section_id,
+      ws.section_order,
+      ws.section_name,
+      -- Current step is approval_count + 1 (since step_number is 1-indexed)
+      COALESCE(rac.approval_count, 0) + 1 as current_step,
+      -- Get total steps in this section
+      (SELECT COUNT(*) FROM workflow_section_steps wss2 WHERE wss2.section_id = ws.id) as total_steps
+    FROM requests r
+    INNER JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
+    INNER JOIN workflow_sections ws ON ws.chain_id = wc.id
+    LEFT JOIN request_approval_counts rac ON rac.request_id = r.id
+    WHERE r.status IN ('SUBMITTED', 'IN_REVIEW', 'NEEDS_REVISION')
+    -- Start with section 0
+    AND ws.section_order = 0
+    ORDER BY r.id, ws.section_order
+  ),
+  request_current_step AS (
+    -- Join to get the current step's approver role
+    SELECT
+      rcp.request_id,
+      rcp.workflow_chain_id,
+      rcp.section_id,
+      rcp.section_order,
+      rcp.section_name,
+      rcp.current_step,
+      rcp.total_steps,
+      wss.approver_role_id,
+      ro.name as role_name
+    FROM request_current_position rcp
+    INNER JOIN workflow_section_steps wss ON wss.section_id = rcp.section_id
+      AND wss.step_number = rcp.current_step
+    LEFT JOIN roles ro ON ro.id = wss.approver_role_id
+    -- Only include requests where current step exists
+    WHERE rcp.current_step <= rcp.total_steps
+  ),
+  user_has_approved AS (
+    -- Check which requests the user has already approved
+    SELECT DISTINCT
+      rh.request_id,
+      TRUE as has_approved
+    FROM request_history rh
+    WHERE rh.actor_id = p_user_id
+    AND rh.action = 'APPROVE'
+  ),
+  user_steps_in_workflow AS (
+    -- Find which step number(s) the user is assigned to in each workflow
+    SELECT DISTINCT
+      ws.chain_id as workflow_chain_id,
+      wss.step_number as user_step_number
+    FROM workflow_sections ws
+    INNER JOIN workflow_section_steps wss ON wss.section_id = ws.id
+    WHERE wss.approver_role_id IN (SELECT role_id FROM user_roles)
+    AND ws.section_order = 0
+  )
+  SELECT
+    -- Request details
+    r.id,
+    r.form_id,
+    r.workflow_chain_id,
+    r.business_unit_id,
+    r.organization_id,
+    r.initiator_id,
+    r.status,
+    r.data,
+    r.created_at,
+    r.updated_at,
+
+    -- Form details
+    f.name as form_name,
+    f.icon as form_icon,
+    f.description as form_description,
+
+    -- Initiator details
+    COALESCE(p_init.first_name || ' ' || p_init.last_name, p_init.email) as initiator_name,
+    p_init.email as initiator_email,
+
+    -- Business unit
+    bu.name as business_unit_name,
+
+    -- Workflow details
+    wc.name as workflow_name,
+    rcs.section_order::INT as current_section_order,
+    rcs.section_name as current_section_name,
+    rcs.current_step::INT as current_step_number,
+    rcs.total_steps::INT as total_steps_in_section,
+    rcs.approver_role_id as waiting_on_role_id,
+    rcs.role_name as waiting_on_role_name,
+
+    -- User's position: it's their turn if the current step's role matches their role
+    (rcs.approver_role_id IN (SELECT role_id FROM user_roles)) as is_my_turn,
+
+    -- User is in workflow if they have a role in any step
+    EXISTS (
+      SELECT 1 FROM user_steps_in_workflow usiw
+      WHERE usiw.workflow_chain_id = r.workflow_chain_id
+    ) as is_in_my_workflow,
+
+    -- Check if user has already approved
+    COALESCE(uha.has_approved, FALSE) as has_already_approved,
+
+    -- User's approval position (which step they're assigned to)
+    COALESCE(
+      (SELECT MIN(usiw.user_step_number) FROM user_steps_in_workflow usiw
+       WHERE usiw.workflow_chain_id = r.workflow_chain_id),
+      0
+    )::INT as my_approval_position,
+
+    -- Section initiator (same as request initiator for section 0)
+    COALESCE(p_init.first_name || ' ' || p_init.last_name, p_init.email) as section_initiator_name,
+    p_init.email as section_initiator_email,
+
+    -- Previous section details (NULL for section 0)
+    NULL::INT as previous_section_order,
+    NULL::TEXT as previous_section_name,
+    NULL::UUID as previous_section_initiator_id,
+    NULL::TEXT as previous_section_initiator_name
+
+  FROM request_current_step rcs
+  INNER JOIN requests r ON r.id = rcs.request_id
+  INNER JOIN forms f ON f.id = r.form_id
+  INNER JOIN profiles p_init ON p_init.id = r.initiator_id
+  INNER JOIN business_units bu ON bu.id = r.business_unit_id
+  LEFT JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
+  LEFT JOIN user_has_approved uha ON uha.request_id = r.id
+  -- Only show requests where user has a role in the workflow
+  WHERE EXISTS (
+    SELECT 1 FROM user_steps_in_workflow usiw
+    WHERE usiw.workflow_chain_id = r.workflow_chain_id
+  )
+  ORDER BY
+    -- Sort by is_my_turn first (TRUE first), then by created_at
+    (rcs.approver_role_id IN (SELECT role_id FROM user_roles)) DESC,
+    r.created_at DESC;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.get_initiatable_forms(p_user_id uuid)
+ RETURNS TABLE(id uuid, name text, description text, icon text, scope public.scope_type, business_unit_id uuid, organization_id uuid, status public.form_status, has_workflow boolean, workflow_chain_id uuid, workflow_name text, section_order integer, section_name text, needs_prior_section boolean)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT
+    f.id,
+    f.name,
+    f.description,
+    f.icon,
+    f.scope,
+    f.business_unit_id,
+    f.organization_id,
+    f.status,
+    true as has_workflow,
+    wc.id as workflow_chain_id,
+    wc.name as workflow_name,
+    ws.section_order,
+    ws.section_name,
+    -- Check if there are earlier sections without forms
+    (
+      EXISTS (
+        SELECT 1
+        FROM workflow_sections earlier_ws
+        WHERE earlier_ws.chain_id = ws.chain_id
+          AND earlier_ws.section_order < ws.section_order
+          AND earlier_ws.form_id IS NULL
+      )
+    ) as needs_prior_section
+  FROM forms f
+  -- Get workflow sections that use this form
+  INNER JOIN workflow_sections ws ON ws.form_id = f.id
+  -- Get the workflow chain
+  INNER JOIN workflow_chains wc ON wc.id = ws.chain_id
+  -- Check if user has the initiator role for this section
+  -- For sections with initiator_type = 'specific_role', check if user has that role
+  -- For sections with initiator_type = 'last_approver', don't show in general list
+  --   (these are only accessible via parent_request notification links)
+  LEFT JOIN user_role_assignments ura ON ura.role_id = ws.initiator_role_id AND ura.user_id = p_user_id
+  WHERE f.status = 'active'
+    AND wc.status = 'active'
+    -- Show form if:
+    -- 1. Section has initiator_type = 'specific_role' AND user has the role, OR
+    -- 2. Section has no initiator_role_id (NULL) - open access
+    -- Do NOT show if initiator_type = 'last_approver' (only accessible via notifications)
+    AND (
+      (ws.initiator_type = 'specific_role' AND ura.user_id IS NOT NULL) OR
+      (ws.initiator_role_id IS NULL)
+    )
+  ORDER BY f.name, ws.section_order;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.get_my_active_requests()
+ RETURNS TABLE(id uuid, form_id uuid, workflow_chain_id uuid, business_unit_id uuid, organization_id uuid, status public.request_status, data jsonb, created_at timestamp with time zone, updated_at timestamp with time zone, form_name text, workflow_name text, workflow_progress jsonb)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT
+    r.id,
+    r.form_id,
+    r.workflow_chain_id,
+    r.business_unit_id,
+    r.organization_id,
+    r.status,
+    r.data,
+    r.created_at,
+    r.updated_at,
+    f.name as form_name,
+    wc.name as workflow_name,
+    get_request_workflow_progress(r.id) as workflow_progress
+  FROM requests r
+  INNER JOIN forms f ON f.id = r.form_id
+  LEFT JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
+  WHERE r.initiator_id = auth.uid()
+    AND r.status IN ('IN_REVIEW', 'SUBMITTED')
+  ORDER BY r.updated_at DESC;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.get_my_pending_approvals()
+ RETURNS TABLE(id uuid, form_id uuid, workflow_chain_id uuid, business_unit_id uuid, organization_id uuid, status public.request_status, data jsonb, created_at timestamp with time zone, updated_at timestamp with time zone, form_name text, workflow_name text, workflow_progress jsonb)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT
+    r.id,
+    r.form_id,
+    r.workflow_chain_id,
+    r.business_unit_id,
+    r.organization_id,
+    r.status,
+    r.data,
+    r.created_at,
+    r.updated_at,
+    f.name as form_name,
+    wc.name as workflow_name,
+    get_request_workflow_progress(r.id) as workflow_progress
+  FROM requests r
+  INNER JOIN forms f ON f.id = r.form_id
+  LEFT JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
+  INNER JOIN workflow_sections ws ON ws.chain_id = wc.id
+  INNER JOIN workflow_section_steps wss ON wss.section_id = ws.id
+  INNER JOIN user_role_assignments ura ON ura.role_id = wss.approver_role_id
+  WHERE ura.user_id = auth.uid()
+    AND r.status IN ('SUBMITTED', 'IN_REVIEW')
+    -- Only show requests where this user hasn't approved yet
+    AND NOT EXISTS (
+      SELECT 1 FROM request_history rh
+      WHERE rh.request_id = r.id
+        AND rh.action = 'APPROVE'
+        AND rh.actor_id = auth.uid()
+    )
+  ORDER BY r.created_at ASC;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.get_my_request_history(p_business_unit_id uuid DEFAULT NULL::uuid)
+ RETURNS TABLE(id uuid, form_id uuid, workflow_chain_id uuid, business_unit_id uuid, organization_id uuid, status public.request_status, data jsonb, created_at timestamp with time zone, updated_at timestamp with time zone, form_name text, form_icon text, workflow_name text, business_unit_name text, initiator_id uuid, initiator_name text, initiator_email text, current_section_order integer, my_role text)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_user_id uuid;
+  v_is_org_admin boolean := false;
+  v_is_bu_admin boolean := false;
+  v_org_id uuid;
+BEGIN
+  v_user_id := auth.uid();
+
+  -- Check if user is organization admin
+  SELECT EXISTS (
+    SELECT 1
+    FROM user_role_assignments ura
+    JOIN roles r ON r.id = ura.role_id
+    WHERE ura.user_id = v_user_id
+      AND r.scope = 'ORGANIZATION'
+      AND r.name = 'Organization Admin'
+  ) INTO v_is_org_admin;
+
+  -- Get user's organization ID (if they have one)
+  IF v_is_org_admin THEN
+    SELECT r.organization_id
+    INTO v_org_id
+    FROM user_role_assignments ura
+    JOIN roles r ON r.id = ura.role_id
+    WHERE ura.user_id = v_user_id
+      AND r.scope = 'ORGANIZATION'
+      AND r.name = 'Organization Admin'
+    LIMIT 1;
+  END IF;
+
+  -- Check if user is BU admin for the specified business unit
+  IF p_business_unit_id IS NOT NULL THEN
+    SELECT EXISTS (
+      SELECT 1
+      FROM user_business_units ubu
+      WHERE ubu.user_id = v_user_id
+        AND ubu.business_unit_id = p_business_unit_id
+        AND ubu.membership_type IN ('BU_ADMIN', 'Head')
+    ) INTO v_is_bu_admin;
+  END IF;
+
+  RETURN QUERY
+  SELECT DISTINCT
+    r.id,
+    r.form_id,
+    r.workflow_chain_id,
+    r.business_unit_id,
+    r.organization_id,
+    r.status,
+    r.data,
+    r.created_at,
+    r.updated_at,
+    f.name as form_name,
+    f.icon as form_icon,
+    wc.name as workflow_name,
+    bu.name as business_unit_name,
+    r.initiator_id,
+    COALESCE(p.first_name || ' ' || p.last_name, p.email) as initiator_name,
+    p.email as initiator_email,
+    r.current_section_order,
+    -- Determine user's role in this request
+    CASE
+      WHEN r.initiator_id = v_user_id THEN 'Initiator'
+      WHEN EXISTS (
+        SELECT 1 FROM request_history rh
+        WHERE rh.request_id = r.id
+          AND rh.actor_id = v_user_id
+          AND rh.action = 'APPROVE'
+      ) THEN 'Approver'
+      WHEN EXISTS (
+        SELECT 1 FROM comments c
+        WHERE c.request_id = r.id
+          AND c.author_id = v_user_id
+      ) THEN 'Commenter'
+      WHEN v_is_org_admin OR v_is_bu_admin THEN 'Admin'
+      ELSE 'Viewer'
+    END as my_role
+  FROM requests r
+  LEFT JOIN forms f ON f.id = r.form_id
+  LEFT JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
+  LEFT JOIN business_units bu ON bu.id = r.business_unit_id
+  LEFT JOIN profiles p ON p.id = r.initiator_id
+  WHERE
+    -- Org Admin: See all requests in their organization
+    (v_is_org_admin AND r.organization_id = v_org_id)
+    OR
+    -- BU Admin: See all requests in the specified BU
+    (v_is_bu_admin AND r.business_unit_id = p_business_unit_id)
+    OR
+    -- Regular User: See requests they created
+    (r.initiator_id = v_user_id)
+    OR
+    -- Regular User: See requests they interacted with (approved, commented, etc.)
+    EXISTS (
+      SELECT 1 FROM request_history rh
+      WHERE rh.request_id = r.id
+        AND rh.actor_id = v_user_id
+    )
+    OR
+    EXISTS (
+      SELECT 1 FROM comments c
+      WHERE c.request_id = r.id
+        AND c.author_id = v_user_id
+    )
+  ORDER BY r.updated_at DESC;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.get_my_requests_needing_revision()
+ RETURNS TABLE(id uuid, form_id uuid, workflow_chain_id uuid, business_unit_id uuid, organization_id uuid, status public.request_status, data jsonb, created_at timestamp with time zone, updated_at timestamp with time zone, form_name text, workflow_name text, workflow_progress jsonb)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT
+    r.id,
+    r.form_id,
+    r.workflow_chain_id,
+    r.business_unit_id,
+    r.organization_id,
+    r.status,
+    r.data,
+    r.created_at,
+    r.updated_at,
+    f.name as form_name,
+    wc.name as workflow_name,
+    get_request_workflow_progress(r.id) as workflow_progress
+  FROM requests r
+  INNER JOIN forms f ON f.id = r.form_id
+  LEFT JOIN workflow_chains wc ON wc.id = r.workflow_chain_id
+  WHERE r.initiator_id = auth.uid()
+    AND r.status = 'NEEDS_REVISION'
+  ORDER BY r.updated_at DESC;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.get_workflow_chains_for_bu(p_bu_id uuid)
+ RETURNS TABLE(id uuid, name text, description text, business_unit_id uuid, status public.approval_workflow_status, version integer, parent_chain_id uuid, is_latest boolean, created_by uuid, created_at timestamp with time zone, updated_at timestamp with time zone, section_count bigint, total_steps bigint)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT
+    wc.id,
+    wc.name,
+    wc.description,
+    wc.business_unit_id,
+    wc.status,
+    wc.version,
+    wc.parent_chain_id,
+    wc.is_latest,
+    wc.created_by,
+    wc.created_at,
+    wc.updated_at,
+    COUNT(DISTINCT ws.id) as section_count,
+    COUNT(wss.id) as total_steps
+  FROM workflow_chains wc
+  LEFT JOIN workflow_sections ws ON ws.chain_id = wc.id
+  LEFT JOIN workflow_section_steps wss ON wss.section_id = ws.id
+  WHERE wc.business_unit_id = p_bu_id
+    AND wc.is_latest = true
+    AND wc.status != 'archived'
+  GROUP BY wc.id
+  ORDER BY wc.created_at DESC;
+END;
+$function$
+;
+
+
+  create policy "Organization Admins can create BUs in their organization"
+  on "public"."business_units"
+  as permissive
+  for insert
+  to authenticated
+with check (((EXISTS ( SELECT 1
+   FROM (public.user_role_assignments ura
+     JOIN public.roles r ON ((ura.role_id = r.id)))
+  WHERE ((ura.user_id = auth.uid()) AND (r.name = 'Organization Admin'::text)))) AND (EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.id = auth.uid()) AND (p.organization_id = business_units.organization_id))))));
+
+
+
+  create policy "Organization Admins can manage BUs in their organization"
+  on "public"."business_units"
+  as permissive
+  for all
+  to authenticated
+using ((public.is_organization_admin() AND (organization_id = public.get_my_organization_id())))
+with check ((public.is_organization_admin() AND (organization_id = public.get_my_organization_id())));
+
+
+
+  create policy "Super Admins can manage all business units"
+  on "public"."business_units"
+  as permissive
+  for all
+  to authenticated
+using (public.is_super_admin())
+with check (public.is_super_admin());
+
+
+
+  create policy "Users can view BUs they are members of"
+  on "public"."business_units"
+  as permissive
+  for select
+  to authenticated
+using ((id IN ( SELECT user_business_units.business_unit_id
+   FROM public.user_business_units
+  WHERE (user_business_units.user_id = auth.uid()))));
+
+
+
+  create policy "Users can view business units"
+  on "public"."business_units"
+  as permissive
+  for select
+  to authenticated
+using ((public.is_super_admin() OR (public.is_organization_admin() AND (organization_id = public.get_user_organization_id())) OR public.is_bu_admin() OR (id IN ( SELECT user_business_units.business_unit_id
+   FROM public.user_business_units
+  WHERE (user_business_units.user_id = auth.uid())))));
+
+
+
+  create policy "Users can send messages in their chats"
+  on "public"."chat_messages"
+  as permissive
+  for insert
+  to authenticated
+with check (((sender_id = auth.uid()) AND (EXISTS ( SELECT 1
+   FROM public.chat_participants cp
+  WHERE ((cp.chat_id = chat_messages.chat_id) AND (cp.user_id = auth.uid()))))));
+
+
+
+  create policy "Users can view messages in their chats"
+  on "public"."chat_messages"
+  as permissive
+  for select
+  to authenticated
+using ((EXISTS ( SELECT 1
+   FROM public.chat_participants cp
+  WHERE ((cp.chat_id = chat_messages.chat_id) AND (cp.user_id = auth.uid())))));
+
+
+
+  create policy "Chat creator can remove participants"
+  on "public"."chat_participants"
+  as permissive
+  for delete
+  to authenticated
+using (((user_id = auth.uid()) OR (EXISTS ( SELECT 1
+   FROM public.chats c
+  WHERE ((c.id = chat_participants.chat_id) AND (c.creator_id = auth.uid()))))));
+
+
+
+  create policy "Users can insert chat participants"
+  on "public"."chat_participants"
+  as permissive
+  for insert
+  to authenticated
+with check (((user_id = auth.uid()) OR (EXISTS ( SELECT 1
+   FROM public.chats c
+  WHERE ((c.id = chat_participants.chat_id) AND (c.creator_id = auth.uid()))))));
+
+
+
+  create policy "Users can view participants of their chats"
+  on "public"."chat_participants"
+  as permissive
+  for select
+  to authenticated
+using ((EXISTS ( SELECT 1
+   FROM public.chat_participants cp
+  WHERE ((cp.chat_id = chat_participants.chat_id) AND (cp.user_id = auth.uid())))));
+
+
+
+  create policy "Users can view their chats"
+  on "public"."chats"
+  as permissive
+  for select
+  to authenticated
+using ((EXISTS ( SELECT 1
+   FROM public.chat_participants cp
+  WHERE ((cp.chat_id = chats.id) AND (cp.user_id = auth.uid())))));
+
+
+
+  create policy "Users can add comments to requests"
+  on "public"."comments"
+  as permissive
+  for insert
+  to public
+with check (((author_id = auth.uid()) AND (((request_id IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM (public.requests r
+     JOIN public.user_business_units ubu ON ((ubu.business_unit_id = r.business_unit_id)))
+  WHERE ((r.id = comments.request_id) AND (ubu.user_id = auth.uid()))))) OR (EXISTS ( SELECT 1
+   FROM (public.user_role_assignments ura
+     JOIN public.roles ro ON ((ro.id = ura.role_id)))
+  WHERE ((ura.user_id = auth.uid()) AND (ro.name = 'Super Admin'::text) AND (ro.scope = 'SYSTEM'::public.role_scope)))))));
+
+
+
+  create policy "Users can view comments on requests"
+  on "public"."comments"
+  as permissive
+  for select
+  to public
+using ((((request_id IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM (public.requests r
+     JOIN public.user_business_units ubu ON ((ubu.business_unit_id = r.business_unit_id)))
+  WHERE ((r.id = comments.request_id) AND (ubu.user_id = auth.uid()))))) OR (EXISTS ( SELECT 1
+   FROM (public.user_role_assignments ura
+     JOIN public.roles ro ON ((ro.id = ura.role_id)))
+  WHERE ((ura.user_id = auth.uid()) AND (ro.name = 'Super Admin'::text) AND (ro.scope = 'SYSTEM'::public.role_scope))))));
+
+
+
+  create policy "Admins can manage form fields"
+  on "public"."form_fields"
+  as permissive
+  for all
+  to authenticated
+using ((public.is_super_admin() OR public.is_organization_admin() OR (EXISTS ( SELECT 1
+   FROM public.forms f
+  WHERE ((f.id = form_fields.form_id) AND (f.business_unit_id IS NOT NULL) AND public.is_bu_admin_for_unit(f.business_unit_id))))))
+with check ((public.is_super_admin() OR public.is_organization_admin() OR (EXISTS ( SELECT 1
+   FROM public.forms f
+  WHERE ((f.id = form_fields.form_id) AND (f.business_unit_id IS NOT NULL) AND public.is_bu_admin_for_unit(f.business_unit_id))))));
+
+
+
+  create policy "Super Admins can create invitations"
+  on "public"."organization_invitations"
+  as permissive
+  for insert
+  to public
+with check ((EXISTS ( SELECT 1
+   FROM (public.user_role_assignments ura
+     JOIN public.roles r ON ((r.id = ura.role_id)))
+  WHERE ((ura.user_id = auth.uid()) AND (r.name = 'Super Admin'::text)))));
+
+
+
+  create policy "Super Admins can delete invitations"
+  on "public"."organization_invitations"
+  as permissive
+  for delete
+  to public
+using ((EXISTS ( SELECT 1
+   FROM (public.user_role_assignments ura
+     JOIN public.roles r ON ((r.id = ura.role_id)))
+  WHERE ((ura.user_id = auth.uid()) AND (r.name = 'Super Admin'::text)))));
+
+
+
+  create policy "Super Admins can update invitations"
+  on "public"."organization_invitations"
+  as permissive
+  for update
+  to public
+using ((EXISTS ( SELECT 1
+   FROM (public.user_role_assignments ura
+     JOIN public.roles r ON ((r.id = ura.role_id)))
+  WHERE ((ura.user_id = auth.uid()) AND (r.name = 'Super Admin'::text)))));
+
+
+
+  create policy "Super Admins can view all invitations"
+  on "public"."organization_invitations"
+  as permissive
+  for select
+  to public
+using ((EXISTS ( SELECT 1
+   FROM (public.user_role_assignments ura
+     JOIN public.roles r ON ((r.id = ura.role_id)))
+  WHERE ((ura.user_id = auth.uid()) AND (r.name = 'Super Admin'::text)))));
+
+
+
+  create policy "Organization Admins can update their organization"
+  on "public"."organizations"
+  as permissive
+  for update
+  to authenticated
+using ((public.is_organization_admin() AND (id = public.get_my_organization_id())))
+with check ((public.is_organization_admin() AND (id = public.get_my_organization_id())));
+
+
+
+  create policy "Organization Admins can view their organization"
+  on "public"."organizations"
+  as permissive
+  for select
+  to authenticated
+using ((public.is_organization_admin() AND (id = public.get_my_organization_id())));
+
+
+
+  create policy "Super Admins can DELETE organizations"
+  on "public"."organizations"
+  as permissive
+  for delete
+  to authenticated
+using (public.is_super_admin());
+
+
+
+  create policy "Super Admins can INSERT organizations"
+  on "public"."organizations"
+  as permissive
+  for insert
+  to authenticated
+with check (public.is_super_admin());
+
+
+
+  create policy "Super Admins can SELECT organizations"
+  on "public"."organizations"
+  as permissive
+  for select
+  to authenticated
+using (public.is_super_admin());
+
+
+
+  create policy "Super Admins can UPDATE organizations"
+  on "public"."organizations"
+  as permissive
+  for update
+  to authenticated
+using (public.is_super_admin())
+with check (public.is_super_admin());
+
+
+
+  create policy "Organization Admins can update users in their organization"
+  on "public"."profiles"
+  as permissive
+  for update
+  to authenticated
+using ((public.is_organization_admin() AND (organization_id = public.get_my_organization_id())))
+with check ((public.is_organization_admin() AND (organization_id = public.get_my_organization_id())));
+
+
+
+  create policy "Organization Admins can view users in their organization"
+  on "public"."profiles"
+  as permissive
+  for select
+  to authenticated
+using ((public.is_organization_admin() AND (organization_id = public.get_my_organization_id())));
+
+
+
+  create policy "Super Admins can manage all profiles"
+  on "public"."profiles"
+  as permissive
+  for all
+  to authenticated
+using (public.is_super_admin())
+with check (public.is_super_admin());
+
+
+
+  create policy "Users can view accessible request history"
+  on "public"."request_history"
+  as permissive
+  for select
+  to authenticated
+using (((actor_id = auth.uid()) OR (EXISTS ( SELECT 1
+   FROM public.requests r
+  WHERE ((r.id = request_history.request_id) AND ((r.initiator_id = auth.uid()) OR (EXISTS ( SELECT 1
+           FROM public.user_business_units ubu
+          WHERE ((ubu.business_unit_id = r.business_unit_id) AND (ubu.user_id = auth.uid())))))))) OR public.is_super_admin()));
+
+
+
+  create policy "Users can update accessible requests"
+  on "public"."requests"
+  as permissive
+  for update
+  to authenticated
+using (((initiator_id = auth.uid()) OR (EXISTS ( SELECT 1
+   FROM public.user_business_units ubu
+  WHERE ((ubu.business_unit_id = requests.business_unit_id) AND (ubu.user_id = auth.uid())))) OR public.is_super_admin()));
+
+
+
+  create policy "Users can view accessible requests"
+  on "public"."requests"
+  as permissive
+  for select
+  to authenticated
+using (((initiator_id = auth.uid()) OR (EXISTS ( SELECT 1
+   FROM public.user_business_units ubu
+  WHERE ((ubu.business_unit_id = requests.business_unit_id) AND (ubu.user_id = auth.uid())))) OR public.is_super_admin()));
+
+
+
+  create policy "Enable Delete for BU Admin"
+  on "public"."roles"
+  as permissive
+  for delete
+  to authenticated
+using (public.is_bu_admin());
+
+
+
+  create policy "Enable Update for BU Admin"
+  on "public"."roles"
+  as permissive
+  for update
+  to authenticated
+using (public.is_bu_admin());
+
+
+
+  create policy "Enable insert for BU Admin"
+  on "public"."roles"
+  as permissive
+  for insert
+  to authenticated
+with check (public.is_bu_admin());
+
+
+
+  create policy "Auditors can create tags"
+  on "public"."tags"
+  as permissive
+  for insert
+  to public
+with check ((public.is_auditor() AND (creator_id = auth.uid())));
+
+
+
+  create policy "Enable BU Admins"
+  on "public"."user_business_units"
+  as permissive
+  for all
+  to authenticated
+using (public.is_bu_admin());
+
+
+
+  create policy "Users can view BU memberships"
+  on "public"."user_business_units"
+  as permissive
+  for select
+  to authenticated
+using (((user_id = auth.uid()) OR public.is_bu_admin() OR public.is_organization_admin() OR public.is_super_admin()));
+
+
+
+  create policy "Super Admins can update role assignments"
+  on "public"."user_role_assignments"
+  as permissive
+  for update
+  to authenticated
+using ((EXISTS ( SELECT 1
+   FROM (public.user_role_assignments ura_admin
+     JOIN public.roles r_admin ON ((ura_admin.role_id = r_admin.id)))
+  WHERE ((ura_admin.user_id = auth.uid()) AND (r_admin.name = 'Super Admin'::text)))))
+with check ((EXISTS ( SELECT 1
+   FROM (public.user_role_assignments ura_admin
+     JOIN public.roles r_admin ON ((ura_admin.role_id = r_admin.id)))
+  WHERE ((ura_admin.user_id = auth.uid()) AND (r_admin.name = 'Super Admin'::text)))));
+
+
+
+  create policy "Users can delete role assignments they can manage"
+  on "public"."user_role_assignments"
+  as permissive
+  for delete
+  to authenticated
+using (public.can_manage_role_assignment(user_id, role_id));
+
+
+
+  create policy "Users can insert role assignments they can manage"
+  on "public"."user_role_assignments"
+  as permissive
+  for insert
+  to authenticated
+with check (public.can_manage_role_assignment(user_id, role_id));
+
+
+
+  create policy "Users can view role assignments within their organization"
+  on "public"."user_role_assignments"
+  as permissive
+  for select
+  to authenticated
+using (public.can_view_role_assignment(user_id));
+
+
+
+  create policy "BU Admins can manage chains in their BU"
+  on "public"."workflow_chains"
+  as permissive
+  for all
+  to public
+using (public.is_bu_admin_for_unit(business_unit_id))
+with check (public.is_bu_admin_for_unit(business_unit_id));
+
+
+
+  create policy "BU Admins can manage workflows"
+  on "public"."workflow_chains"
+  as permissive
+  for all
+  to public
+using ((( SELECT public.is_super_admin() AS is_super_admin) OR ( SELECT public.is_bu_admin_for_unit(workflow_chains.business_unit_id) AS is_bu_admin_for_unit)));
+
+
+
+  create policy "Organization Admins can manage chains in their org"
+  on "public"."workflow_chains"
+  as permissive
+  for all
+  to public
+using (((EXISTS ( SELECT 1
+   FROM public.business_units bu
+  WHERE ((bu.id = workflow_chains.business_unit_id) AND (bu.organization_id = public.get_user_organization_id())))) AND public.is_organization_admin()))
+with check (((EXISTS ( SELECT 1
+   FROM public.business_units bu
+  WHERE ((bu.id = workflow_chains.business_unit_id) AND (bu.organization_id = public.get_user_organization_id())))) AND public.is_organization_admin()));
+
+
+
+  create policy "Super Admins can manage all workflow chains"
+  on "public"."workflow_chains"
+  as permissive
+  for all
+  to public
+using (public.is_super_admin())
+with check (public.is_super_admin());
+
+
+
+  create policy "Users can view chains in their BUs"
+  on "public"."workflow_chains"
+  as permissive
+  for select
+  to public
+using ((EXISTS ( SELECT 1
+   FROM public.user_business_units ubu
+  WHERE ((ubu.business_unit_id = workflow_chains.business_unit_id) AND (ubu.user_id = auth.uid())))));
+
+
+
+  create policy "Users can view workflows in their BUs"
+  on "public"."workflow_chains"
+  as permissive
+  for select
+  to public
+using ((( SELECT public.is_super_admin() AS is_super_admin) OR ( SELECT (EXISTS ( SELECT 1
+           FROM (public.business_units bu
+             JOIN public.profiles p ON ((p.organization_id = bu.organization_id)))
+          WHERE ((bu.id = workflow_chains.business_unit_id) AND (p.id = auth.uid()) AND ( SELECT public.is_organization_admin() AS is_organization_admin)))) AS "exists") OR ( SELECT (EXISTS ( SELECT 1
+           FROM public.user_business_units ubu
+          WHERE ((ubu.business_unit_id = workflow_chains.business_unit_id) AND (ubu.user_id = auth.uid())))) AS "exists")));
+
+
+
+  create policy "BU Admins can manage initiators in their BU"
+  on "public"."workflow_section_initiators"
+  as permissive
+  for all
+  to public
+using ((EXISTS ( SELECT 1
+   FROM (public.workflow_sections ws
+     JOIN public.workflow_chains wc ON ((wc.id = ws.chain_id)))
+  WHERE ((ws.id = workflow_section_initiators.section_id) AND public.is_bu_admin_for_unit(wc.business_unit_id)))))
+with check ((EXISTS ( SELECT 1
+   FROM (public.workflow_sections ws
+     JOIN public.workflow_chains wc ON ((wc.id = ws.chain_id)))
+  WHERE ((ws.id = workflow_section_initiators.section_id) AND public.is_bu_admin_for_unit(wc.business_unit_id)))));
+
+
+
+  create policy "Organization Admins can manage initiators in their org"
+  on "public"."workflow_section_initiators"
+  as permissive
+  for all
+  to public
+using (((EXISTS ( SELECT 1
+   FROM ((public.workflow_sections ws
+     JOIN public.workflow_chains wc ON ((wc.id = ws.chain_id)))
+     JOIN public.business_units bu ON ((bu.id = wc.business_unit_id)))
+  WHERE ((ws.id = workflow_section_initiators.section_id) AND (bu.organization_id = public.get_user_organization_id())))) AND public.is_organization_admin()))
+with check (((EXISTS ( SELECT 1
+   FROM ((public.workflow_sections ws
+     JOIN public.workflow_chains wc ON ((wc.id = ws.chain_id)))
+     JOIN public.business_units bu ON ((bu.id = wc.business_unit_id)))
+  WHERE ((ws.id = workflow_section_initiators.section_id) AND (bu.organization_id = public.get_user_organization_id())))) AND public.is_organization_admin()));
+
+
+
+  create policy "Super Admins can manage all section initiators"
+  on "public"."workflow_section_initiators"
+  as permissive
+  for all
+  to public
+using (public.is_super_admin())
+with check (public.is_super_admin());
+
+
+
+  create policy "Users can view initiators in their BUs"
+  on "public"."workflow_section_initiators"
+  as permissive
+  for select
+  to public
+using ((EXISTS ( SELECT 1
+   FROM ((public.workflow_sections ws
+     JOIN public.workflow_chains wc ON ((wc.id = ws.chain_id)))
+     JOIN public.user_business_units ubu ON ((ubu.business_unit_id = wc.business_unit_id)))
+  WHERE ((ws.id = workflow_section_initiators.section_id) AND (ubu.user_id = auth.uid())))));
+
+
+
+  create policy "BU Admins can manage steps in their BU"
+  on "public"."workflow_section_steps"
+  as permissive
+  for all
+  to public
+using ((EXISTS ( SELECT 1
+   FROM (public.workflow_sections ws
+     JOIN public.workflow_chains wc ON ((wc.id = ws.chain_id)))
+  WHERE ((ws.id = workflow_section_steps.section_id) AND public.is_bu_admin_for_unit(wc.business_unit_id)))))
+with check ((EXISTS ( SELECT 1
+   FROM (public.workflow_sections ws
+     JOIN public.workflow_chains wc ON ((wc.id = ws.chain_id)))
+  WHERE ((ws.id = workflow_section_steps.section_id) AND public.is_bu_admin_for_unit(wc.business_unit_id)))));
+
+
+
+  create policy "Organization Admins can manage steps in their org"
+  on "public"."workflow_section_steps"
+  as permissive
+  for all
+  to public
+using (((EXISTS ( SELECT 1
+   FROM ((public.workflow_sections ws
+     JOIN public.workflow_chains wc ON ((wc.id = ws.chain_id)))
+     JOIN public.business_units bu ON ((bu.id = wc.business_unit_id)))
+  WHERE ((ws.id = workflow_section_steps.section_id) AND (bu.organization_id = public.get_user_organization_id())))) AND public.is_organization_admin()))
+with check (((EXISTS ( SELECT 1
+   FROM ((public.workflow_sections ws
+     JOIN public.workflow_chains wc ON ((wc.id = ws.chain_id)))
+     JOIN public.business_units bu ON ((bu.id = wc.business_unit_id)))
+  WHERE ((ws.id = workflow_section_steps.section_id) AND (bu.organization_id = public.get_user_organization_id())))) AND public.is_organization_admin()));
+
+
+
+  create policy "Super Admins can manage all section steps"
+  on "public"."workflow_section_steps"
+  as permissive
+  for all
+  to public
+using (public.is_super_admin())
+with check (public.is_super_admin());
+
+
+
+  create policy "Users can view steps in their BUs"
+  on "public"."workflow_section_steps"
+  as permissive
+  for select
+  to public
+using ((EXISTS ( SELECT 1
+   FROM ((public.workflow_sections ws
+     JOIN public.workflow_chains wc ON ((wc.id = ws.chain_id)))
+     JOIN public.user_business_units ubu ON ((ubu.business_unit_id = wc.business_unit_id)))
+  WHERE ((ws.id = workflow_section_steps.section_id) AND (ubu.user_id = auth.uid())))));
+
+
+
+  create policy "BU Admins can manage sections in their BU"
+  on "public"."workflow_sections"
+  as permissive
+  for all
+  to public
+using ((EXISTS ( SELECT 1
+   FROM public.workflow_chains wc
+  WHERE ((wc.id = workflow_sections.chain_id) AND public.is_bu_admin_for_unit(wc.business_unit_id)))))
+with check ((EXISTS ( SELECT 1
+   FROM public.workflow_chains wc
+  WHERE ((wc.id = workflow_sections.chain_id) AND public.is_bu_admin_for_unit(wc.business_unit_id)))));
+
+
+
+  create policy "Organization Admins can manage sections in their org"
+  on "public"."workflow_sections"
+  as permissive
+  for all
+  to public
+using (((EXISTS ( SELECT 1
+   FROM (public.workflow_chains wc
+     JOIN public.business_units bu ON ((bu.id = wc.business_unit_id)))
+  WHERE ((wc.id = workflow_sections.chain_id) AND (bu.organization_id = public.get_user_organization_id())))) AND public.is_organization_admin()))
+with check (((EXISTS ( SELECT 1
+   FROM (public.workflow_chains wc
+     JOIN public.business_units bu ON ((bu.id = wc.business_unit_id)))
+  WHERE ((wc.id = workflow_sections.chain_id) AND (bu.organization_id = public.get_user_organization_id())))) AND public.is_organization_admin()));
+
+
+
+  create policy "Super Admins can manage all workflow sections"
+  on "public"."workflow_sections"
+  as permissive
+  for all
+  to public
+using (public.is_super_admin())
+with check (public.is_super_admin());
+
+
+
+  create policy "Users can view sections in their BUs"
+  on "public"."workflow_sections"
+  as permissive
+  for select
+  to public
+using ((EXISTS ( SELECT 1
+   FROM (public.workflow_chains wc
+     JOIN public.user_business_units ubu ON ((ubu.business_unit_id = wc.business_unit_id)))
+  WHERE ((wc.id = workflow_sections.chain_id) AND (ubu.user_id = auth.uid())))));
+
+
+CREATE TRIGGER on_business_units_updated BEFORE UPDATE ON public.business_units FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER on_chats_updated BEFORE UPDATE ON public.chats FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER auto_resolve_clarification_trigger AFTER INSERT ON public.comments FOR EACH ROW EXECUTE FUNCTION public.auto_resolve_clarification_on_comment();
+
+CREATE TRIGGER trigger_update_forms_updated_at BEFORE UPDATE ON public.forms FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+
+CREATE TRIGGER on_profiles_updated BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER trigger_update_requests_updated_at BEFORE UPDATE ON public.requests FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+
+CREATE TRIGGER on_roles_updated BEFORE UPDATE ON public.roles FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER trigger_update_workflow_chains_updated_at BEFORE UPDATE ON public.workflow_chains FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
@@ -6707,5 +8792,9 @@ using (((bucket_id = 'attachments'::text) AND ((auth.uid())::text = (storage.fol
 using (((bucket_id = 'attachments'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])))
 with check (((bucket_id = 'attachments'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])));
 
+
+CREATE TRIGGER protect_buckets_delete BEFORE DELETE ON storage.buckets FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete();
+
+CREATE TRIGGER protect_objects_delete BEFORE DELETE ON storage.objects FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete();
 
 

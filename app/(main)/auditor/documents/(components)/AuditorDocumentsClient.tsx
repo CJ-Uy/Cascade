@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getAuditorDocuments } from "../actions";
+import { getAuditorRequests } from "../actions";
 import { FilterSidebar } from "./FilterSidebar";
 import { DocumentTable } from "./DocumentTable";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -58,7 +58,7 @@ export function AuditorDocumentsClient({
     setIsLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await getAuditorDocuments(
+    const { data, error: fetchError } = await getAuditorRequests(
       selectedTagIds.length > 0 ? selectedTagIds : undefined,
       statusFilter,
       searchText || undefined,

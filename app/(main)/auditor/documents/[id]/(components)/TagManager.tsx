@@ -21,8 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { X, Plus, Trash2 } from "lucide-react";
 import {
-  assignTagToDocument,
-  removeTagFromDocument,
+  assignTagToRequest,
+  removeTagFromRequest,
   getTags,
   createTag,
 } from "../../actions";
@@ -85,7 +85,7 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
     setSelectedTagId("");
     setIsDialogOpen(false);
 
-    const { success, error } = await assignTagToDocument(documentId, tag.id);
+    const { success, error } = await assignTagToRequest(documentId, tag.id);
     if (!success) {
       // Revert optimistic update
       setTags(tags);
@@ -102,7 +102,7 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
     // Optimistic update
     setTags(tags.filter((t) => t.id !== tagId));
 
-    const { success, error } = await removeTagFromDocument(documentId, tagId);
+    const { success, error } = await removeTagFromRequest(documentId, tagId);
     if (!success) {
       // Revert optimistic update
       setTags(tags);
@@ -149,7 +149,7 @@ export function TagManager({ documentId, tags: initialTags }: TagManagerProps) {
     setIsDialogOpen(false);
 
     const { success: assignSuccess, error: assignError } =
-      await assignTagToDocument(documentId, data.id);
+      await assignTagToRequest(documentId, data.id);
     if (!assignSuccess) {
       // Revert optimistic update
       setTags(tags);
