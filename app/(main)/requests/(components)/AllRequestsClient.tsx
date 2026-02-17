@@ -33,6 +33,8 @@ type Request = {
   status: string;
   created_at: string;
   updated_at: string;
+  initiator_id?: string;
+  workflow_chain_id?: string;
   forms: { id: string; name: string; icon: string } | null;
   workflow_chains: { id: string; name: string } | null;
   business_units: { id: string; name: string } | null;

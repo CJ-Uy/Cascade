@@ -52,7 +52,11 @@
       "WebFetch(domain:github.com)",
       "Bash(xargs cat:*)",
       "Bash(npx supabase status:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(npx next build)",
+      "Bash(timeout 30 npx next dev:*)",
+      "Bash(curl:*)",
+      "Bash(npx supabase db push:*)"
     ],
     "deny": [],
     "ask": []

@@ -3,17 +3,9 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Eye,
-  FileText,
-  Calendar,
-  Building2,
-  ArrowRight,
-  Clock,
-} from "lucide-react";
+import { Eye, FileText, Clock } from "lucide-react";
 import { icons } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useRouter } from "next/navigation";
 import {
   WorkflowProgressBar,
   WorkflowProgress,
@@ -25,8 +17,9 @@ export type RequestDocument = {
   status: string;
   created_at: string;
   updated_at: string;
-  data: Record<string, any>;
-  workflow_chain_id: string | null;
+  data?: Record<string, any>;
+  initiator_id?: string;
+  workflow_chain_id?: string | null;
   forms: {
     id: string;
     name: string;
@@ -200,16 +193,12 @@ export const requestsColumns: ColumnDef<RequestDocument>[] = [
     id: "actions",
     header: "",
     cell: ({ row }) => {
-      const router = useRouter();
-
       return (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push(`/requests/${row.original.id}`)}
-        >
-          <Eye className="mr-2 h-4 w-4" />
-          View
+        <Button variant="ghost" size="sm" asChild>
+          <a href={`/requests/${row.original.id}`}>
+            <Eye className="mr-2 h-4 w-4" />
+            View
+          </a>
         </Button>
       );
     },
