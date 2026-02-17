@@ -10,6 +10,7 @@ export type UserWithRoles = {
   first_name: string | null;
   last_name: string | null;
   email: string | null;
+  username: string | null;
   roles: string[];
   headed_business_units: string[];
   organization_id: string | null;
@@ -26,7 +27,9 @@ export const columns: ColumnDef<UserWithRoles>[] = [
       return (
         <div>
           <div className="font-medium">{name || "No Name"}</div>
-          <div className="text-muted-foreground text-xs">{user.email}</div>
+          <div className="text-muted-foreground font-mono text-xs">
+            @{user.username}
+          </div>
         </div>
       );
     },

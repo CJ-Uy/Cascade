@@ -30,6 +30,7 @@ import {
 export interface Employee {
   id: string;
   name: string;
+  username: string;
   email: string;
   roles: string[];
 }
@@ -38,12 +39,14 @@ interface EmployeeTableProps {
   onEdit: (employee: Employee) => void;
   businessUnitId: string;
   refreshKey?: number;
+  canEdit?: boolean;
 }
 
 export function EmployeeTable({
   onEdit,
   businessUnitId,
   refreshKey,
+  canEdit = true,
 }: EmployeeTableProps) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,17 +69,21 @@ export function EmployeeTable({
       },
     },
     {
-      accessorKey: "email",
+      accessorKey: "username",
       header: ({ column }) => {
         return (
           <Button
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Email
+            Username
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         );
+      },
+      cell: ({ row }) => {
+        const username = row.getValue("username") as string;
+        return <span className="font-mono text-sm">@{username}</span>;
       },
     },
     {
@@ -95,23 +102,27 @@ export function EmployeeTable({
         );
       },
     },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const employee = row.original;
-        return (
-          <div className="text-right">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onEdit(employee)}
-            >
-              <Edit className="mr-2 h-4 w-4" /> Edit
-            </Button>
-          </div>
-        );
-      },
-    },
+    ...(canEdit
+      ? [
+          {
+            id: "actions",
+            cell: ({ row }: any) => {
+              const employee = row.original;
+              return (
+                <div className="text-right">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEdit(employee)}
+                  >
+                    <Edit className="mr-2 h-4 w-4" /> Edit
+                  </Button>
+                </div>
+              );
+            },
+          },
+        ]
+      : []),
   ];
 
   const table = useReactTable({
@@ -123,6 +134,9 @@ export function EmployeeTable({
     getSortedRowModel: getSortedRowModel(),
     onGlobalFilterChange: setGlobalFilter,
     getFilteredRowModel: getFilteredRowModel(),
+    initialState: {
+      pagination: { pageSize: 50 },
+    },
     state: {
       sorting,
       globalFilter,

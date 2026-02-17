@@ -49,7 +49,10 @@
       "mcp__sequential-thinking__sequentialthinking",
       "Bash(npm view:*)",
       "Bash(npm install:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(xargs cat:*)",
+      "Bash(npx supabase status:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": [],
     "ask": []

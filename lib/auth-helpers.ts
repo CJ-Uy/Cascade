@@ -101,7 +101,8 @@ export async function checkSuperAdminRole(): Promise<{
 }
 
 /**
- * Check if the current user has BU Admin role for a specific business unit
+ * Check if the current user has BU Admin role for a specific business unit.
+ * Uses the auth context RPC to check if the user has a role with is_bu_admin=true.
  * @param buId - Business unit ID to check
  * @returns Object containing isBuAdmin boolean and optional error
  */
@@ -119,26 +120,94 @@ export async function checkBuAdminRole(buId: string): Promise<{
     return { isBuAdmin: false, error: "Not authenticated" };
   }
 
-  // Check if user has BU_ADMIN membership type for this BU
-  const { data: membership } = await supabase
-    .from("user_business_units")
-    .select("membership_type")
-    .eq("user_id", user.id)
-    .eq("business_unit_id", buId)
-    .single();
-
-  const isBuAdmin = membership?.membership_type === "BU_ADMIN";
-
-  // Also check if Super Admin
   const { data: authContext } = await supabase.rpc("get_user_auth_context");
-  const isSuperAdmin = authContext?.system_roles?.includes("Super Admin");
 
-  if (!isBuAdmin && !isSuperAdmin) {
-    return {
-      isBuAdmin: false,
-      error: "Unauthorized: BU Admin access required",
-    };
+  // Super Admin has access to everything
+  if (authContext?.system_roles?.includes("Super Admin")) {
+    return { isBuAdmin: true };
   }
 
-  return { isBuAdmin: true };
+  // Org Admin has access to everything in their org
+  if (authContext?.organization_roles?.includes("Organization Admin")) {
+    return { isBuAdmin: true };
+  }
+
+  // Check BU permissions from auth context
+  const buPerm = authContext?.bu_permissions?.find(
+    (p: { business_unit_id: string; permission_level: string }) =>
+      p.business_unit_id === buId,
+  );
+
+  if (buPerm?.permission_level === "BU_ADMIN") {
+    return { isBuAdmin: true };
+  }
+
+  return {
+    isBuAdmin: false,
+    error: "Unauthorized: BU Admin access required",
+  };
+}
+
+/**
+ * Check if the current user has a specific granular permission for a business unit.
+ * Checks in order: Super Admin → Org Admin → BU Admin → specific permission.
+ * @param buId - Business unit ID to check
+ * @param permission - The specific permission to check
+ * @returns Object containing hasPermission boolean and optional error
+ */
+export async function checkBuPermission(
+  buId: string,
+  permission: string,
+): Promise<{
+  hasPermission: boolean;
+  error?: string;
+}> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { hasPermission: false, error: "Not authenticated" };
+  }
+
+  const { data: authContext, error: contextError } = await supabase.rpc(
+    "get_user_auth_context",
+  );
+
+  if (contextError) {
+    return { hasPermission: false, error: contextError.message };
+  }
+
+  // Super Admin always has access
+  if (authContext?.system_roles?.includes("Super Admin")) {
+    return { hasPermission: true };
+  }
+
+  // Org Admin always has access
+  if (authContext?.organization_roles?.includes("Organization Admin")) {
+    return { hasPermission: true };
+  }
+
+  // Check specific BU permission
+  const buPerm = authContext?.bu_permissions?.find(
+    (p: { business_unit_id: string }) => p.business_unit_id === buId,
+  );
+
+  if (!buPerm) {
+    return { hasPermission: false, error: "No access to this business unit" };
+  }
+
+  // BU Admin has all permissions
+  if (buPerm.permission_level === "BU_ADMIN") {
+    return { hasPermission: true };
+  }
+
+  // Check granular permission
+  const hasIt = buPerm.granular_permissions?.[permission] ?? false;
+  return {
+    hasPermission: hasIt,
+    ...(hasIt ? {} : { error: `Missing permission: ${permission}` }),
+  };
 }

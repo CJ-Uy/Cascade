@@ -5,11 +5,21 @@ import { createContext, useContext, useState, ReactNode, useMemo } from "react";
 // 1. Define the TypeScript types for our auth data. This gives us autocompletion.
 type SystemRole = "Super Admin" | "AUDITOR" | string; // Allow other string values
 
+export type GranularPermissions = {
+  can_manage_employee_roles: boolean;
+  can_manage_bu_roles: boolean;
+  can_create_accounts: boolean;
+  can_reset_passwords: boolean;
+  can_manage_forms: boolean;
+  can_manage_workflows: boolean;
+};
+
 export type BuPermission = {
   business_unit_id: string;
   business_unit_name: string;
   permission_level: "BU_ADMIN" | "APPROVER" | "MEMBER" | "AUDITOR";
   role?: { id: string; name: string };
+  granular_permissions?: GranularPermissions;
 };
 
 export type AuthContextType = {
@@ -19,6 +29,7 @@ export type AuthContextType = {
     middle_name: string | null;
     last_name: string | null;
     image_url: string | null;
+    username: string | null;
   } | null;
   system_roles: SystemRole[];
   organization_roles: string[];
@@ -33,6 +44,7 @@ type SessionContextValue = {
   currentBuPermission: BuPermission | undefined; // The permission for the selected BU
   hasSystemRole: (role: SystemRole) => boolean;
   hasOrgAdminRole: () => boolean;
+  hasBuPermission: (permission: keyof GranularPermissions) => boolean;
   isSystemAuditor: boolean;
   isBuAuditor: boolean;
   isAuditor: boolean;
@@ -74,6 +86,18 @@ export function SessionProvider({
       );
     };
 
+    // Helper to check granular BU permission for the selected BU
+    const hasBuPermission = (
+      permission: keyof GranularPermissions,
+    ): boolean => {
+      // Super Admins and Org Admins have all permissions
+      if (hasSystemRole("Super Admin") || hasOrgAdminRole()) return true;
+      if (!currentBuPermission) return false;
+      // BU Admins have all permissions
+      if (currentBuPermission.permission_level === "BU_ADMIN") return true;
+      return currentBuPermission.granular_permissions?.[permission] ?? false;
+    };
+
     // Auditor helpers
     const isSystemAuditor = hasSystemRole("AUDITOR");
     // Check if user is a BU auditor in ANY of their BUs (not just the selected one)
@@ -90,6 +114,7 @@ export function SessionProvider({
       currentBuPermission,
       hasSystemRole,
       hasOrgAdminRole,
+      hasBuPermission,
       isSystemAuditor,
       isBuAuditor,
       isAuditor,

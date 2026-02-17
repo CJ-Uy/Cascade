@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save, Trash2 } from "lucide-react";
+import { Save, Trash2, KeyRound, RefreshCw } from "lucide-react";
 import { Employee } from "./EmployeeTable";
 import {
   AlertDialog,
@@ -31,14 +31,30 @@ import {
 } from "@/components/shared/roles-selection-table";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
+import { adminResetPassword } from "../create-accounts/actions";
 
 interface EmployeeDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (employee: Employee) => void;
   onRemoveFromBU: (employee: Employee) => void;
-  employee: Employee | null; // Null for create, Employee for edit
+  employee: Employee | null;
   businessUnitId: string;
+  isBuHead?: boolean;
+  canResetPasswords?: boolean;
+}
+
+// Helper: check if a role is a "member-type" role (no capabilities, not BU Head)
+function isMemberTypeRole(role: any): boolean {
+  return (
+    !role.is_bu_admin &&
+    !role.can_manage_employee_roles &&
+    !role.can_manage_bu_roles &&
+    !role.can_create_accounts &&
+    !role.can_reset_passwords &&
+    !role.can_manage_forms &&
+    !role.can_manage_workflows
+  );
 }
 
 export function EmployeeDialog({
@@ -48,26 +64,37 @@ export function EmployeeDialog({
   onRemoveFromBU,
   employee,
   businessUnitId,
+  isBuHead = false,
+  canResetPasswords = false,
 }: EmployeeDialogProps) {
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
   const [selectedRoleNames, setSelectedRoleNames] = useState<string[]>([]);
   const [allAvailableRoles, setAllAvailableRoles] = useState<Role[]>([]);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
+  // Password reset state
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       const fetchRoles = async () => {
         const roles = await getRoles(businessUnitId);
-        setAllAvailableRoles(roles);
+
+        // Filter roles: non-BU-Head users only see member-type roles
+        const filteredRoles = isBuHead ? roles : roles.filter(isMemberTypeRole);
+
+        setAllAvailableRoles(filteredRoles);
 
         // If editing employee, convert role names to IDs
         if (employee && employee.roles.length > 0) {
-          const roleIds = roles
-            .filter((r) => employee.roles.includes(r.name))
-            .map((r) => r.id);
+          const roleIds = filteredRoles
+            .filter((r: any) => employee.roles.includes(r.name))
+            .map((r: any) => r.id);
           setSelectedRoleIds(roleIds);
         }
       };
@@ -75,16 +102,19 @@ export function EmployeeDialog({
 
       if (employee) {
         setName(employee.name);
-        setEmail(employee.email);
+        setUsername(employee.username);
         setSelectedRoleNames(employee.roles);
       } else {
         setName("");
-        setEmail("");
+        setUsername("");
         setSelectedRoleNames([]);
         setSelectedRoleIds([]);
       }
+
+      setShowPasswordReset(false);
+      setNewPassword("");
     }
-  }, [isOpen, employee, businessUnitId]);
+  }, [isOpen, employee, businessUnitId, isBuHead]);
 
   // Keep role names in sync with IDs for backwards compatibility
   useEffect(() => {
@@ -95,8 +125,8 @@ export function EmployeeDialog({
   }, [selectedRoleIds, allAvailableRoles]);
 
   const handleSave = () => {
-    if (!name || !email) {
-      toast.error("Name and Email are required.");
+    if (!name || !username) {
+      toast.error("Name and Username are required.");
       return;
     }
     setShowSaveConfirm(true);
@@ -106,7 +136,8 @@ export function EmployeeDialog({
     const employeeToSave: Employee = {
       id: employee?.id || `emp_${Date.now()}`,
       name,
-      email,
+      username,
+      email: "",
       roles: selectedRoleNames,
     };
     onSave(employeeToSave);
@@ -122,6 +153,34 @@ export function EmployeeDialog({
       onRemoveFromBU(employee);
     }
     setShowRemoveConfirm(false);
+  };
+
+  const generatePassword = useCallback(() => {
+    const chars =
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let pw = "";
+    for (let i = 0; i < 8; i++) {
+      pw += chars[Math.floor(Math.random() * chars.length)];
+    }
+    setNewPassword(pw);
+  }, []);
+
+  const handleResetPassword = async () => {
+    if (!employee || !newPassword) return;
+    setIsResetting(true);
+    const result = await adminResetPassword(
+      employee.id,
+      newPassword,
+      businessUnitId,
+    );
+    setIsResetting(false);
+    if (result.success) {
+      toast.success("Password reset successfully.");
+      setShowPasswordReset(false);
+      setNewPassword("");
+    } else {
+      toast.error(result.error || "Failed to reset password.");
+    }
   };
 
   return (
@@ -153,15 +212,14 @@ export function EmployeeDialog({
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
+              <Label htmlFor="username" className="text-right">
+                Username
               </Label>
               <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="col-span-3"
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="col-span-3 font-mono"
                 disabled={!!employee}
               />
             </div>
@@ -175,6 +233,68 @@ export function EmployeeDialog({
               showScope={false}
               showBusinessUnit={false}
             />
+
+            {/* Password Reset Section */}
+            {employee && canResetPasswords && (
+              <div className="border-t pt-4">
+                {!showPasswordReset ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPasswordReset(true)}
+                  >
+                    <KeyRound className="mr-2 h-4 w-4" />
+                    Reset Password
+                  </Button>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">Reset Password</p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="New password"
+                        className="font-mono text-sm"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={generatePassword}
+                        title="Generate password"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleResetPassword}
+                        disabled={
+                          !newPassword || newPassword.length < 6 || isResetting
+                        }
+                      >
+                        {isResetting ? "Resetting..." : "Confirm Reset"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowPasswordReset(false);
+                          setNewPassword("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                    {newPassword && newPassword.length < 6 && (
+                      <p className="text-destructive text-xs">
+                        Password must be at least 6 characters.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter className="justify-between">
             <div>

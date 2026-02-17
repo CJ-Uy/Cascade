@@ -29,6 +29,7 @@ import {
 export interface NoRolePerson {
   id: string;
   name: string;
+  username: string;
   email: string;
 }
 
@@ -64,17 +65,21 @@ export function NoRolePeopleTable({
       },
     },
     {
-      accessorKey: "email",
+      accessorKey: "username",
       header: ({ column }) => {
         return (
           <Button
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Email
+            Username
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         );
+      },
+      cell: ({ row }) => {
+        const username = row.getValue("username") as string;
+        return <span className="font-mono text-sm">@{username}</span>;
       },
     },
     {
@@ -105,6 +110,9 @@ export function NoRolePeopleTable({
     getSortedRowModel: getSortedRowModel(),
     onGlobalFilterChange: setGlobalFilter,
     getFilteredRowModel: getFilteredRowModel(),
+    initialState: {
+      pagination: { pageSize: 50 },
+    },
     state: {
       sorting,
       globalFilter,

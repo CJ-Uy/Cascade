@@ -2,10 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { checkBuAdminRole } from "@/lib/auth-helpers";
 
 export type Employee = {
   id: string;
   name: string;
+  username: string;
   email: string;
   roles: string[];
 };
@@ -23,6 +25,7 @@ export async function getEmployees(
             first_name,
             last_name,
             email,
+            username,
             user_business_units!inner(business_unit_id),
             user_role_assignments (
                 roles ( id, name, business_unit_id )
@@ -40,7 +43,8 @@ export async function getEmployees(
     return {
       id: profile.id,
       name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim(),
-      email: profile.email || "No email found",
+      username: profile.username || "",
+      email: profile.email || "",
       roles: profile.user_role_assignments
         .map((assignment: any) => assignment.roles)
         .filter(
@@ -70,7 +74,7 @@ export async function getPeopleNotInBu(businessUnitId: string) {
 
   let query = supabase
     .from("profiles")
-    .select("id, first_name, last_name, email");
+    .select("id, first_name, last_name, email, username");
 
   if (buUserIds.length > 0) {
     query = query.not("id", "in", `(${buUserIds.join(",")})`);
@@ -86,7 +90,8 @@ export async function getPeopleNotInBu(businessUnitId: string) {
   return allProfiles.map((p) => ({
     id: p.id,
     name: `${p.first_name || ""} ${p.last_name || ""}`.trim(),
-    email: p.email || "No email found",
+    username: p.username || "",
+    email: p.email || "",
   }));
 }
 
@@ -94,7 +99,9 @@ export async function getRoles(businessUnitId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("roles")
-    .select("id, name, is_bu_admin")
+    .select(
+      "id, name, is_bu_admin, can_manage_employee_roles, can_manage_bu_roles, can_create_accounts, can_reset_passwords, can_manage_forms, can_manage_workflows",
+    )
     .eq("business_unit_id", businessUnitId);
 
   if (error) {
@@ -105,35 +112,87 @@ export async function getRoles(businessUnitId: string) {
 }
 
 export async function saveRole(
-  roleData: { id?: string; name: string; is_bu_admin: boolean },
+  roleData: {
+    id?: string;
+    name: string;
+    is_bu_admin: boolean;
+    can_manage_employee_roles: boolean;
+    can_manage_bu_roles: boolean;
+    can_create_accounts: boolean;
+    can_reset_passwords: boolean;
+    can_manage_forms: boolean;
+    can_manage_workflows: boolean;
+  },
   businessUnitId: string,
   pathname: string,
 ) {
   const supabase = await createClient();
+
+  // Server-side enforcement: only BU Head can set capabilities
+  const { isBuAdmin } = await checkBuAdminRole(businessUnitId);
   const { id, ...roleInfo } = roleData;
 
-  const dataToUpsert = {
+  // If caller is not BU Head/Super Admin/Org Admin, force all capabilities off
+  if (!isBuAdmin) {
+    roleInfo.is_bu_admin = false;
+    roleInfo.can_manage_employee_roles = false;
+    roleInfo.can_manage_bu_roles = false;
+    roleInfo.can_create_accounts = false;
+    roleInfo.can_reset_passwords = false;
+    roleInfo.can_manage_forms = false;
+    roleInfo.can_manage_workflows = false;
+  }
+
+  const dataToUpsert: any = {
     ...roleInfo,
     business_unit_id: businessUnitId,
   };
 
   if (id) {
-    // @ts-ignore
     dataToUpsert.id = id;
   }
 
-  const { error } = await supabase.from("roles").upsert(dataToUpsert);
+  const { data: savedRole, error } = await supabase
+    .from("roles")
+    .upsert(dataToUpsert)
+    .select("id")
+    .single();
 
   if (error) {
     console.error("Error saving role:", error);
     throw new Error("Failed to save role.");
   }
 
+  // Audit log
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user && savedRole) {
+    await supabase.from("management_audit_log").insert({
+      business_unit_id: businessUnitId,
+      actor_id: user.id,
+      action_type: id ? "UPDATE_ROLE" : "CREATE_ROLE",
+      target_role_id: savedRole.id,
+      details: { role_name: roleInfo.name, is_bu_admin: roleInfo.is_bu_admin },
+    });
+  }
+
   revalidatePath(pathname);
 }
 
-export async function deleteRole(roleId: string, pathname: string) {
+export async function deleteRole(
+  roleId: string,
+  businessUnitId: string,
+  pathname: string,
+) {
   const supabase = await createClient();
+
+  // Get role info for audit log before deleting
+  const { data: role } = await supabase
+    .from("roles")
+    .select("name")
+    .eq("id", roleId)
+    .single();
 
   const { error } = await supabase.from("roles").delete().eq("id", roleId);
 
@@ -142,22 +201,67 @@ export async function deleteRole(roleId: string, pathname: string) {
     throw new Error("Failed to delete role. It might be in use.");
   }
 
+  // Audit log
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    await supabase.from("management_audit_log").insert({
+      business_unit_id: businessUnitId,
+      actor_id: user.id,
+      action_type: "DELETE_ROLE",
+      details: { role_name: role?.name || "Unknown" },
+    });
+  }
+
   revalidatePath(pathname);
 }
 
-export async function isRoleDeletable(roleId: string): Promise<boolean> {
+export async function isRoleDeletable(
+  roleId: string,
+): Promise<{ deletable: boolean; reason?: string }> {
   const supabase = await createClient();
-  const { error, count } = await supabase
+
+  // Check user assignments
+  const { count: userCount } = await supabase
     .from("user_role_assignments")
     .select("user_id", { count: "exact" })
     .eq("role_id", roleId);
 
-  if (error) {
-    console.error("Error checking if role is deletable:", error);
-    return false; // Fail safe
+  if (userCount && userCount > 0) {
+    return {
+      deletable: false,
+      reason: `Role is assigned to ${userCount} user${userCount > 1 ? "s" : ""}.`,
+    };
   }
 
-  return count === 0;
+  // Check workflow step assignments
+  const { count: stepCount } = await supabase
+    .from("workflow_section_steps")
+    .select("id", { count: "exact" })
+    .eq("role_id", roleId);
+
+  if (stepCount && stepCount > 0) {
+    return {
+      deletable: false,
+      reason: `Role is used in ${stepCount} workflow step${stepCount > 1 ? "s" : ""}.`,
+    };
+  }
+
+  // Check workflow initiator assignments
+  const { count: initiatorCount } = await supabase
+    .from("workflow_section_initiators")
+    .select("id", { count: "exact" })
+    .eq("role_id", roleId);
+
+  if (initiatorCount && initiatorCount > 0) {
+    return {
+      deletable: false,
+      reason: `Role is used as initiator in ${initiatorCount} workflow section${initiatorCount > 1 ? "s" : ""}.`,
+    };
+  }
+
+  return { deletable: true };
 }
 
 export async function updateEmployeeRoles(
@@ -178,6 +282,20 @@ export async function updateEmployeeRoles(
   if (error) {
     console.error("Error updating employee roles:", error);
     throw new Error(error.message || "Failed to update roles.");
+  }
+
+  // Audit log
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    await supabase.from("management_audit_log").insert({
+      business_unit_id: businessUnitId,
+      actor_id: user.id,
+      action_type: "UPDATE_EMPLOYEE_ROLES",
+      target_user_id: employeeId,
+      details: { new_roles: roleNames },
+    });
   }
 
   revalidatePath(pathname);
@@ -226,7 +344,6 @@ export async function addUserToBusinessUnit(
 
   if (updateError) {
     console.error("Error updating user organization:", updateError);
-    // Don't throw - user was added to BU successfully, org update is secondary
   }
 
   revalidatePath(pathname);
@@ -277,5 +394,42 @@ export async function removeUserFromBusinessUnit(
     throw new Error("Failed to remove user from business unit.");
   }
 
+  // Audit log
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    await supabase.from("management_audit_log").insert({
+      business_unit_id: businessUnitId,
+      actor_id: user.id,
+      action_type: "REMOVE_EMPLOYEE",
+      target_user_id: userId,
+    });
+  }
+
   revalidatePath(pathname);
+}
+
+export async function getAuditLog(
+  businessUnitId: string,
+  page: number = 1,
+  limit: number = 50,
+  actionType?: string,
+) {
+  const supabase = await createClient();
+  const offset = (page - 1) * limit;
+
+  const { data, error } = await supabase.rpc("get_management_audit_log", {
+    p_business_unit_id: businessUnitId,
+    p_limit: limit,
+    p_offset: offset,
+    p_action_type: actionType || null,
+  });
+
+  if (error) {
+    console.error("Error fetching audit log:", error);
+    return { entries: [], total: 0 };
+  }
+
+  return data;
 }

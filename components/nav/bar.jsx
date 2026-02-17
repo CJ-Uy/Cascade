@@ -159,6 +159,7 @@ export function Navbar() {
     currentBuPermission,
     hasSystemRole,
     hasOrgAdminRole,
+    hasBuPermission,
     selectedBuId,
     isAuditor,
     isSystemAuditor,
@@ -422,24 +423,90 @@ export function Navbar() {
                     </SidebarMenuItem>
                   )}
 
-                  {/* Management Dropdown - Visible to BU Admins and Org Admins */}
-                  {(permissionLevel === "BU_ADMIN" || hasOrgAdminRole()) && (
+                  {/* Management Dropdown - Visible to users with any management permission */}
+                  {(hasBuPermission("can_manage_employee_roles") ||
+                    hasBuPermission("can_manage_bu_roles") ||
+                    hasBuPermission("can_manage_forms") ||
+                    hasBuPermission("can_manage_workflows") ||
+                    hasBuPermission("can_create_accounts") ||
+                    hasBuPermission("can_reset_passwords")) && (
                     <SidebarMenuItem>
                       <AnimatedSection title="Management" isNested>
                         <SidebarMenuSub>
-                          {adminItems.map((item) => (
-                            <SidebarMenuSubItem key={item.title}>
+                          {(hasBuPermission("can_manage_employee_roles") ||
+                            hasBuPermission("can_manage_bu_roles") ||
+                            hasBuPermission("can_create_accounts") ||
+                            hasBuPermission("can_reset_passwords")) && (
+                            <SidebarMenuSubItem>
                               <SidebarMenuSubButton
                                 asChild
-                                isActive={path.startsWith(item.url)}
+                                isActive={path.startsWith(
+                                  "/management/employees",
+                                )}
                               >
-                                <Link href={`${item.url}/${selectedBuId}`}>
-                                  <item.icon className="h-4 w-4" />
-                                  <span>{item.title}</span>
+                                <Link
+                                  href={`/management/employees/${selectedBuId}`}
+                                >
+                                  <Users className="h-4 w-4" />
+                                  <span>Employees</span>
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
-                          ))}
+                          )}
+                          {hasBuPermission("can_manage_workflows") && (
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={path.startsWith(
+                                  "/management/approval-system",
+                                )}
+                              >
+                                <Link
+                                  href={`/management/approval-system/${selectedBuId}`}
+                                >
+                                  <FileText className="h-4 w-4" />
+                                  <span>Approval System</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          )}
+                          {hasBuPermission("can_manage_forms") && (
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={path.startsWith("/management/forms")}
+                              >
+                                <Link
+                                  href={`/management/forms/${selectedBuId}`}
+                                >
+                                  <Building className="h-4 w-4" />
+                                  <span>Forms</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          )}
+                          {(hasBuPermission("can_manage_employee_roles") ||
+                            hasBuPermission("can_manage_bu_roles") ||
+                            hasBuPermission("can_create_accounts") ||
+                            hasBuPermission("can_reset_passwords") ||
+                            hasBuPermission("can_manage_forms") ||
+                            hasBuPermission("can_manage_workflows")) && (
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={path.startsWith(
+                                  "/management/activity-log",
+                                )}
+                              >
+                                <Link
+                                  href={`/management/activity-log/${selectedBuId}`}
+                                >
+                                  <ClipboardEdit className="h-4 w-4" />
+                                  <span>Activity Log</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          )}
                         </SidebarMenuSub>
                       </AnimatedSection>
                     </SidebarMenuItem>
@@ -606,7 +673,9 @@ export function Navbar() {
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">{fullName}</span>
-                    <span className="truncate text-xs">{profile.email}</span>
+                    <span className="truncate text-xs">
+                      @{profile.username}
+                    </span>
                   </div>
                   <ChevronUp className="ml-auto size-4" />
                 </SidebarMenuButton>

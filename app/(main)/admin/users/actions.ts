@@ -27,6 +27,7 @@ export async function getUsersWithRolesAndOwnedBUs() {
     first_name,
     last_name,
     email,
+    username,
     organization_id,
     organizations(name),
     roles:user_role_assignments(roles(id, name)),

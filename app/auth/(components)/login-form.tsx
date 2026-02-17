@@ -5,14 +5,13 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
 import { useState } from "react";
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,16 +23,22 @@ export function LoginForm({
     setError(null);
 
     try {
+      const internalEmail = `${username.toLowerCase().trim()}@email.com`;
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: internalEmail,
         password,
       });
       if (error) throw error;
 
-      // Update this route to redirect to an authenticated route. The user already has an active session.
       window.location.replace("/dashboard");
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      setError(
+        error instanceof Error
+          ? error.message === "Invalid login credentials"
+            ? "Invalid username or password"
+            : error.message
+          : "An error occurred",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -53,15 +58,16 @@ export function LoginForm({
 
       <form onSubmit={handleLogin} className="flex flex-col gap-6">
         <div className="grid gap-2">
-          <Label htmlFor="email" className="text-foreground font-medium">
-            Email
+          <Label htmlFor="username" className="text-foreground font-medium">
+            Username
           </Label>
           <Input
-            id="email"
-            type="email"
+            id="username"
+            type="text"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Enter your username"
             className="border-border bg-primary/5 focus:border-primary focus:ring-primary rounded-lg px-4 py-5 text-sm"
           />
         </div>
@@ -77,12 +83,9 @@ export function LoginForm({
             onChange={(e) => setPassword(e.target.value)}
             className="border-border bg-primary/5 focus:border-primary focus:ring-primary rounded-lg px-4 py-5 text-sm"
           />
-          <Link
-            href="/auth/forgot-password"
-            className="text-muted-foreground hover:text-foreground mt-1 text-xs"
-          >
-            Forgot Username/Password?
-          </Link>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Forgot your password? Contact your administrator.
+          </p>
         </div>
         {error && <p className="text-destructive text-sm">{error}</p>}
         <Button
@@ -92,15 +95,6 @@ export function LoginForm({
         >
           {isLoading ? "Logging in..." : "Login"}
         </Button>
-        <div className="text-muted-foreground text-center text-sm">
-          Don&apos;t have an account?{" "}
-          <Link
-            href="/auth/sign-up"
-            className="text-primary font-medium hover:underline"
-          >
-            Register
-          </Link>
-        </div>
       </form>
     </div>
   );
