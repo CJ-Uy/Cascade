@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { checkBuAdminRole } from "@/lib/auth-helpers";
 
 export type Employee = {
   id: string;
@@ -127,52 +126,37 @@ export async function saveRole(
   pathname: string,
 ) {
   const supabase = await createClient();
-
-  // Server-side enforcement: only BU Head can set capabilities
-  const { isBuAdmin } = await checkBuAdminRole(businessUnitId);
   const { id, ...roleInfo } = roleData;
 
-  // If caller is not BU Head/Super Admin/Org Admin, force all capabilities off
-  if (!isBuAdmin) {
-    roleInfo.is_bu_admin = false;
-    roleInfo.can_manage_employee_roles = false;
-    roleInfo.can_manage_bu_roles = false;
-    roleInfo.can_create_accounts = false;
-    roleInfo.can_reset_passwords = false;
-    roleInfo.can_manage_forms = false;
-    roleInfo.can_manage_workflows = false;
-  }
-
-  const dataToUpsert: any = {
-    ...roleInfo,
-    business_unit_id: businessUnitId,
-  };
-
-  if (id) {
-    dataToUpsert.id = id;
-  }
-
-  const { data: savedRole, error } = await supabase
-    .from("roles")
-    .upsert(dataToUpsert)
-    .select("id")
-    .single();
+  // Use RPC to bypass RLS — auth checks and capability enforcement are inside the RPC
+  const { data: savedRoleId, error } = await supabase.rpc("upsert_bu_role", {
+    p_role_id: id || null,
+    p_name: roleInfo.name,
+    p_business_unit_id: businessUnitId,
+    p_is_bu_admin: roleInfo.is_bu_admin,
+    p_can_manage_employee_roles: roleInfo.can_manage_employee_roles,
+    p_can_manage_bu_roles: roleInfo.can_manage_bu_roles,
+    p_can_create_accounts: roleInfo.can_create_accounts,
+    p_can_reset_passwords: roleInfo.can_reset_passwords,
+    p_can_manage_forms: roleInfo.can_manage_forms,
+    p_can_manage_workflows: roleInfo.can_manage_workflows,
+  });
 
   if (error) {
     console.error("Error saving role:", error);
-    throw new Error("Failed to save role.");
+    throw new Error(error.message || "Failed to save role.");
   }
 
   // Audit log
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user && savedRole) {
+  if (user && savedRoleId) {
     await supabase.from("management_audit_log").insert({
       business_unit_id: businessUnitId,
       actor_id: user.id,
       action_type: id ? "UPDATE_ROLE" : "CREATE_ROLE",
-      target_role_id: savedRole.id,
+      target_role_id: savedRoleId,
       details: { role_name: roleInfo.name, is_bu_admin: roleInfo.is_bu_admin },
     });
   }
