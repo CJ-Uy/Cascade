@@ -252,13 +252,19 @@ export function CreateAccountsClient({
     for (let i = startIdx; i < data.length; i++) {
       const cols = data[i];
       if (cols.length >= 3 && cols[0]?.trim()) {
+        // Match role name (column 5) to existing BU roles
+        const roleName = cols[4]?.trim();
+        const matchedRole = roleName
+          ? roles.find((r) => r.name.toLowerCase() === roleName.toLowerCase())
+          : undefined;
+
         newRows.push({
           id: crypto.randomUUID(),
           username: (cols[0]?.trim() || "").toLowerCase().replace(/\s/g, ""),
           first_name: cols[1]?.trim() || "",
           last_name: cols[2]?.trim() || "",
           password: cols[3]?.trim() || generatePassword(),
-          role_id: undefined,
+          role_id: matchedRole?.id,
         });
       }
     }
@@ -526,8 +532,10 @@ export function CreateAccountsClient({
                 <CardTitle>Upload Accounts</CardTitle>
                 <CardDescription>
                   Upload an Excel (.xlsx) or CSV file with columns: username,
-                  first_name, last_name, password (optional). If password is
-                  omitted, one will be generated. The first row can be a header.
+                  first_name, last_name, password (optional), role (optional).
+                  If password is omitted, one will be generated. Role should
+                  match an existing role name in this business unit. The first
+                  row can be a header.
                 </CardDescription>
               </CardHeader>
               <CardContent>
