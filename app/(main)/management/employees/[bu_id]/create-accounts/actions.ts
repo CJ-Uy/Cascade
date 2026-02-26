@@ -46,6 +46,9 @@ export async function massCreateAccounts(
   const adminClient = createAdminClient();
   const results: CreateAccountResult[] = [];
 
+  const createdUserIds: string[] = [];
+  const createdUsernames: string[] = [];
+
   for (const account of accounts) {
     try {
       const normalizedUsername = account.username.toLowerCase().trim();
@@ -144,28 +147,32 @@ export async function massCreateAccounts(
       }
 
       results.push({ username: account.username, success: true });
-
-      // Audit log
-      const {
-        data: { user: actor },
-      } = await supabase.auth.getUser();
-      if (actor) {
-        await supabase.from("management_audit_log").insert({
-          business_unit_id: businessUnitId,
-          actor_id: actor.id,
-          action_type: "CREATE_ACCOUNT",
-          target_user_id: newUser.user.id,
-          details: {
-            username: normalizedUsername,
-            role_id: account.role_id || null,
-          },
-        });
-      }
+      createdUserIds.push(newUser.user.id);
+      createdUsernames.push(normalizedUsername);
     } catch (err: unknown) {
       results.push({
         username: account.username,
         success: false,
         error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  }
+
+  // Single bulk audit log entry for all created accounts
+  if (createdUserIds.length > 0) {
+    const {
+      data: { user: actor },
+    } = await supabase.auth.getUser();
+    if (actor) {
+      await supabase.from("management_audit_log").insert({
+        business_unit_id: businessUnitId,
+        actor_id: actor.id,
+        action_type: "BULK_CREATE_ACCOUNTS",
+        details: {
+          count: createdUserIds.length,
+          user_ids: createdUserIds,
+          usernames: createdUsernames,
+        },
       });
     }
   }
@@ -248,6 +255,190 @@ export async function adminResetPassword(
   }
 
   return { success: true };
+}
+
+// Helper: clear all RESTRICT foreign key references to a user so deletion can proceed
+async function clearUserReferences(adminClient: any, userId: string) {
+  // Nullify RESTRICT foreign keys that would block profile/auth deletion
+  await adminClient
+    .from("attachments")
+    .update({ uploader_id: null })
+    .eq("uploader_id", userId);
+  await adminClient
+    .from("chat_messages")
+    .update({ sender_id: null })
+    .eq("sender_id", userId);
+  await adminClient
+    .from("comments")
+    .update({ author_id: null })
+    .eq("author_id", userId);
+  await adminClient
+    .from("tags")
+    .update({ creator_id: null })
+    .eq("creator_id", userId);
+  await adminClient
+    .from("document_tags")
+    .update({ assigned_by_id: null })
+    .eq("assigned_by_id", userId);
+  await adminClient
+    .from("request_history")
+    .update({ resolved_by: null })
+    .eq("resolved_by", userId);
+  await adminClient
+    .from("management_audit_log")
+    .update({ actor_id: null })
+    .eq("actor_id", userId);
+  await adminClient
+    .from("management_audit_log")
+    .update({ target_user_id: null })
+    .eq("target_user_id", userId);
+  // Unset BU head if this user is a BU head
+  await adminClient
+    .from("business_units")
+    .update({ head_id: null })
+    .eq("head_id", userId);
+}
+
+export async function deleteUserAccount(
+  userId: string,
+  businessUnitId: string,
+): Promise<{ success: boolean; error?: string }> {
+  // Check caller has permission (can_create_accounts implies can delete)
+  const { hasPermission } = await checkBuPermission(
+    businessUnitId,
+    "can_create_accounts",
+  );
+  if (!hasPermission) {
+    return {
+      success: false,
+      error: "You do not have permission to delete accounts.",
+    };
+  }
+
+  const supabase = await createClient();
+  const adminClient = createAdminClient();
+
+  try {
+    // Get username for audit log before deleting
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .single();
+
+    // Audit log BEFORE deletion (so actor_id still exists)
+    const {
+      data: { user: actor },
+    } = await supabase.auth.getUser();
+    if (actor) {
+      await supabase.from("management_audit_log").insert({
+        business_unit_id: businessUnitId,
+        actor_id: actor.id,
+        action_type: "DELETE_ACCOUNT",
+        details: {
+          username: profile?.username || "Unknown",
+          deleted_user_id: userId,
+        },
+      });
+    }
+
+    // Clear all RESTRICT foreign key references using admin client (bypasses RLS)
+    await clearUserReferences(adminClient, userId);
+
+    // Delete auth user — cascades to profiles, which cascades to
+    // user_business_units, user_role_assignments, notifications, etc.
+    const { error: authError } =
+      await adminClient.auth.admin.deleteUser(userId);
+    if (authError) {
+      return {
+        success: false,
+        error: `Auth deletion failed: ${authError.message}`,
+      };
+    }
+
+    revalidatePath(`/management/employees/${businessUnitId}`);
+    return { success: true };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to delete account",
+    };
+  }
+}
+
+export async function bulkDeleteAccounts(
+  userIds: string[],
+  businessUnitId: string,
+  auditLogEntryId?: string,
+): Promise<{
+  success: boolean;
+  deleted: number;
+  failed: number;
+  error?: string;
+}> {
+  const { hasPermission } = await checkBuPermission(
+    businessUnitId,
+    "can_create_accounts",
+  );
+  if (!hasPermission) {
+    return {
+      success: false,
+      deleted: 0,
+      failed: 0,
+      error: "You do not have permission to delete accounts.",
+    };
+  }
+
+  const supabase = await createClient();
+  const adminClient = createAdminClient();
+  let deleted = 0;
+  let failed = 0;
+  const deletedUsernames: string[] = [];
+
+  for (const userId of userIds) {
+    try {
+      // Get username before deleting
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", userId)
+        .maybeSingle();
+
+      // Skip if user doesn't exist (already deleted)
+      if (!profile) continue;
+
+      // Clear RESTRICT foreign key references first
+      await clearUserReferences(adminClient, userId);
+
+      // Delete auth user — cascades to profile and other CASCADE tables
+      await adminClient.auth.admin.deleteUser(userId);
+
+      deleted++;
+      deletedUsernames.push(profile.username || "Unknown");
+    } catch {
+      failed++;
+    }
+  }
+
+  // Audit log
+  const {
+    data: { user: actor },
+  } = await supabase.auth.getUser();
+  if (actor && deleted > 0) {
+    await supabase.from("management_audit_log").insert({
+      business_unit_id: businessUnitId,
+      actor_id: actor.id,
+      action_type: "BULK_DELETE_ACCOUNTS",
+      details: {
+        count: deleted,
+        usernames: deletedUsernames,
+        source_audit_entry_id: auditLogEntryId || null,
+      },
+    });
+  }
+
+  revalidatePath(`/management/employees/${businessUnitId}`);
+  return { success: true, deleted, failed };
 }
 
 export async function getRolesForBu(businessUnitId: string) {

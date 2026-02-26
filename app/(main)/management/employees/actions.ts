@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 export type Employee = {
   id: string;
   name: string;
+  first_name: string;
+  last_name: string;
   username: string;
   email: string;
   roles: string[];
@@ -42,6 +44,8 @@ export async function getEmployees(
     return {
       id: profile.id,
       name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim(),
+      first_name: profile.first_name || "",
+      last_name: profile.last_name || "",
       username: profile.username || "",
       email: profile.email || "",
       roles: profile.user_role_assignments
@@ -392,6 +396,30 @@ export async function removeUserFromBusinessUnit(
   }
 
   revalidatePath(pathname);
+}
+
+export async function getProfilesByIds(
+  userIds: string[],
+): Promise<
+  { id: string; username: string; first_name: string; last_name: string }[]
+> {
+  if (!userIds.length) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, username, first_name, last_name")
+    .in("id", userIds);
+
+  if (error) {
+    console.error("Error fetching profiles by IDs:", error);
+    return [];
+  }
+  return data.map((p) => ({
+    id: p.id,
+    username: p.username || "",
+    first_name: p.first_name || "",
+    last_name: p.last_name || "",
+  }));
 }
 
 export async function getAuditLog(

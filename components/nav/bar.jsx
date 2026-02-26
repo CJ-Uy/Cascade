@@ -255,6 +255,16 @@ export function Navbar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
+              {/* People */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={path === "/people"}>
+                  <a href="/people">
+                    <Users className="h-4 w-4" />
+                    <span>People</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
               {/* Notifications */}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={path === "/notifications"}>

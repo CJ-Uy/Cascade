@@ -26,8 +26,28 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { getAuditLog } from "../../employees/actions";
+import {
+  ChevronDown,
+  ChevronUp,
+  Trash2,
+  Loader2,
+  Download,
+} from "lucide-react";
+import * as XLSX from "xlsx";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
+import { getAuditLog, getProfilesByIds } from "../../employees/actions";
+import { bulkDeleteAccounts } from "../../employees/[bu_id]/create-accounts/actions";
 
 type AuditEntry = {
   id: string;
@@ -52,22 +72,28 @@ type AuditEntry = {
 
 const ACTION_TYPES = [
   "CREATE_ACCOUNT",
+  "BULK_CREATE_ACCOUNTS",
   "UPDATE_EMPLOYEE_ROLES",
   "CREATE_ROLE",
   "UPDATE_ROLE",
   "DELETE_ROLE",
   "RESET_PASSWORD",
   "REMOVE_EMPLOYEE",
+  "DELETE_ACCOUNT",
+  "BULK_DELETE_ACCOUNTS",
 ];
 
 const ACTION_BADGE_COLORS: Record<string, string> = {
   CREATE_ACCOUNT: "bg-green-600 hover:bg-green-700",
+  BULK_CREATE_ACCOUNTS: "bg-green-700 hover:bg-green-800",
   UPDATE_EMPLOYEE_ROLES: "bg-blue-600 hover:bg-blue-700",
   CREATE_ROLE: "bg-purple-600 hover:bg-purple-700",
   UPDATE_ROLE: "bg-purple-600 hover:bg-purple-700",
   DELETE_ROLE: "bg-purple-600 hover:bg-purple-700",
   RESET_PASSWORD: "bg-orange-600 hover:bg-orange-700",
   REMOVE_EMPLOYEE: "bg-red-600 hover:bg-red-700",
+  DELETE_ACCOUNT: "bg-red-700 hover:bg-red-800",
+  BULK_DELETE_ACCOUNTS: "bg-red-800 hover:bg-red-900",
 };
 
 function formatActionType(action: string): string {
@@ -126,6 +152,10 @@ export default function ActivityLogPage() {
   const [page, setPage] = useState(1);
   const [filterAction, setFilterAction] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [bulkDeleteEntry, setBulkDeleteEntry] = useState<AuditEntry | null>(
+    null,
+  );
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const limit = 50;
 
   const fetchLog = useCallback(async () => {
@@ -162,8 +192,51 @@ export default function ActivityLogPage() {
       )
     : entries;
 
+  const handleBulkDelete = async () => {
+    if (!bulkDeleteEntry?.details?.user_ids) return;
+    setIsBulkDeleting(true);
+    const result = await bulkDeleteAccounts(
+      bulkDeleteEntry.details.user_ids as string[],
+      buId,
+      bulkDeleteEntry.id,
+    );
+    setIsBulkDeleting(false);
+    setBulkDeleteEntry(null);
+    if (result.success) {
+      toast.success(
+        `Deleted ${result.deleted} account${result.deleted !== 1 ? "s" : ""}${result.failed > 0 ? `, ${result.failed} failed` : ""}.`,
+      );
+      fetchLog();
+    } else {
+      toast.error(result.error || "Failed to delete accounts.");
+    }
+  };
+
+  const handleBulkExport = async (entry: AuditEntry) => {
+    const userIds = entry.details?.user_ids as string[] | undefined;
+    if (!userIds?.length) return;
+
+    const profiles = await getProfilesByIds(userIds);
+    const exportData = profiles.map((p) => ({
+      Username: p.username,
+      "First Name": p.first_name,
+      "Last Name": p.last_name,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Accounts");
+    ws["!cols"] = [{ wch: 20 }, { wch: 20 }, { wch: 20 }];
+
+    const date = formatDate(entry.created_at)
+      .replace(/[,:]/g, "")
+      .replace(/\s+/g, "-");
+    XLSX.writeFile(wb, `bulk-accounts-${date}.xlsx`);
+  };
+
   return (
     <div className="p-4 md:p-8">
+      <Toaster />
       <DashboardHeader title="Activity Log" />
       <p className="text-muted-foreground mb-8">
         View a log of all management actions performed in this business unit.
@@ -203,12 +276,13 @@ export default function ActivityLogPage() {
               <TableHead>Action</TableHead>
               <TableHead>Target</TableHead>
               <TableHead>Details</TableHead>
+              <TableHead className="w-[160px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -234,7 +308,23 @@ export default function ActivityLogPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {entry.target_user ? (
+                    {entry.action_type === "BULK_CREATE_ACCOUNTS" ||
+                    entry.action_type === "BULK_DELETE_ACCOUNTS" ? (
+                      <div className="text-sm">
+                        {entry.details?.count || 0} account
+                        {(entry.details?.count || 0) !== 1 ? "s" : ""}
+                        {entry.details?.usernames && (
+                          <div className="text-muted-foreground mt-1 font-mono text-xs">
+                            {(entry.details.usernames as string[])
+                              .slice(0, 5)
+                              .map((u) => `@${u}`)
+                              .join(", ")}
+                            {(entry.details.usernames as string[]).length > 5 &&
+                              ` +${(entry.details.usernames as string[]).length - 5} more`}
+                          </div>
+                        )}
+                      </div>
+                    ) : entry.target_user ? (
                       <div>
                         <div className="text-sm">{entry.target_user.name}</div>
                         <div className="text-muted-foreground font-mono text-xs">
@@ -252,11 +342,36 @@ export default function ActivityLogPage() {
                   <TableCell>
                     <DetailsCell details={entry.details} />
                   </TableCell>
+                  <TableCell>
+                    {entry.action_type === "BULK_CREATE_ACCOUNTS" &&
+                      entry.details?.user_ids && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 gap-1 px-2 text-xs"
+                            onClick={() => handleBulkExport(entry)}
+                          >
+                            <Download className="h-3 w-3" />
+                            Export
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive h-7 gap-1 px-2 text-xs"
+                            onClick={() => setBulkDeleteEntry(entry)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            Delete All
+                          </Button>
+                        </div>
+                      )}
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   No activity log entries found.
                 </TableCell>
               </TableRow>
@@ -303,6 +418,53 @@ export default function ActivityLogPage() {
           </Button>
         </div>
       )}
+
+      <AlertDialog
+        open={!!bulkDeleteEntry}
+        onOpenChange={() => setBulkDeleteEntry(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete All Accounts from This Batch?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              <strong>
+                {bulkDeleteEntry?.details?.count || 0} account
+                {(bulkDeleteEntry?.details?.count || 0) !== 1 ? "s" : ""}
+              </strong>{" "}
+              created in this batch. This action cannot be undone. All users
+              will be removed from all business units and their auth credentials
+              will be deleted.
+              {bulkDeleteEntry?.details?.usernames && (
+                <span className="mt-2 block font-mono text-xs">
+                  {(bulkDeleteEntry.details.usernames as string[]).join(", ")}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-red-800 hover:bg-red-900"
+              disabled={isBulkDeleting}
+            >
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete All Permanently"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

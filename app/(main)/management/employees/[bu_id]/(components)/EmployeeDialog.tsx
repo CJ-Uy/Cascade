@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save, Trash2, KeyRound, RefreshCw } from "lucide-react";
+import { Save, Trash2, KeyRound, RefreshCw, UserX } from "lucide-react";
 import { Employee } from "./EmployeeTable";
 import {
   AlertDialog,
@@ -31,17 +31,22 @@ import {
 } from "@/components/shared/roles-selection-table";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { adminResetPassword } from "../create-accounts/actions";
+import {
+  adminResetPassword,
+  deleteUserAccount,
+} from "../create-accounts/actions";
 
 interface EmployeeDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (employee: Employee) => void;
   onRemoveFromBU: (employee: Employee) => void;
+  onDeleteAccount?: (employee: Employee) => void;
   employee: Employee | null;
   businessUnitId: string;
   isBuHead?: boolean;
   canResetPasswords?: boolean;
+  canDeleteAccounts?: boolean;
 }
 
 // Helper: check if a role is a "member-type" role (no capabilities, not BU Head)
@@ -62,10 +67,12 @@ export function EmployeeDialog({
   onClose,
   onSave,
   onRemoveFromBU,
+  onDeleteAccount,
   employee,
   businessUnitId,
   isBuHead = false,
   canResetPasswords = false,
+  canDeleteAccounts = false,
 }: EmployeeDialogProps) {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -74,6 +81,8 @@ export function EmployeeDialog({
   const [allAvailableRoles, setAllAvailableRoles] = useState<Role[]>([]);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Password reset state
   const [showPasswordReset, setShowPasswordReset] = useState(false);
@@ -155,6 +164,24 @@ export function EmployeeDialog({
     setShowRemoveConfirm(false);
   };
 
+  const handleDeleteAccount = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!employee) return;
+    setIsDeleting(true);
+    const result = await deleteUserAccount(employee.id, businessUnitId);
+    setIsDeleting(false);
+    if (result.success) {
+      toast.success(`Account "${employee.username}" has been deleted.`);
+      setShowDeleteConfirm(false);
+      onDeleteAccount?.(employee);
+    } else {
+      toast.error(result.error || "Failed to delete account.");
+    }
+  };
+
   const generatePassword = useCallback(() => {
     const chars =
       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -187,7 +214,7 @@ export function EmployeeDialog({
     <>
       <Toaster />
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {employee ? "Edit Employee" : "Add New Employee"}
@@ -234,77 +261,105 @@ export function EmployeeDialog({
               showBusinessUnit={false}
             />
 
-            {/* Password Reset Section */}
-            {employee && canResetPasswords && (
-              <div className="border-t pt-4">
-                {!showPasswordReset ? (
+            {/* Actions Section */}
+            {employee && (canResetPasswords || canDeleteAccounts) && (
+              <div className="space-y-3 border-t pt-4">
+                <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                  Actions
+                </p>
+
+                {/* Password Reset */}
+                {canResetPasswords && (
+                  <>
+                    {!showPasswordReset ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowPasswordReset(true)}
+                        className="w-full justify-start"
+                      >
+                        <KeyRound className="mr-2 h-4 w-4" />
+                        Reset Password
+                      </Button>
+                    ) : (
+                      <div className="space-y-3 rounded-md border p-3">
+                        <p className="text-sm font-medium">Reset Password</p>
+                        <div className="flex gap-2">
+                          <Input
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="New password"
+                            className="font-mono text-sm"
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={generatePassword}
+                            title="Generate password"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handleResetPassword}
+                            disabled={
+                              !newPassword ||
+                              newPassword.length < 6 ||
+                              isResetting
+                            }
+                          >
+                            {isResetting ? "Resetting..." : "Confirm Reset"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowPasswordReset(false);
+                              setNewPassword("");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                        {newPassword && newPassword.length < 6 && (
+                          <p className="text-destructive text-xs">
+                            Password must be at least 6 characters.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Remove from BU */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRemove}
+                  className="text-destructive hover:bg-destructive/10 w-full justify-start"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Remove from Business Unit
+                </Button>
+
+                {/* Delete Account */}
+                {canDeleteAccounts && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowPasswordReset(true)}
+                    onClick={handleDeleteAccount}
+                    className="w-full justify-start border-red-800 text-red-800 hover:bg-red-800/10"
                   >
-                    <KeyRound className="mr-2 h-4 w-4" />
-                    Reset Password
+                    <UserX className="mr-2 h-4 w-4" />
+                    Delete Account Permanently
                   </Button>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium">Reset Password</p>
-                    <div className="flex gap-2">
-                      <Input
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="New password"
-                        className="font-mono text-sm"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={generatePassword}
-                        title="Generate password"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={handleResetPassword}
-                        disabled={
-                          !newPassword || newPassword.length < 6 || isResetting
-                        }
-                      >
-                        {isResetting ? "Resetting..." : "Confirm Reset"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowPasswordReset(false);
-                          setNewPassword("");
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                    {newPassword && newPassword.length < 6 && (
-                      <p className="text-destructive text-xs">
-                        Password must be at least 6 characters.
-                      </p>
-                    )}
-                  </div>
                 )}
               </div>
             )}
           </div>
-          <DialogFooter className="justify-between">
-            <div>
-              {employee && (
-                <Button variant="destructive" onClick={handleRemove}>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Remove from BU
-                </Button>
-              )}
-            </div>
+          <DialogFooter>
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose}>
                 Cancel
@@ -357,6 +412,30 @@ export function EmployeeDialog({
               className="bg-red-600 hover:bg-red-700"
             >
               Confirm Removal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Account Permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the account for{" "}
+              <strong>{employee?.username}</strong>. This action cannot be
+              undone. The user will be removed from all business units and their
+              auth credentials will be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-800 hover:bg-red-900"
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete Permanently"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

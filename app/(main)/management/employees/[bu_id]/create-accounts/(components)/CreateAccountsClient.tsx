@@ -92,6 +92,7 @@ export function CreateAccountsClient({
   const [rows, setRows] = useState<AccountRow[]>([createEmptyRow()]);
   const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [isValidatingBatch, setIsValidatingBatch] = useState(false);
   const [results, setResults] = useState<CreateAccountResult[] | null>(null);
   const [passwordLength, setPasswordLength] = useState(() => {
     if (typeof window === "undefined") return 8;
@@ -245,30 +246,127 @@ export function CreateAccountsClient({
   };
 
   const parseFileRows = (data: string[][]): AccountRow[] => {
-    // Skip header row if it looks like one
-    const startIdx = data[0]?.[0]?.toLowerCase().includes("username") ? 1 : 0;
     const newRows: AccountRow[] = [];
+    if (!data.length) return newRows;
+
+    // Detect column mapping from header row
+    const firstRow = data[0].map((c) =>
+      (c || "").toString().toLowerCase().trim(),
+    );
+    const knownHeaders = [
+      "username",
+      "first_name",
+      "last_name",
+      "password",
+      "role",
+    ];
+    const hasHeader = firstRow.some((h) => knownHeaders.includes(h));
+
+    // Build column index map
+    let colMap: Record<string, number>;
+    if (hasHeader) {
+      colMap = {
+        username: firstRow.indexOf("username"),
+        first_name: firstRow.indexOf("first_name"),
+        last_name: firstRow.indexOf("last_name"),
+        password: firstRow.indexOf("password"),
+        role: firstRow.indexOf("role"),
+      };
+    } else {
+      // Default order when no header: username, first_name, last_name, password, role
+      colMap = {
+        username: 0,
+        first_name: 1,
+        last_name: 2,
+        password: 3,
+        role: 4,
+      };
+    }
+
+    const startIdx = hasHeader ? 1 : 0;
 
     for (let i = startIdx; i < data.length; i++) {
       const cols = data[i];
-      if (cols.length >= 3 && cols[0]?.trim()) {
-        // Match role name (column 5) to existing BU roles
-        const roleName = cols[4]?.trim();
-        const matchedRole = roleName
-          ? roles.find((r) => r.name.toLowerCase() === roleName.toLowerCase())
-          : undefined;
+      const username =
+        colMap.username >= 0 ? cols[colMap.username]?.trim() : "";
+      if (!username) continue;
 
-        newRows.push({
-          id: crypto.randomUUID(),
-          username: (cols[0]?.trim() || "").toLowerCase().replace(/\s/g, ""),
-          first_name: cols[1]?.trim() || "",
-          last_name: cols[2]?.trim() || "",
-          password: cols[3]?.trim() || generatePassword(),
-          role_id: matchedRole?.id,
-        });
-      }
+      const firstName =
+        colMap.first_name >= 0 ? cols[colMap.first_name]?.trim() || "" : "";
+      const lastName =
+        colMap.last_name >= 0 ? cols[colMap.last_name]?.trim() || "" : "";
+      const password =
+        colMap.password >= 0 ? cols[colMap.password]?.trim() || "" : "";
+      const roleName = colMap.role >= 0 ? cols[colMap.role]?.trim() : "";
+
+      const matchedRole = roleName
+        ? roles.find((r) => r.name.toLowerCase() === roleName.toLowerCase())
+        : undefined;
+
+      newRows.push({
+        id: crypto.randomUUID(),
+        username: username.toLowerCase().replace(/\s/g, ""),
+        first_name: firstName,
+        last_name: lastName,
+        password: password || generatePassword(),
+        role_id: matchedRole?.id,
+      });
     }
     return newRows;
+  };
+
+  const validateAllUsernames = async (importedRows: AccountRow[]) => {
+    setIsValidatingBatch(true);
+
+    // Mark all as checking
+    setRows((prev) =>
+      prev.map((r) =>
+        r.username && r.username.length >= 3
+          ? { ...r, usernameChecking: true }
+          : r,
+      ),
+    );
+
+    // Find batch duplicates
+    const usernameCounts = new Map<string, number>();
+    for (const r of importedRows) {
+      const key = r.username.toLowerCase();
+      usernameCounts.set(key, (usernameCounts.get(key) || 0) + 1);
+    }
+
+    // Validate each username in parallel
+    const validationResults = await Promise.all(
+      importedRows.map(async (r) => {
+        if (!r.username || r.username.length < 3) {
+          return {
+            id: r.id,
+            error: r.username ? "Must be at least 3 characters" : undefined,
+          };
+        }
+        if ((usernameCounts.get(r.username.toLowerCase()) || 0) > 1) {
+          return { id: r.id, error: "Duplicate in batch" };
+        }
+        const result = await validateUsername(r.username);
+        return {
+          id: r.id,
+          error: result.available
+            ? undefined
+            : result.error || "Username taken",
+        };
+      }),
+    );
+
+    // Apply results
+    const errorMap = new Map(validationResults.map((v) => [v.id, v.error]));
+    setRows((prev) =>
+      prev.map((r) => ({
+        ...r,
+        usernameChecking: false,
+        usernameError: errorMap.get(r.id),
+      })),
+    );
+
+    setIsValidatingBatch(false);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -288,7 +386,10 @@ export function CreateAccountsClient({
           defval: "",
         });
         const newRows = parseFileRows(data);
-        if (newRows.length > 0) setRows(newRows);
+        if (newRows.length > 0) {
+          setRows(newRows);
+          validateAllUsernames(newRows);
+        }
       };
       reader.readAsArrayBuffer(file);
     } else {
@@ -298,7 +399,10 @@ export function CreateAccountsClient({
         const lines = text.split("\n").filter((line) => line.trim());
         const data = lines.map((line) => line.split(","));
         const newRows = parseFileRows(data);
-        if (newRows.length > 0) setRows(newRows);
+        if (newRows.length > 0) {
+          setRows(newRows);
+          validateAllUsernames(newRows);
+        }
       };
       reader.readAsText(file);
     }
@@ -312,7 +416,8 @@ export function CreateAccountsClient({
       const employees = await getEmployees(businessUnitId);
       const exportData = employees.map((emp) => ({
         Username: emp.username,
-        Name: emp.name,
+        "First Name": emp.first_name,
+        "Last Name": emp.last_name,
         Roles: emp.roles.join(", "),
       }));
 
@@ -323,7 +428,8 @@ export function CreateAccountsClient({
       // Auto-size columns
       const colWidths = [
         { wch: 20 }, // Username
-        { wch: 30 }, // Name
+        { wch: 20 }, // First Name
+        { wch: 20 }, // Last Name
         { wch: 40 }, // Roles
       ];
       ws["!cols"] = colWidths;
@@ -822,13 +928,17 @@ export function CreateAccountsClient({
                 </p>
                 <Button
                   onClick={handleCreate}
-                  disabled={!isFormValid || isCreating}
+                  disabled={!isFormValid || isCreating || isValidatingBatch}
                   className="gap-2"
                 >
-                  {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {isCreating
-                    ? `Creating ${rows.length} account${rows.length !== 1 ? "s" : ""}...`
-                    : `Create ${rows.length} Account${rows.length !== 1 ? "s" : ""}`}
+                  {(isCreating || isValidatingBatch) && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  {isValidatingBatch
+                    ? "Validating usernames..."
+                    : isCreating
+                      ? `Creating ${rows.length} account${rows.length !== 1 ? "s" : ""}...`
+                      : `Create ${rows.length} Account${rows.length !== 1 ? "s" : ""}`}
                 </Button>
               </div>
             </CardContent>

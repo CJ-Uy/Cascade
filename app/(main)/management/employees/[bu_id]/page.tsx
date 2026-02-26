@@ -194,10 +194,15 @@ export default function EmployeesPage() {
         onClose={() => setIsEmployeeDialogOpen(false)}
         onSave={handleSaveEmployee}
         onRemoveFromBU={handleRemoveFromBU}
+        onDeleteAccount={() => {
+          setIsEmployeeDialogOpen(false);
+          setKey(Date.now());
+        }}
         employee={selectedEmployee}
         businessUnitId={buId}
         isBuHead={isBuHeadLevel}
         canResetPasswords={canResetPasswords}
+        canDeleteAccounts={canCreateAccounts}
       />
 
       <RoleDialog
