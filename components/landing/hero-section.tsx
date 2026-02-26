@@ -65,11 +65,10 @@ export function HeroSection() {
         {/* This is the text content that will appear on top */}
         <div className="relative z-10">
           <h1 className="text-foreground text-4xl font-bold tracking-tight sm:text-6xl">
-            Effortlessly{" "}
+            Effortlessly move requests to approvals with{" "}
             <span className="relative inline-block">
-              <span className="text-primary">Cascade</span>
-            </span>{" "}
-            Requests to Approvals
+              <span className="text-primary">Agila</span>
+            </span>
           </h1>
           <p className="text-muted-foreground mt-6 text-lg leading-8">
             Remotely guide requisitions, approvals, and files down the line. No

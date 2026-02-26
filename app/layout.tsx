@@ -8,7 +8,7 @@ import { SessionProvider } from "@/app/contexts/SessionProvider";
 import { getUserAuthContext } from "@/lib/supabase/auth";
 
 export const metadata: Metadata = {
-  title: "Cascade",
+  title: "Agila",
   description: "Digital Mass Document Approval and Review System",
 };
 

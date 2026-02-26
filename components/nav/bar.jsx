@@ -220,7 +220,7 @@ export function Navbar() {
             {/* Light Mode Logo */}
             <Image
               src="/svgs/Logo&TextBlack.svg"
-              alt="Akiva Cascade Logo"
+              alt="Akiva Agila Logo"
               width={150}
               height={40}
               className="block dark:hidden" // `block` by default, `hidden` in dark mode
@@ -229,7 +229,7 @@ export function Navbar() {
             {/* Dark Mode Logo */}
             <Image
               src="/svgs/Logo&TextWhite.svg"
-              alt="Akiva Cascade Logo"
+              alt="Akiva Agila Logo"
               width={150}
               height={40}
               className="hidden dark:block" // `hidden` by default, `block` in dark mode

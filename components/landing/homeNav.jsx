@@ -18,7 +18,7 @@ export function HomeNav() {
           {/* Light Mode Logo */}
           <Image
             src="/svgs/Logo&TextBlack.svg"
-            alt="Akiva Cascade Logo"
+            alt="Akiva Agila Logo"
             width={150}
             height={40}
             className="block dark:hidden" // `block` by default, `hidden` in dark mode
@@ -26,7 +26,7 @@ export function HomeNav() {
           {/* Dark Mode Logo */}
           <Image
             src="/svgs/Logo&TextWhite.svg"
-            alt="Akiva Cascade Logo"
+            alt="Akiva Agila Logo"
             width={150}
             height={40}
             className="hidden dark:block" // `hidden` by default, `block` in dark mode
@@ -88,7 +88,7 @@ export function HomeNav() {
       >
         {/* Sidebar Header with Logo and Close Button */}
         <div className="border-border flex h-16 items-center justify-between border-b px-4">
-          <h1 className="text-foreground text-xl font-bold">Akiva Cascade</h1>
+          <h1 className="text-foreground text-xl font-bold">Akiva Agila</h1>
           <button
             onClick={() => setSidebarOpen(false)}
             aria-label="Close menu"

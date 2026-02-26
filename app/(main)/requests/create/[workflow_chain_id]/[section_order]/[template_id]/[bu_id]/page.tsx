@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { RequestForm } from "./(components)/RequestForm";
 
 export const metadata = {
-  title: "Fill Request Form | Cascade",
+  title: "Fill Request Form | Agila",
   description: "Complete the request form",
 };
 

@@ -18,10 +18,10 @@ export function AboutSection() {
     <section className="relative flex min-h-screen items-center justify-center px-6 py-24 sm:py-32 lg:px-8">
       <div className="mx-auto max-w-4xl text-center">
         <h2 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
-          What is Cascade?
+          What is Agila?
         </h2>
         <p className="text-muted-foreground mt-6 text-lg leading-8">
-          Cascade is a custom built web-app for Akiva to handle the internal
+          Agila is a custom built web-app for Akiva to handle the internal
           requisition-approval process efficiently, conveniently, digitally, and
           securely. It is an online mass requisitiona and approval system.
         </p>

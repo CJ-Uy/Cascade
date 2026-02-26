@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TemplateSelector } from "./(components)/TemplateSelector";
 
 export const metadata = {
-  title: "Create Request | Cascade",
+  title: "Create Request | Agila",
   description: "Select a form template to create a new request",
 };
 

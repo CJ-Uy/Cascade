@@ -21,8 +21,8 @@ export async function generateMetadata({ params }: PageProps) {
 
   return {
     title: request
-      ? `${(request as any).forms?.name || "Request"} | Cascade`
-      : "Request | Cascade",
+      ? `${(request as any).forms?.name || "Request"} | Agila`
+      : "Request | Agila",
     description: "View request details",
   };
 }

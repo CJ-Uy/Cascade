@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AllRequestsClient } from "./(components)/AllRequestsClient";
 
 export const metadata = {
-  title: "All Requests | Cascade",
+  title: "All Requests | Agila",
   description: "View all requests you have access to",
 };
 

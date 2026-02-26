@@ -49,7 +49,7 @@ export function LoginForm({
       <div className="flex flex-col gap-2">
         <h1 className="text-foreground text-4xl font-bold tracking-tight">
           Enhance productivity
-          <br /> with <span className="text-primary">Cascade</span>
+          <br /> with <span className="text-primary">Agila</span>
         </h1>
         <p className="text-muted-foreground text-sm">
           Brought to you by AKIVA Holdings

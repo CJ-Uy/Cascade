@@ -4,7 +4,7 @@ import { RequestsDataTable } from "../my-requests/(components)/requests-data-tab
 import { historyColumns } from "./(components)/history-columns";
 
 export const metadata = {
-  title: "Request History | Cascade",
+  title: "Request History | Agila",
   description: "View your completed requests",
 };
 
