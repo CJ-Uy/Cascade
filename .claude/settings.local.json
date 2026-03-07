@@ -27,11 +27,7 @@
       "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251215000011_add_draft_status_to_requisitions.sql''\")",
       "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251215000012_restore_documents_insert_policy.sql''\")",
       "Bash(powershell -Command \"Remove-Item ''supabase\\migrations\\20251215000012_debug_documents_rls.sql''\")",
-      "Bash(powershell -Command \"Remove-Item -Recurse -Force ''app\\(main)\\requisitions''\")",
       "Bash(powershell -Command \"Remove-Item -Recurse -Force ''app\\outdated Routes''\")",
-      "Bash(powershell -Command \"Remove-Item -Force ''app\\(main)\\approvals\\flagged\\page.tsx''\")",
-      "Bash(powershell -Command \"Remove-Item -Recurse -Force ''app\\(main)\\approvals\\flagged''\")",
-      "Bash(powershell -Command \"Remove-Item -Force ''app\\(main)\\management\\approval-workflows\\actions.ts''\")",
       "Bash(powershell -Command:*)",
       "Bash(npm run build:*)",
       "Bash(find:*)",
@@ -56,7 +52,8 @@
       "Bash(npx next build)",
       "Bash(timeout 30 npx next dev:*)",
       "Bash(curl:*)",
-      "Bash(npx supabase db push:*)"
+      "Bash(npx supabase db push:*)",
+      "Bash(grep -r \"FieldRenderer\\\\|FormDataDisplay\" --include=\"*.tsx\" app/\\\\\\(main\\\\\\)/requests/[id]/)"
     ],
     "deny": [],
     "ask": []

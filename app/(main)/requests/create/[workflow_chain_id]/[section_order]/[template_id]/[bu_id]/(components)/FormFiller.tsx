@@ -17,6 +17,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { uploadFormFile, deleteFormFile } from "../form-file-upload";
+import { DatePicker, DateRangePicker } from "@/components/ui/date-picker";
+import { TimePicker, TimeRangePicker } from "@/components/ui/time-picker";
+import {
+  DateTimePicker,
+  DateTimeRangePicker,
+} from "@/components/ui/datetime-picker";
+import { dateToUTC8String } from "@/lib/date-utils";
 
 interface FormField {
   id: string;
@@ -50,6 +57,9 @@ interface FormField {
       options?: string[];
       columns?: FormField[];
     };
+  };
+  dateTimeConfig?: {
+    allowRange?: boolean;
   };
 }
 
@@ -407,6 +417,93 @@ export function FormFiller({
             onChange={(value) => handleValueChange(fieldKey, value)}
           />
         );
+      case "date": {
+        const dateConfig = field.dateTimeConfig;
+        if (dateConfig?.allowRange) {
+          const rangeVal = formData[fieldKey];
+          return fieldWrapper(
+            field.label,
+            <DateRangePicker
+              value={
+                rangeVal
+                  ? {
+                      from: rangeVal.from ? new Date(rangeVal.from) : undefined,
+                      to: rangeVal.to ? new Date(rangeVal.to) : undefined,
+                    }
+                  : undefined
+              }
+              onChange={(range) =>
+                handleValueChange(
+                  fieldKey,
+                  range
+                    ? {
+                        from: range.from
+                          ? dateToUTC8String(range.from)
+                          : undefined,
+                        to: range.to ? dateToUTC8String(range.to) : undefined,
+                      }
+                    : null,
+                )
+              }
+            />,
+          );
+        }
+        return fieldWrapper(
+          field.label,
+          <DatePicker
+            value={
+              formData[fieldKey] ? new Date(formData[fieldKey]) : undefined
+            }
+            onChange={(date) =>
+              handleValueChange(fieldKey, date ? dateToUTC8String(date) : null)
+            }
+            placeholder={field.placeholder || "Pick a date"}
+          />,
+        );
+      }
+
+      case "time": {
+        const timeConfig = field.dateTimeConfig;
+        if (timeConfig?.allowRange) {
+          return fieldWrapper(
+            field.label,
+            <TimeRangePicker
+              value={formData[fieldKey] || undefined}
+              onChange={(range) => handleValueChange(fieldKey, range || null)}
+            />,
+          );
+        }
+        return fieldWrapper(
+          field.label,
+          <TimePicker
+            value={formData[fieldKey] || undefined}
+            onChange={(time) => handleValueChange(fieldKey, time || null)}
+            placeholder={field.placeholder || "Pick a time"}
+          />,
+        );
+      }
+
+      case "datetime": {
+        const dtConfig = field.dateTimeConfig;
+        if (dtConfig?.allowRange) {
+          return fieldWrapper(
+            field.label,
+            <DateTimeRangePicker
+              value={formData[fieldKey] || undefined}
+              onChange={(range) => handleValueChange(fieldKey, range || null)}
+            />,
+          );
+        }
+        return fieldWrapper(
+          field.label,
+          <DateTimePicker
+            value={formData[fieldKey] || undefined}
+            onChange={(dt) => handleValueChange(fieldKey, dt || null)}
+            placeholder={field.placeholder || "Pick date & time"}
+          />,
+        );
+      }
+
       case "file-upload":
         const fileData = formData[fieldKey];
         const isUploading = uploadingFields.has(fieldKey);

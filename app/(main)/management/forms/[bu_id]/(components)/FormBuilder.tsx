@@ -18,6 +18,9 @@ import {
   CheckSquare,
   Table,
   ArrowRightLeft,
+  CalendarIcon,
+  Clock,
+  CalendarClock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,7 +43,10 @@ export type FieldType =
   | "checkbox"
   | "repeater"
   | "grid-table"
-  | "file-upload";
+  | "file-upload"
+  | "date"
+  | "time"
+  | "datetime";
 
 export type GridCellType =
   | "short-text"
@@ -72,6 +78,10 @@ export interface NumberFieldConfig {
   max?: number; // Maximum value (for max/range validation)
 }
 
+export interface DateTimeFieldConfig {
+  allowRange?: boolean; // If true, user can pick a range instead of single value
+}
+
 export interface FormField {
   id: string;
   type: FieldType;
@@ -82,6 +92,7 @@ export interface FormField {
   columns?: FormField[]; // For repeater fields
   gridConfig?: GridTableConfig; // For grid-table fields
   numberConfig?: NumberFieldConfig; // For number fields
+  dateTimeConfig?: DateTimeFieldConfig; // For date, time, datetime fields
 }
 
 export interface Form {
@@ -109,6 +120,9 @@ const fieldTypeDisplay: Record<FieldType, string> = {
   repeater: "Repeater",
   "grid-table": "Grid Table",
   "file-upload": "File Upload",
+  date: "Date Picker",
+  time: "Time Picker",
+  datetime: "Date & Time",
 };
 
 const columnFieldTypes: FieldType[] = [
@@ -118,6 +132,9 @@ const columnFieldTypes: FieldType[] = [
   "radio",
   "checkbox",
   "file-upload",
+  "date",
+  "time",
+  "datetime",
 ];
 
 // --- MAIN BUILDER COMPONENT ---
@@ -152,6 +169,9 @@ export function FormBuilder({ fields, setFields }: FormBuilderProps) {
     if (type === "radio" || type === "checkbox")
       newField.options = ["Option 1"];
     if (type === "repeater") newField.columns = [];
+    if (type === "date" || type === "time" || type === "datetime") {
+      newField.dateTimeConfig = { allowRange: false };
+    }
     if (type === "grid-table") {
       newField.gridConfig = {
         rows: ["Row 1"],
@@ -1310,6 +1330,111 @@ function SortableFieldCard({
           </div>
         );
 
+      case "date": {
+        const dtConfig = field.dateTimeConfig || { allowRange: false };
+        return (
+          <div className="space-y-4">
+            <div className="border-border bg-muted mt-2 flex items-center gap-2 rounded-lg border p-4">
+              <CalendarIcon className="text-muted-foreground h-4 w-4" />
+              <span className="text-muted-foreground text-sm">
+                {dtConfig.allowRange
+                  ? "Date range picker"
+                  : "Single date picker"}
+              </span>
+            </div>
+            <div className="space-y-3 rounded-md border bg-gray-50 p-3">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id={`allow-range-${field.id}`}
+                  checked={dtConfig.allowRange === true}
+                  onCheckedChange={(checked) =>
+                    onUpdate(field.id, {
+                      dateTimeConfig: { ...dtConfig, allowRange: checked },
+                    })
+                  }
+                />
+                <Label
+                  htmlFor={`allow-range-${field.id}`}
+                  className="text-sm font-normal"
+                >
+                  Allow Date Range
+                </Label>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      case "time": {
+        const dtConfig = field.dateTimeConfig || { allowRange: false };
+        return (
+          <div className="space-y-4">
+            <div className="border-border bg-muted mt-2 flex items-center gap-2 rounded-lg border p-4">
+              <Clock className="text-muted-foreground h-4 w-4" />
+              <span className="text-muted-foreground text-sm">
+                {dtConfig.allowRange
+                  ? "Time range picker"
+                  : "Single time picker"}
+              </span>
+            </div>
+            <div className="space-y-3 rounded-md border bg-gray-50 p-3">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id={`allow-range-${field.id}`}
+                  checked={dtConfig.allowRange === true}
+                  onCheckedChange={(checked) =>
+                    onUpdate(field.id, {
+                      dateTimeConfig: { ...dtConfig, allowRange: checked },
+                    })
+                  }
+                />
+                <Label
+                  htmlFor={`allow-range-${field.id}`}
+                  className="text-sm font-normal"
+                >
+                  Allow Time Range
+                </Label>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      case "datetime": {
+        const dtConfig = field.dateTimeConfig || { allowRange: false };
+        return (
+          <div className="space-y-4">
+            <div className="border-border bg-muted mt-2 flex items-center gap-2 rounded-lg border p-4">
+              <CalendarClock className="text-muted-foreground h-4 w-4" />
+              <span className="text-muted-foreground text-sm">
+                {dtConfig.allowRange
+                  ? "Date & time range picker"
+                  : "Single date & time picker"}
+              </span>
+            </div>
+            <div className="space-y-3 rounded-md border bg-gray-50 p-3">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id={`allow-range-${field.id}`}
+                  checked={dtConfig.allowRange === true}
+                  onCheckedChange={(checked) =>
+                    onUpdate(field.id, {
+                      dateTimeConfig: { ...dtConfig, allowRange: checked },
+                    })
+                  }
+                />
+                <Label
+                  htmlFor={`allow-range-${field.id}`}
+                  className="text-sm font-normal"
+                >
+                  Allow Date & Time Range
+                </Label>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       case "file-upload":
         return (
           <div className="border-border bg-muted mt-2 flex items-center justify-center rounded-lg border p-4">
@@ -1597,6 +1722,54 @@ function ColumnField({
             </div>
           </div>
         );
+      case "date":
+      case "time":
+      case "datetime": {
+        const dtConfig = field.dateTimeConfig || { allowRange: false };
+        const typeLabel =
+          field.type === "date"
+            ? "Date"
+            : field.type === "time"
+              ? "Time"
+              : "Date & Time";
+        const TypeIcon =
+          field.type === "date"
+            ? CalendarIcon
+            : field.type === "time"
+              ? Clock
+              : CalendarClock;
+        return (
+          <div className="mt-3 space-y-3 border-t pt-3">
+            <div className="border-border bg-muted flex items-center gap-2 rounded-lg border p-2">
+              <TypeIcon className="text-muted-foreground h-3 w-3" />
+              <span className="text-muted-foreground text-xs">
+                {dtConfig.allowRange
+                  ? `${typeLabel} range`
+                  : `Single ${typeLabel.toLowerCase()}`}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id={`allow-range-col-${field.id}`}
+                checked={dtConfig.allowRange === true}
+                onCheckedChange={(checked) =>
+                  onUpdate(
+                    field.id,
+                    { dateTimeConfig: { ...dtConfig, allowRange: checked } },
+                    parentId,
+                  )
+                }
+              />
+              <Label
+                htmlFor={`allow-range-col-${field.id}`}
+                className="text-xs font-normal"
+              >
+                Allow Range
+              </Label>
+            </div>
+          </div>
+        );
+      }
       default:
         return null;
     }

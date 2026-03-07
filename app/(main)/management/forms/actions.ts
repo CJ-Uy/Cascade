@@ -239,6 +239,16 @@ async function upsertField(
     fieldData.field_config = field.numberConfig;
   }
 
+  // Store dateTimeConfig for date/time/datetime fields
+  if (
+    (field.type === "date" ||
+      field.type === "time" ||
+      field.type === "datetime") &&
+    field.dateTimeConfig
+  ) {
+    fieldData.field_config = field.dateTimeConfig;
+  }
+
   const { data: dbField, error: fieldError } = await supabase
     .from("form_fields")
     .upsert(fieldData, { onConflict: isNewField ? "form_id, field_key" : "id" })

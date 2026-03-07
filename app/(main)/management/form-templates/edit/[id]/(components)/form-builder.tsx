@@ -38,15 +38,21 @@ const mapDbFieldTypeToFormBuilderFieldType = (dbType: string): FieldType => {
     case "number":
       return "number";
     case "select":
-      return "radio"; // Assuming select maps to radio for simplicity in this builder
+      return "radio";
     case "checkbox":
       return "checkbox";
     case "table":
-      return "table";
+      return "table" as FieldType;
     case "file-upload":
       return "file-upload";
+    case "date":
+      return "date";
+    case "time":
+      return "time";
+    case "datetime":
+      return "datetime";
     default:
-      return "short-text"; // Default to short-text or handle error
+      return "short-text";
   }
 };
 
@@ -60,15 +66,21 @@ const mapFormBuilderFieldTypeToDbFieldType = (fbType: FieldType): string => {
     case "number":
       return "number";
     case "radio":
-      return "select"; // Assuming radio maps to select in db
+      return "select";
     case "checkbox":
       return "checkbox";
-    case "table":
+    case "table" as FieldType:
       return "table";
     case "file-upload":
       return "file-upload";
+    case "date":
+      return "date";
+    case "time":
+      return "time";
+    case "datetime":
+      return "datetime";
     default:
-      return "text"; // Default to text
+      return "text";
   }
 };
 
@@ -93,7 +105,15 @@ const mapDbFieldToFormBuilderField = (
     formField.columns = allDbFields
       .filter((f) => f.parent_list_field_id === dbField.id)
       .sort((a, b) => a.order - b.order)
-      .map((col) => mapDbFieldToFormBuilderField(col, allDbFields)); // Recursive call for nested columns
+      .map((col) => mapDbFieldToFormBuilderField(col, allDbFields));
+  }
+
+  if (
+    dbField.field_type === "date" ||
+    dbField.field_type === "time" ||
+    dbField.field_type === "datetime"
+  ) {
+    formField.dateTimeConfig = dbField.field_config || { allowRange: false };
   }
 
   return formField;

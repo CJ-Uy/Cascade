@@ -104,6 +104,16 @@ export function FormActions({
             field.numberConfig || field.field_config;
         }
 
+        // Add dateTimeConfig for date/time/datetime fields
+        const dtType = field.type || field.field_type;
+        if (
+          (dtType === "date" || dtType === "time" || dtType === "datetime") &&
+          (field.dateTimeConfig || field.field_config)
+        ) {
+          transformedField.dateTimeConfig =
+            field.dateTimeConfig || field.field_config;
+        }
+
         return transformedField;
       });
     };

@@ -205,6 +205,17 @@ export default async function FillRequestFormPage({
             field_config;
         }
 
+        // Set dateTimeConfig for date/time/datetime fields
+        if (
+          (field.field_type === "date" ||
+            field.field_type === "time" ||
+            field.field_type === "datetime") &&
+          field_config
+        ) {
+          (transformedField as Record<string, unknown>).dateTimeConfig =
+            field_config;
+        }
+
         return [field.id, transformedField];
       }),
     );

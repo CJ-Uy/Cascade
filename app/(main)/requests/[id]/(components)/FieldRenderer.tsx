@@ -17,8 +17,12 @@ import {
   FileText,
   Download,
   Image as ImageIcon,
+  CalendarIcon,
+  Clock,
+  CalendarClock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { format } from "date-fns";
 
 interface FieldRendererProps {
   field: any;
@@ -204,7 +208,7 @@ export function FieldRenderer({
                       <TableCell className="bg-muted/50 font-semibold">
                         {row}
                       </TableCell>
-                      {columns.map((_, colIndex: number) => {
+                      {columns.map((_: string, colIndex: number) => {
                         const cellKey = `${rowIndex}-${colIndex}`;
                         const cellValue = value[cellKey];
                         return (
@@ -224,6 +228,114 @@ export function FieldRenderer({
           </CardContent>
         </Card>
       );
+
+    case "date": {
+      // Range value
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        (value.from || value.to)
+      ) {
+        const from = value.from ? format(new Date(value.from), "PPP") : "—";
+        const to = value.to ? format(new Date(value.to), "PPP") : "—";
+        return (
+          <div className="flex items-center gap-2 text-sm">
+            <CalendarIcon className="text-muted-foreground h-4 w-4" />
+            <span>{from}</span>
+            <span className="text-muted-foreground">–</span>
+            <span>{to}</span>
+          </div>
+        );
+      }
+      // Single date
+      return (
+        <div className="flex items-center gap-2 text-sm">
+          <CalendarIcon className="text-muted-foreground h-4 w-4" />
+          <span>{format(new Date(value), "PPP")}</span>
+        </div>
+      );
+    }
+
+    case "time": {
+      const fmt12h = (time: string) => {
+        const [h, m] = time.split(":");
+        const hour = parseInt(h, 10);
+        const ampm = hour >= 12 ? "PM" : "AM";
+        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+        return `${displayHour}:${m} ${ampm}`;
+      };
+
+      // Range value
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        (value.from || value.to)
+      ) {
+        const from = value.from ? fmt12h(value.from) : "—";
+        const to = value.to ? fmt12h(value.to) : "—";
+        return (
+          <div className="flex items-center gap-2 text-sm">
+            <Clock className="text-muted-foreground h-4 w-4" />
+            <span>{from}</span>
+            <span className="text-muted-foreground">–</span>
+            <span>{to}</span>
+          </div>
+        );
+      }
+      // Single time
+      return (
+        <div className="flex items-center gap-2 text-sm">
+          <Clock className="text-muted-foreground h-4 w-4" />
+          <span>{fmt12h(String(value))}</span>
+        </div>
+      );
+    }
+
+    case "datetime": {
+      const fmtDt = (iso: string) => {
+        const d = new Date(iso);
+        const h = d.getHours();
+        const m = d.getMinutes().toString().padStart(2, "0");
+        const ampm = h >= 12 ? "PM" : "AM";
+        const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+        return `${format(d, "PPP")} at ${displayHour}:${m} ${ampm}`;
+      };
+
+      // Range value
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        (value.from || value.to)
+      ) {
+        const from = value.from ? fmtDt(value.from) : "—";
+        const to = value.to ? fmtDt(value.to) : "—";
+        return (
+          <div className="flex flex-col gap-1 text-sm">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="text-muted-foreground h-4 w-4" />
+              <span className="text-muted-foreground text-xs font-medium">
+                From:
+              </span>
+              <span>{from}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CalendarClock className="text-muted-foreground h-4 w-4" />
+              <span className="text-muted-foreground text-xs font-medium">
+                To:
+              </span>
+              <span>{to}</span>
+            </div>
+          </div>
+        );
+      }
+      // Single datetime
+      return (
+        <div className="flex items-center gap-2 text-sm">
+          <CalendarClock className="text-muted-foreground h-4 w-4" />
+          <span>{fmtDt(String(value))}</span>
+        </div>
+      );
+    }
 
     case "file-upload":
       // Check for file metadata object (new format with storage_path)
@@ -425,6 +537,59 @@ function RepeaterCellRenderer({ column, value }: { column: any; value: any }) {
       }
       return <span className="text-sm">{String(value)}</span>;
 
+    case "date":
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        (value.from || value.to)
+      ) {
+        const from = value.from ? format(new Date(value.from), "PP") : "—";
+        const to = value.to ? format(new Date(value.to), "PP") : "—";
+        return (
+          <span className="text-xs">
+            {from} – {to}
+          </span>
+        );
+      }
+      return <span className="text-xs">{format(new Date(value), "PP")}</span>;
+
+    case "time": {
+      const fmt = (t: string) => {
+        const [h, m] = t.split(":");
+        const hr = parseInt(h, 10);
+        return `${hr === 0 ? 12 : hr > 12 ? hr - 12 : hr}:${m} ${hr >= 12 ? "PM" : "AM"}`;
+      };
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        (value.from || value.to)
+      ) {
+        return (
+          <span className="text-xs">
+            {value.from ? fmt(value.from) : "—"} –{" "}
+            {value.to ? fmt(value.to) : "—"}
+          </span>
+        );
+      }
+      return <span className="text-xs">{fmt(String(value))}</span>;
+    }
+
+    case "datetime":
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        (value.from || value.to)
+      ) {
+        const fmtDt = (iso: string) => format(new Date(iso), "PP p");
+        return (
+          <span className="text-xs">
+            {value.from ? fmtDt(value.from) : "—"} –{" "}
+            {value.to ? fmtDt(value.to) : "—"}
+          </span>
+        );
+      }
+      return <span className="text-xs">{format(new Date(value), "PP p")}</span>;
+
     default:
       return <span className="text-sm">{String(value)}</span>;
   }
@@ -565,6 +730,59 @@ function GridCellRenderer({
           ))}
         </div>
       );
+
+    case "date":
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        (value.from || value.to)
+      ) {
+        const from = value.from ? format(new Date(value.from), "PP") : "—";
+        const to = value.to ? format(new Date(value.to), "PP") : "—";
+        return (
+          <span className="text-xs">
+            {from} – {to}
+          </span>
+        );
+      }
+      return <span className="text-xs">{format(new Date(value), "PP")}</span>;
+
+    case "time": {
+      const fmtTime = (t: string) => {
+        const [h, m] = t.split(":");
+        const hr = parseInt(h, 10);
+        return `${hr === 0 ? 12 : hr > 12 ? hr - 12 : hr}:${m} ${hr >= 12 ? "PM" : "AM"}`;
+      };
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        (value.from || value.to)
+      ) {
+        return (
+          <span className="text-xs">
+            {value.from ? fmtTime(value.from) : "—"} –{" "}
+            {value.to ? fmtTime(value.to) : "—"}
+          </span>
+        );
+      }
+      return <span className="text-xs">{fmtTime(String(value))}</span>;
+    }
+
+    case "datetime":
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        (value.from || value.to)
+      ) {
+        const fmtDt = (iso: string) => format(new Date(iso), "PP p");
+        return (
+          <span className="text-xs">
+            {value.from ? fmtDt(value.from) : "—"} –{" "}
+            {value.to ? fmtDt(value.to) : "—"}
+          </span>
+        );
+      }
+      return <span className="text-xs">{format(new Date(value), "PP p")}</span>;
 
     default:
       if (typeof value === "object") {

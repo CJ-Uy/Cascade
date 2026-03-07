@@ -9,6 +9,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Table } from "lucide-react";
+import { DatePicker, DateRangePicker } from "@/components/ui/date-picker";
+import { TimePicker, TimeRangePicker } from "@/components/ui/time-picker";
+import {
+  DateTimePicker,
+  DateTimeRangePicker,
+} from "@/components/ui/datetime-picker";
+import { dateToUTC8String } from "@/lib/date-utils";
 
 interface FormPreviewProps {
   name: string;
@@ -245,6 +252,90 @@ export function FormPreview({
             onChange={(value) => handleValueChange(field.id, value)}
           />
         );
+      case "date": {
+        const dateConfig = field.dateTimeConfig;
+        if (dateConfig?.allowRange) {
+          const rangeVal = formData[field.id];
+          return fieldWrapper(
+            field.label,
+            <DateRangePicker
+              value={
+                rangeVal
+                  ? {
+                      from: rangeVal.from ? new Date(rangeVal.from) : undefined,
+                      to: rangeVal.to ? new Date(rangeVal.to) : undefined,
+                    }
+                  : undefined
+              }
+              onChange={(range) =>
+                handleValueChange(
+                  field.id,
+                  range
+                    ? {
+                        from: range.from
+                          ? dateToUTC8String(range.from)
+                          : undefined,
+                        to: range.to ? dateToUTC8String(range.to) : undefined,
+                      }
+                    : null,
+                )
+              }
+            />,
+          );
+        }
+        return fieldWrapper(
+          field.label,
+          <DatePicker
+            value={
+              formData[field.id] ? new Date(formData[field.id]) : undefined
+            }
+            onChange={(date) =>
+              handleValueChange(field.id, date ? dateToUTC8String(date) : null)
+            }
+          />,
+        );
+      }
+
+      case "time": {
+        const timeConfig = field.dateTimeConfig;
+        if (timeConfig?.allowRange) {
+          return fieldWrapper(
+            field.label,
+            <TimeRangePicker
+              value={formData[field.id] || undefined}
+              onChange={(range) => handleValueChange(field.id, range || null)}
+            />,
+          );
+        }
+        return fieldWrapper(
+          field.label,
+          <TimePicker
+            value={formData[field.id] || undefined}
+            onChange={(time) => handleValueChange(field.id, time || null)}
+          />,
+        );
+      }
+
+      case "datetime": {
+        const dtConfig = field.dateTimeConfig;
+        if (dtConfig?.allowRange) {
+          return fieldWrapper(
+            field.label,
+            <DateTimeRangePicker
+              value={formData[field.id] || undefined}
+              onChange={(range) => handleValueChange(field.id, range || null)}
+            />,
+          );
+        }
+        return fieldWrapper(
+          field.label,
+          <DateTimePicker
+            value={formData[field.id] || undefined}
+            onChange={(dt) => handleValueChange(field.id, dt || null)}
+          />,
+        );
+      }
+
       case "file-upload":
         const fileName = formData[field.id]
           ? formData[field.id].name
