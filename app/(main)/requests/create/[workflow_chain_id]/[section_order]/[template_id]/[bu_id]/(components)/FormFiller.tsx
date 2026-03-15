@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,10 @@ import {
   X,
   FileText,
   Image as ImageIcon,
+  ChevronsUpDown,
+  Check,
+  Info,
+  Calculator,
 } from "lucide-react";
 import { toast } from "sonner";
 import { uploadFormFile, deleteFormFile } from "../form-file-upload";
@@ -24,6 +28,21 @@ import {
   DateTimeRangePicker,
 } from "@/components/ui/datetime-picker";
 import { dateToUTC8String } from "@/lib/date-utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface FormField {
   id: string;
@@ -57,6 +76,20 @@ interface FormField {
       options?: string[];
       columns?: FormField[];
     };
+    columnConfigs?: {
+      type: string;
+      options?: string[];
+      columns?: FormField[];
+      numberConfig?: {
+        wholeNumbersOnly?: boolean;
+        allowNegative?: boolean;
+        validationType?: "none" | "min" | "max" | "range";
+        min?: number;
+        max?: number;
+      };
+      formula?: string;
+    }[];
+    cellDirections?: string;
   };
   dateTimeConfig?: {
     allowRange?: boolean;
@@ -399,6 +432,15 @@ export function FormFiller({
               </div>
             ))}
           </div>,
+        );
+      case "select":
+        return (
+          <SearchableSelect
+            field={field}
+            fieldKey={fieldKey}
+            value={formData[fieldKey] || ""}
+            onChange={(val) => handleValueChange(fieldKey, val)}
+          />
         );
       case "table":
       case "repeater":
@@ -848,6 +890,15 @@ function ColumnPreview({
           ))}
         </div>,
       );
+    case "select":
+      return (
+        <SearchableSelect
+          field={column as any}
+          fieldKey={colKey}
+          value={value || ""}
+          onChange={onChange}
+        />
+      );
     case "file-upload":
       const fileData = value;
       const isImage = fileData?.filetype?.startsWith("image/");
@@ -901,6 +952,304 @@ function ColumnPreview({
   }
 }
 
+function SearchableSelect({
+  field,
+  fieldKey,
+  value,
+  onChange,
+}: {
+  field: FormField;
+  fieldKey: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const options = (field.options || []).filter((o) => o.trim());
+
+  return (
+    <div className="mb-6">
+      <div className="mb-2 flex items-center justify-between">
+        <Label htmlFor={fieldKey} className="text-md block font-medium">
+          {field.label}{" "}
+          {field.required && <span className="text-red-500">*</span>}
+        </Label>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="text-muted-foreground hover:text-foreground text-xs underline"
+          >
+            Clear selection
+          </button>
+        )}
+      </div>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between font-normal"
+          >
+            {value ? (
+              <span className="truncate">{value}</span>
+            ) : (
+              <span className="text-muted-foreground">
+                {field.placeholder || "Search and select..."}
+              </span>
+            )}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-[var(--radix-popover-trigger-width)] p-0"
+          align="start"
+        >
+          <Command>
+            <CommandInput placeholder="Type to search..." />
+            <CommandList>
+              <CommandEmpty>No option found.</CommandEmpty>
+              <CommandGroup>
+                {options.map((opt) => (
+                  <CommandItem
+                    key={opt}
+                    value={opt}
+                    onSelect={() => {
+                      onChange(opt === value ? "" : opt);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === opt ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    {opt}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+// --- FORMULA ENGINE ---
+
+function evaluateFormula(
+  formula: string,
+  rowIndex: number,
+  value: Record<string, any>,
+  columns: string[],
+  columnConfigs: any[],
+  cellConfig: any,
+): string | number {
+  if (!formula || !formula.startsWith("=")) return "";
+
+  const expr = formula.slice(1).trim();
+
+  // Build a map of column name -> column index
+  const colIndexMap: Record<string, number> = {};
+  columns.forEach((col, i) => {
+    colIndexMap[col] = i;
+  });
+
+  // Check if it's a SUM() or CONCAT() function
+  const sumMatch = expr.match(/^SUM\((.+)\)$/i);
+  const concatMatch = expr.match(/^CONCAT\((.+)\)$/i);
+
+  if (concatMatch) {
+    const args = splitFormulaArgs(concatMatch[1]);
+    const parts = args.map((arg) => {
+      const trimmed = arg.trim();
+      // String literal
+      if (
+        (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+        (trimmed.startsWith("'") && trimmed.endsWith("'"))
+      ) {
+        return trimmed.slice(1, -1);
+      }
+      return String(
+        resolveRef(
+          trimmed,
+          rowIndex,
+          value,
+          colIndexMap,
+          columnConfigs,
+          cellConfig,
+        ) ?? "",
+      );
+    });
+    return parts.join("");
+  }
+
+  if (sumMatch) {
+    const inner = sumMatch[1].trim();
+    // SUM({Col}.field * {Col}.field) — row-wise multiply then sum from repeater
+    const mulMatch = inner.match(/^\{(.+?)\}\.(\w+)\s*\*\s*\{(.+?)\}\.(\w+)$/);
+    if (mulMatch) {
+      const [, col1, field1, col2, field2] = mulMatch;
+      const idx1 = colIndexMap[col1];
+      const idx2 = colIndexMap[col2];
+      if (idx1 === undefined || idx2 === undefined) return "REF?";
+      const cellKey1 = `${rowIndex}-${idx1}`;
+      const cellKey2 = `${rowIndex}-${idx2}`;
+      const rows1 = Array.isArray(value[cellKey1]) ? value[cellKey1] : [];
+      const rows2 = Array.isArray(value[cellKey2]) ? value[cellKey2] : [];
+      // If same column, do row-wise multiply
+      if (idx1 === idx2) {
+        return rows1.reduce((sum: number, row: any) => {
+          return (
+            sum + parseFloat(row[field1] || 0) * parseFloat(row[field2] || 0)
+          );
+        }, 0);
+      }
+      // Different columns — pair by index
+      const len = Math.min(rows1.length, rows2.length);
+      let total = 0;
+      for (let i = 0; i < len; i++) {
+        total +=
+          parseFloat(rows1[i]?.[field1] || 0) *
+          parseFloat(rows2[i]?.[field2] || 0);
+      }
+      return total;
+    }
+
+    // SUM({Col}.field) — sum a repeater sub-field
+    const singleMatch = inner.match(/^\{(.+?)\}\.(\w+)$/);
+    if (singleMatch) {
+      const [, colName, fieldName] = singleMatch;
+      const idx = colIndexMap[colName];
+      if (idx === undefined) return "REF?";
+      const cellKey = `${rowIndex}-${idx}`;
+      const rows = Array.isArray(value[cellKey]) ? value[cellKey] : [];
+      return rows.reduce(
+        (sum: number, row: any) => sum + parseFloat(row[fieldName] || 0),
+        0,
+      );
+    }
+
+    return "ERR";
+  }
+
+  // Simple arithmetic: ={Col1} + {Col2}, ={Col1} * {Col2}, etc.
+  try {
+    let resolved = expr;
+    // Replace {ColName}.fieldName references
+    resolved = resolved.replace(
+      /\{(.+?)\}\.(\w+)/g,
+      (_match, colName, fieldName) => {
+        const idx = colIndexMap[colName];
+        if (idx === undefined) return "0";
+        const cellKey = `${rowIndex}-${idx}`;
+        const cellVal = value[cellKey];
+        if (Array.isArray(cellVal)) {
+          // Sum the sub-field from all repeater rows
+          return String(
+            cellVal.reduce(
+              (sum: number, row: any) => sum + parseFloat(row[fieldName] || 0),
+              0,
+            ),
+          );
+        }
+        return "0";
+      },
+    );
+    // Replace {ColName} references
+    resolved = resolved.replace(/\{(.+?)\}/g, (_match, colName) => {
+      const idx = colIndexMap[colName];
+      if (idx === undefined) return "0";
+      const cellKey = `${rowIndex}-${idx}`;
+      const cellVal = value[cellKey];
+      if (cellVal === undefined || cellVal === null || cellVal === "")
+        return "0";
+      if (typeof cellVal === "object") return "0";
+      return String(cellVal);
+    });
+    // Safely evaluate arithmetic (only numbers and operators)
+    if (/^[\d\s+\-*/().]+$/.test(resolved)) {
+      const result = Function(`"use strict"; return (${resolved})`)();
+      if (typeof result === "number" && !isNaN(result)) {
+        return Math.round(result * 100) / 100;
+      }
+    }
+    return resolved;
+  } catch {
+    return "ERR";
+  }
+}
+
+function splitFormulaArgs(str: string): string[] {
+  const args: string[] = [];
+  let depth = 0;
+  let current = "";
+  let inStr = false;
+  let strChar = "";
+  for (const ch of str) {
+    if (inStr) {
+      current += ch;
+      if (ch === strChar) inStr = false;
+    } else if (ch === '"' || ch === "'") {
+      inStr = true;
+      strChar = ch;
+      current += ch;
+    } else if (ch === "(") {
+      depth++;
+      current += ch;
+    } else if (ch === ")") {
+      depth--;
+      current += ch;
+    } else if (ch === "," && depth === 0) {
+      args.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  if (current) args.push(current);
+  return args;
+}
+
+function resolveRef(
+  ref: string,
+  rowIndex: number,
+  value: Record<string, any>,
+  colIndexMap: Record<string, number>,
+  columnConfigs: any[],
+  cellConfig: any,
+): any {
+  // {ColName}.fieldName
+  const dotMatch = ref.match(/^\{(.+?)\}\.(\w+)$/);
+  if (dotMatch) {
+    const [, colName, fieldName] = dotMatch;
+    const idx = colIndexMap[colName];
+    if (idx === undefined) return null;
+    const cellKey = `${rowIndex}-${idx}`;
+    const cellVal = value[cellKey];
+    if (Array.isArray(cellVal)) {
+      return cellVal.reduce(
+        (sum: number, row: any) => sum + parseFloat(row[fieldName] || 0),
+        0,
+      );
+    }
+    return null;
+  }
+  // {ColName}
+  const simpleMatch = ref.match(/^\{(.+?)\}$/);
+  if (simpleMatch) {
+    const idx = colIndexMap[simpleMatch[1]];
+    if (idx === undefined) return null;
+    const cellKey = `${rowIndex}-${idx}`;
+    return value[cellKey] ?? null;
+  }
+  return ref;
+}
+
+// --- GRID TABLE PREVIEW ---
+
 function GridTablePreview({
   field,
   value,
@@ -914,6 +1263,14 @@ function GridTablePreview({
   const rows = field.gridConfig?.rows || [];
   const columns = field.gridConfig?.columns || [];
   const cellConfig = field.gridConfig?.cellConfig || { type: "short-text" };
+  const columnConfigs = field.gridConfig?.columnConfigs || [];
+  const cellDirections = field.gridConfig?.cellDirections;
+
+  const getEffectiveConfig = (colIndex: number) => {
+    const cc = columnConfigs[colIndex];
+    if (cc) return cc;
+    return cellConfig;
+  };
 
   const handleCellChange = (
     rowIndex: number,
@@ -922,8 +1279,58 @@ function GridTablePreview({
   ) => {
     const cellKey = `${rowIndex}-${colIndex}`;
     const newValue = { ...value, [cellKey]: cellValue };
-    onChange(newValue);
+
+    // Also compute and store formula column values
+    const formulaUpdates: Record<string, any> = {};
+    columns.forEach((_, fColIdx) => {
+      const cc = columnConfigs[fColIdx];
+      if (cc?.type === "formula" && cc.formula) {
+        rows.forEach((_, fRowIdx) => {
+          const fCellKey = `${fRowIdx}-${fColIdx}`;
+          formulaUpdates[fCellKey] = evaluateFormula(
+            cc.formula!,
+            fRowIdx,
+            { ...newValue, ...formulaUpdates },
+            columns,
+            columnConfigs,
+            cellConfig,
+          );
+        });
+      }
+    });
+
+    onChange({ ...newValue, ...formulaUpdates });
   };
+
+  // Compute formula values on initial load
+  useEffect(() => {
+    const formulaUpdates: Record<string, any> = {};
+    let hasUpdates = false;
+    columns.forEach((_, fColIdx) => {
+      const cc = columnConfigs[fColIdx];
+      if (cc?.type === "formula" && cc.formula) {
+        rows.forEach((_, fRowIdx) => {
+          const fCellKey = `${fRowIdx}-${fColIdx}`;
+          const computed = evaluateFormula(
+            cc.formula!,
+            fRowIdx,
+            value,
+            columns,
+            columnConfigs,
+            cellConfig,
+          );
+          if (value[fCellKey] !== computed) {
+            formulaUpdates[fCellKey] = computed;
+            hasUpdates = true;
+          }
+        });
+      }
+    });
+    if (hasUpdates) {
+      onChange({ ...value, ...formulaUpdates });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCellFileUpload = async (
     rowIndex: number,
@@ -978,10 +1385,37 @@ function GridTablePreview({
   };
 
   const renderCellInput = (rowIndex: number, colIndex: number) => {
+    const effectiveConfig = getEffectiveConfig(colIndex);
     const cellKey = `${rowIndex}-${colIndex}`;
     const cellValue = value[cellKey];
 
-    switch (cellConfig.type) {
+    // Formula column — display only
+    if (effectiveConfig.type === "formula") {
+      const result = evaluateFormula(
+        (effectiveConfig as any).formula || "",
+        rowIndex,
+        value,
+        columns,
+        columnConfigs,
+        cellConfig,
+      );
+      return (
+        <div className="flex items-center gap-1.5 px-2 py-1.5">
+          <Calculator className="text-muted-foreground h-3 w-3 shrink-0" />
+          <span className="font-medium tabular-nums">
+            {result === "" ? "—" : result}
+          </span>
+        </div>
+      );
+    }
+
+    const configType = effectiveConfig.type;
+    const configOptions = effectiveConfig.options || cellConfig.options || [];
+    const configColumns = effectiveConfig.columns || cellConfig.columns || [];
+    const numberConfig =
+      effectiveConfig.numberConfig || cellConfig.numberConfig;
+
+    switch (configType) {
       case "short-text":
         return (
           <Input
@@ -1005,52 +1439,30 @@ function GridTablePreview({
           />
         );
       case "number":
-        const numberConfig = cellConfig.numberConfig;
         const step = numberConfig?.wholeNumbersOnly === true ? "1" : "any";
-
         return (
-          <div className="space-y-1">
-            <Input
-              type="number"
-              step={step}
-              value={cellValue || ""}
-              onChange={(e) =>
-                handleCellChange(rowIndex, colIndex, e.target.value)
-              }
-              className="border-0 focus-visible:ring-1"
-              placeholder=""
-              min={
-                numberConfig?.validationType === "min" ||
-                numberConfig?.validationType === "range"
-                  ? numberConfig.min
-                  : undefined
-              }
-              max={
-                numberConfig?.validationType === "max" ||
-                numberConfig?.validationType === "range"
-                  ? numberConfig.max
-                  : undefined
-              }
-            />
-            {numberConfig && (
-              <p className="text-muted-foreground text-[10px] leading-tight">
-                {numberConfig.wholeNumbersOnly === true &&
-                  "Whole numbers only. "}
-                {numberConfig.allowNegative === false &&
-                  "Positive numbers only. "}
-                {numberConfig.validationType === "min" &&
-                  numberConfig.min !== undefined &&
-                  `Min: ${numberConfig.min}. `}
-                {numberConfig.validationType === "max" &&
-                  numberConfig.max !== undefined &&
-                  `Max: ${numberConfig.max}. `}
-                {numberConfig.validationType === "range" &&
-                  numberConfig.min !== undefined &&
-                  numberConfig.max !== undefined &&
-                  `Range: ${numberConfig.min}-${numberConfig.max}. `}
-              </p>
-            )}
-          </div>
+          <Input
+            type="number"
+            step={step}
+            value={cellValue || ""}
+            onChange={(e) =>
+              handleCellChange(rowIndex, colIndex, e.target.value)
+            }
+            className="border-0 focus-visible:ring-1"
+            placeholder=""
+            min={
+              numberConfig?.validationType === "min" ||
+              numberConfig?.validationType === "range"
+                ? numberConfig.min
+                : undefined
+            }
+            max={
+              numberConfig?.validationType === "max" ||
+              numberConfig?.validationType === "range"
+                ? numberConfig.max
+                : undefined
+            }
+          />
         );
       case "radio":
         return (
@@ -1058,7 +1470,7 @@ function GridTablePreview({
             value={cellValue || ""}
             onValueChange={(val) => handleCellChange(rowIndex, colIndex, val)}
           >
-            {(cellConfig.options || []).map((opt) => (
+            {configOptions.map((opt: string) => (
               <div key={opt} className="flex items-center space-x-2">
                 <RadioGroupItem value={opt} id={`${cellKey}-${opt}`} />
                 <Label htmlFor={`${cellKey}-${opt}`} className="text-sm">
@@ -1071,7 +1483,7 @@ function GridTablePreview({
       case "checkbox":
         return (
           <div>
-            {(cellConfig.options || []).map((opt) => (
+            {configOptions.map((opt: string) => (
               <div key={opt} className="mb-2 flex items-center space-x-2">
                 <Checkbox
                   id={`${cellKey}-${opt}`}
@@ -1089,9 +1501,8 @@ function GridTablePreview({
             ))}
           </div>
         );
-      case "file-upload":
+      case "file-upload": {
         const fileData = cellValue;
-        const cellKey = `${rowIndex}-${colIndex}`;
         const isUploadingCell = uploadingCells.has(cellKey);
         const isImage = fileData?.filetype?.startsWith("image/");
 
@@ -1137,75 +1548,130 @@ function GridTablePreview({
             )}
           </div>
         );
-      case "repeater":
+      }
+      case "repeater": {
         const repeaterRows = cellValue || [];
         return (
-          <div className="min-w-[300px] space-y-2">
+          <div className="min-w-[280px] space-y-2 p-1">
             {repeaterRows.map((row: any, rowIdx: number) => (
               <div
                 key={rowIdx}
-                className="relative space-y-2 rounded border bg-white p-2"
+                className="relative rounded-md border bg-white p-2 shadow-sm"
               >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute -top-2 -right-2 h-6 w-6"
-                  onClick={() => {
-                    const newRows = [...repeaterRows];
-                    newRows.splice(rowIdx, 1);
-                    handleCellChange(rowIndex, colIndex, newRows);
-                  }}
-                >
-                  <Trash2 className="h-3 w-3 text-red-500" />
-                </Button>
-                {(cellConfig.columns || []).map((col) => (
-                  <div key={col.id} className="space-y-1">
-                    <Label className="text-xs">{col.label}</Label>
-                    {col.type === "short-text" && (
-                      <Input
-                        value={row[col.id] || ""}
-                        onChange={(e) => {
-                          const newRows = [...repeaterRows];
-                          newRows[rowIdx] = {
-                            ...newRows[rowIdx],
-                            [col.id]: e.target.value,
-                          };
-                          handleCellChange(rowIndex, colIndex, newRows);
-                        }}
-                        className="text-xs"
-                      />
-                    )}
-                    {col.type === "number" && (
-                      <Input
-                        type="number"
-                        value={row[col.id] || ""}
-                        onChange={(e) => {
-                          const newRows = [...repeaterRows];
-                          newRows[rowIdx] = {
-                            ...newRows[rowIdx],
-                            [col.id]: e.target.value,
-                          };
-                          handleCellChange(rowIndex, colIndex, newRows);
-                        }}
-                        className="text-xs"
-                      />
-                    )}
-                    {col.type === "file-upload" && (
-                      <Input
-                        type="file"
-                        onChange={(e) => {
-                          const newRows = [...repeaterRows];
-                          newRows[rowIdx] = {
-                            ...newRows[rowIdx],
-                            [col.id]: e.target.files ? e.target.files[0] : null,
-                          };
-                          handleCellChange(rowIndex, colIndex, newRows);
-                        }}
-                        className="text-xs"
-                      />
-                    )}
-                  </div>
-                ))}
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                    Entry {rowIdx + 1}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    onClick={() => {
+                      const newRows = [...repeaterRows];
+                      newRows.splice(rowIdx, 1);
+                      handleCellChange(rowIndex, colIndex, newRows);
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3 text-red-500" />
+                  </Button>
+                </div>
+                <div className="grid gap-2">
+                  {configColumns.map((col: any) => (
+                    <div key={col.id} className="space-y-1">
+                      <Label className="text-[11px] font-medium">
+                        {col.label}
+                      </Label>
+                      {(col.type === "short-text" ||
+                        col.field_type === "short-text") && (
+                        <Input
+                          value={row[col.id] || ""}
+                          onChange={(e) => {
+                            const newRows = [...repeaterRows];
+                            newRows[rowIdx] = {
+                              ...newRows[rowIdx],
+                              [col.id]: e.target.value,
+                            };
+                            handleCellChange(rowIndex, colIndex, newRows);
+                          }}
+                          className="h-8 text-xs"
+                        />
+                      )}
+                      {(col.type === "number" ||
+                        col.field_type === "number") && (
+                        <Input
+                          type="number"
+                          step={
+                            col.numberConfig?.wholeNumbersOnly ? "1" : "any"
+                          }
+                          value={row[col.id] || ""}
+                          onChange={(e) => {
+                            const newRows = [...repeaterRows];
+                            newRows[rowIdx] = {
+                              ...newRows[rowIdx],
+                              [col.id]: e.target.value,
+                            };
+                            handleCellChange(rowIndex, colIndex, newRows);
+                          }}
+                          className="h-8 text-xs"
+                          min={
+                            col.numberConfig?.validationType === "min" ||
+                            col.numberConfig?.validationType === "range"
+                              ? col.numberConfig.min
+                              : undefined
+                          }
+                          max={
+                            col.numberConfig?.validationType === "max" ||
+                            col.numberConfig?.validationType === "range"
+                              ? col.numberConfig.max
+                              : undefined
+                          }
+                        />
+                      )}
+                      {(col.type === "file-upload" ||
+                        col.field_type === "file-upload") && (
+                        <Input
+                          type="file"
+                          onChange={(e) => {
+                            const newRows = [...repeaterRows];
+                            newRows[rowIdx] = {
+                              ...newRows[rowIdx],
+                              [col.id]: e.target.files
+                                ? e.target.files[0]
+                                : null,
+                            };
+                            handleCellChange(rowIndex, colIndex, newRows);
+                          }}
+                          className="h-8 text-xs"
+                        />
+                      )}
+                      {(col.type === "radio" ||
+                        col.type === "checkbox" ||
+                        col.type === "select") && (
+                        <select
+                          value={row[col.id] || ""}
+                          onChange={(e) => {
+                            const newRows = [...repeaterRows];
+                            newRows[rowIdx] = {
+                              ...newRows[rowIdx],
+                              [col.id]: e.target.value,
+                            };
+                            handleCellChange(rowIndex, colIndex, newRows);
+                          }}
+                          className="border-input h-8 w-full rounded-md border bg-transparent px-2 text-xs"
+                        >
+                          <option value="">Select...</option>
+                          {(col.options || [])
+                            .filter((o: string) => o.trim())
+                            .map((opt: string) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                        </select>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
             <Button
@@ -1218,10 +1684,99 @@ function GridTablePreview({
               className="w-full text-xs"
             >
               <Plus className="mr-1 h-3 w-3" />
-              Add Row
+              Add Entry
             </Button>
           </div>
         );
+      }
+      case "multi-field": {
+        const multiData = cellValue || {};
+        return (
+          <div className="min-w-[220px] space-y-2 p-1">
+            {configColumns.map((col: any) => {
+              const colType = col.type || col.field_type || "short-text";
+              return (
+                <div key={col.id} className="space-y-1">
+                  <Label className="text-[11px] font-medium">{col.label}</Label>
+                  {colType === "short-text" && (
+                    <Input
+                      value={multiData[col.id] || ""}
+                      onChange={(e) => {
+                        handleCellChange(rowIndex, colIndex, {
+                          ...multiData,
+                          [col.id]: e.target.value,
+                        });
+                      }}
+                      className="h-8 text-xs"
+                    />
+                  )}
+                  {colType === "number" && (
+                    <Input
+                      type="number"
+                      step={col.numberConfig?.wholeNumbersOnly ? "1" : "any"}
+                      value={multiData[col.id] || ""}
+                      onChange={(e) => {
+                        handleCellChange(rowIndex, colIndex, {
+                          ...multiData,
+                          [col.id]: e.target.value,
+                        });
+                      }}
+                      className="h-8 text-xs"
+                      min={
+                        col.numberConfig?.validationType === "min" ||
+                        col.numberConfig?.validationType === "range"
+                          ? col.numberConfig.min
+                          : undefined
+                      }
+                      max={
+                        col.numberConfig?.validationType === "max" ||
+                        col.numberConfig?.validationType === "range"
+                          ? col.numberConfig.max
+                          : undefined
+                      }
+                    />
+                  )}
+                  {colType === "file-upload" && (
+                    <Input
+                      type="file"
+                      onChange={(e) => {
+                        handleCellChange(rowIndex, colIndex, {
+                          ...multiData,
+                          [col.id]: e.target.files ? e.target.files[0] : null,
+                        });
+                      }}
+                      className="h-8 text-xs"
+                    />
+                  )}
+                  {(colType === "radio" ||
+                    colType === "checkbox" ||
+                    colType === "select") && (
+                    <select
+                      value={multiData[col.id] || ""}
+                      onChange={(e) => {
+                        handleCellChange(rowIndex, colIndex, {
+                          ...multiData,
+                          [col.id]: e.target.value,
+                        });
+                      }}
+                      className="border-input h-8 w-full rounded-md border bg-transparent px-2 text-xs"
+                    >
+                      <option value="">Select...</option>
+                      {(col.options || [])
+                        .filter((o: string) => o.trim())
+                        .map((opt: string) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
       default:
         return (
           <Input
@@ -1236,41 +1791,105 @@ function GridTablePreview({
     }
   };
 
+  // Build number directions string for display above table
+  const numberDirections = useMemo(() => {
+    const nc = cellConfig.numberConfig;
+    if (cellConfig.type !== "number" || !nc) return null;
+    const parts: string[] = [];
+    if (nc.wholeNumbersOnly === true) parts.push("Whole numbers only");
+    if (nc.allowNegative === false) parts.push("Positive numbers only");
+    if (nc.validationType === "min" && nc.min !== undefined)
+      parts.push(`Minimum: ${nc.min}`);
+    if (nc.validationType === "max" && nc.max !== undefined)
+      parts.push(`Maximum: ${nc.max}`);
+    if (
+      nc.validationType === "range" &&
+      nc.min !== undefined &&
+      nc.max !== undefined
+    )
+      parts.push(`Range: ${nc.min} – ${nc.max}`);
+    return parts.length > 0 ? parts.join(" · ") : null;
+  }, [cellConfig]);
+
   return (
-    <div className="mb-6 rounded-lg border border-gray-300 bg-gray-50/50 p-4 shadow-sm">
-      <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-700">
+    <div className="mb-6">
+      {/* Header */}
+      <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-gray-700">
         <Table className="h-5 w-5" />
         {field.label}
         {field.required && (
           <span className="ml-1 text-sm font-normal text-red-500">*</span>
         )}
       </h3>
-      <div className="overflow-x-auto rounded-md border bg-white shadow-sm">
+
+      {/* Directions banner */}
+      {(cellDirections || numberDirections) && (
+        <div className="mb-3 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+          <div className="space-y-0.5 text-sm text-blue-700">
+            {cellDirections && <p>{cellDirections}</p>}
+            {numberDirections && <p className="text-xs">{numberDirections}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-lg border shadow-sm">
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="border-border bg-muted/50 border p-2"></th>
-              {columns.map((col, colIndex) => (
-                <th
-                  key={colIndex}
-                  className="border-border bg-muted/50 border p-2 text-center font-semibold"
-                >
-                  {col}
-                </th>
-              ))}
+              <th className="bg-muted/70 border-b px-3 py-2.5 text-left text-xs font-semibold tracking-wider text-gray-500 uppercase"></th>
+              {columns.map((col, colIndex) => {
+                const cc = columnConfigs[colIndex];
+                const isFormula = cc?.type === "formula";
+                return (
+                  <th
+                    key={colIndex}
+                    className={cn(
+                      "border-b px-3 py-2.5 text-center text-sm font-semibold",
+                      isFormula
+                        ? "bg-blue-50/70 text-blue-700"
+                        : "bg-muted/70 text-gray-700",
+                    )}
+                  >
+                    {col}
+                    {isFormula && (
+                      <Badge
+                        variant="outline"
+                        className="ml-1.5 text-[10px] font-normal"
+                      >
+                        auto
+                      </Badge>
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
             {rows.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                <td className="border-border bg-muted/50 border p-2 font-semibold">
+              <tr
+                key={rowIndex}
+                className="transition-colors hover:bg-gray-50/50"
+              >
+                <td className="bg-muted/30 border-r border-b px-3 py-2 text-sm font-medium text-gray-700">
                   {row}
                 </td>
-                {columns.map((_, colIndex) => (
-                  <td key={colIndex} className="border-border border p-1">
-                    {renderCellInput(rowIndex, colIndex)}
-                  </td>
-                ))}
+                {columns.map((_, colIndex) => {
+                  const cc = columnConfigs[colIndex];
+                  const isFormula = cc?.type === "formula";
+                  return (
+                    <td
+                      key={colIndex}
+                      className={cn(
+                        "border-b px-1 py-0.5",
+                        isFormula ? "bg-blue-50/30" : "",
+                      )}
+                    >
+                      {renderCellInput(rowIndex, colIndex)}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

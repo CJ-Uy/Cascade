@@ -21,6 +21,10 @@ import {
   CalendarIcon,
   Clock,
   CalendarClock,
+  ChevronsUpDown,
+  Search,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,6 +45,7 @@ export type FieldType =
   | "number"
   | "radio"
   | "checkbox"
+  | "select"
   | "repeater"
   | "grid-table"
   | "file-upload"
@@ -55,7 +60,16 @@ export type GridCellType =
   | "radio"
   | "checkbox"
   | "file-upload"
-  | "repeater";
+  | "repeater"
+  | "multi-field";
+
+export interface GridColumnConfig {
+  type: GridCellType | "formula";
+  options?: string[];
+  columns?: FormField[];
+  numberConfig?: NumberFieldConfig;
+  formula?: string; // e.g., "={Col1} + {Col2}" or "=CONCAT({Col1}, {Col2})"
+}
 
 export interface GridCellConfig {
   type: GridCellType;
@@ -66,6 +80,8 @@ export interface GridCellConfig {
 
 export interface GridTableConfig {
   rows: string[]; // Row labels (e.g., ["9:00 AM", "10:00 AM"])
+  columnConfigs?: GridColumnConfig[]; // Per-column config (overrides cellConfig when present)
+  cellDirections?: string; // Directions shown above the table instead of per-cell
   columns: string[]; // Column labels (e.g., ["Monday", "Tuesday"])
   cellConfig: GridCellConfig; // Configuration for each cell
 }
@@ -117,6 +133,7 @@ const fieldTypeDisplay: Record<FieldType, string> = {
   number: "Number",
   radio: "Radio Options",
   checkbox: "Checkboxes",
+  select: "Dropdown Select",
   repeater: "Repeater",
   "grid-table": "Grid Table",
   "file-upload": "File Upload",
@@ -131,6 +148,7 @@ const columnFieldTypes: FieldType[] = [
   "number",
   "radio",
   "checkbox",
+  "select",
   "file-upload",
   "date",
   "time",
@@ -166,7 +184,7 @@ export function FormBuilder({ fields, setFields }: FormBuilderProps) {
       label: `New Question`,
       required: false,
     };
-    if (type === "radio" || type === "checkbox")
+    if (type === "radio" || type === "checkbox" || type === "select")
       newField.options = ["Option 1"];
     if (type === "repeater") newField.columns = [];
     if (type === "date" || type === "time" || type === "datetime") {
@@ -485,42 +503,40 @@ function SortableFieldCard({
         );
 
       case "radio":
-
       case "checkbox":
-        const Icon = field.type === "radio" ? Circle : CheckSquare;
-
+      case "select":
         return (
-          <div className="space-y-2">
-            {field.options?.map((option, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <Icon className="text-muted-foreground h-5 w-5" />
-
-                <Input
-                  value={option}
-                  onChange={(e) => updateOption(index, e.target.value)}
-                  className="flex-grow bg-white"
-                />
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeOption(index)}
-                >
-                  <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
-                </Button>
+          <div className="space-y-3">
+            {field.type === "select" && (
+              <div className="pointer-events-none">
+                <div className="border-input flex h-9 w-full items-center justify-between rounded-md border bg-white px-3 py-2 text-sm shadow-sm">
+                  <div className="text-muted-foreground flex items-center gap-2">
+                    <Search className="h-3.5 w-3.5" />
+                    <span>Search and select...</span>
+                  </div>
+                  <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
+                </div>
               </div>
-            ))}
-
-            <div className="flex items-center gap-2">
-              <Icon className="text-muted-foreground/50 h-5 w-5" />
-
-              <Button
-                variant="link"
-                onClick={addOption}
-                className="text-primary"
-              >
-                Add option
-              </Button>
+            )}
+            <div className="space-y-2">
+              <Label className="text-sm text-gray-600">
+                Enter each option on a new line (paste from Excel supported)
+              </Label>
+              <Textarea
+                value={(field.options || []).join("\n")}
+                onChange={(e) => {
+                  const newOptions = e.target.value.split("\n");
+                  onUpdate(field.id, { options: newOptions });
+                }}
+                placeholder={"Option 1\nOption 2\nOption 3"}
+                className="min-h-[120px] bg-white font-mono text-sm"
+              />
+              <p className="text-muted-foreground text-xs">
+                {(field.options || []).filter((o) => o.trim()).length} option(s)
+                {field.type === "select" && " — renders as searchable dropdown"}
+                {field.type === "radio" && " — renders as radio buttons"}
+                {field.type === "checkbox" && " — renders as checkboxes"}
+              </p>
             </div>
           </div>
         );
@@ -582,6 +598,28 @@ function SortableFieldCard({
           cellConfig: { type: "short-text" as GridCellType },
         };
 
+        // Ensure columnConfigs array is synced with columns length
+        const columnConfigs = gridConfig.columnConfigs || [];
+
+        const getColConfig = (colIndex: number) => {
+          return columnConfigs[colIndex] || null;
+        };
+
+        const updateColumnConfig = (
+          colIndex: number,
+          config: GridColumnConfig | null,
+        ) => {
+          const newConfigs = [...columnConfigs];
+          // Ensure array is long enough
+          while (newConfigs.length <= colIndex) {
+            newConfigs.push(null as any);
+          }
+          newConfigs[colIndex] = config as any;
+          onUpdate(field.id, {
+            gridConfig: { ...gridConfig, columnConfigs: newConfigs },
+          });
+        };
+
         const updateGridRow = (index: number, value: string) => {
           const newRows = [...gridConfig.rows];
           newRows[index] = value;
@@ -615,16 +653,54 @@ function SortableFieldCard({
             ...gridConfig.columns,
             `Column ${gridConfig.columns.length + 1}`,
           ];
+          // Also extend columnConfigs
+          const newConfigs = [...columnConfigs];
           onUpdate(field.id, {
-            gridConfig: { ...gridConfig, columns: newColumns },
+            gridConfig: {
+              ...gridConfig,
+              columns: newColumns,
+              columnConfigs: newConfigs,
+            },
           });
         };
 
         const removeGridColumn = (index: number) => {
           const newColumns = [...gridConfig.columns];
           newColumns.splice(index, 1);
+          const newConfigs = [...columnConfigs];
+          newConfigs.splice(index, 1);
           onUpdate(field.id, {
-            gridConfig: { ...gridConfig, columns: newColumns },
+            gridConfig: {
+              ...gridConfig,
+              columns: newColumns,
+              columnConfigs: newConfigs,
+            },
+          });
+        };
+
+        const moveGridRow = (fromIndex: number, toIndex: number) => {
+          if (toIndex < 0 || toIndex >= gridConfig.rows.length) return;
+          const newRows = [...gridConfig.rows];
+          const [moved] = newRows.splice(fromIndex, 1);
+          newRows.splice(toIndex, 0, moved);
+          onUpdate(field.id, { gridConfig: { ...gridConfig, rows: newRows } });
+        };
+
+        const moveGridColumn = (fromIndex: number, toIndex: number) => {
+          if (toIndex < 0 || toIndex >= gridConfig.columns.length) return;
+          const newColumns = [...gridConfig.columns];
+          const [moved] = newColumns.splice(fromIndex, 1);
+          newColumns.splice(toIndex, 0, moved);
+          // Also move columnConfigs
+          const newConfigs = [...columnConfigs];
+          const [movedConfig] = newConfigs.splice(fromIndex, 1);
+          newConfigs.splice(toIndex, 0, movedConfig);
+          onUpdate(field.id, {
+            gridConfig: {
+              ...gridConfig,
+              columns: newColumns,
+              columnConfigs: newConfigs,
+            },
           });
         };
 
@@ -634,6 +710,7 @@ function SortableFieldCard({
               ...gridConfig,
               rows: gridConfig.columns,
               columns: gridConfig.rows,
+              columnConfigs: undefined,
             },
           });
         };
@@ -645,38 +722,44 @@ function SortableFieldCard({
                 <Table className="h-5 w-5" />
                 <h3 className="text-base font-semibold">Grid Table</h3>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={swapRowsAndColumns}
+                className="bg-white text-gray-700 hover:bg-gray-50"
+                title="Swap rows and columns"
+              >
+                <ArrowRightLeft className="mr-1 h-4 w-4" />
+                Swap Rows/Cols
+              </Button>
             </div>
 
             <p className="text-sm text-gray-600">
-              Define rows and columns for a grid. Users will fill in each cell.
+              Define rows and columns for a grid. Each column can have its own
+              input type, or use a shared default.
             </p>
 
-            {/* Cell configuration */}
+            {/* Default cell configuration */}
             <div className="space-y-4 rounded-md border border-gray-300 bg-white p-4">
               <Label className="text-sm font-semibold text-gray-700">
-                Cell Input Type
+                Default Cell Input Type
               </Label>
+              <p className="text-muted-foreground -mt-2 text-xs">
+                Applies to columns without a specific override
+              </p>
               <select
                 value={gridConfig.cellConfig.type}
                 onChange={(e) => {
                   const newType = e.target.value as GridCellType;
                   const newCellConfig: GridCellConfig = { type: newType };
-
-                  // Initialize options for radio/checkbox
                   if (newType === "radio" || newType === "checkbox") {
                     newCellConfig.options = ["Option 1"];
                   }
-
-                  // Initialize columns for repeater
-                  if (newType === "repeater") {
+                  if (newType === "repeater" || newType === "multi-field") {
                     newCellConfig.columns = [];
                   }
-
                   onUpdate(field.id, {
-                    gridConfig: {
-                      ...gridConfig,
-                      cellConfig: newCellConfig,
-                    },
+                    gridConfig: { ...gridConfig, cellConfig: newCellConfig },
                   });
                 }}
                 className="border-input w-full rounded-md border bg-white px-3 py-2 text-sm"
@@ -687,418 +770,105 @@ function SortableFieldCard({
                 <option value="radio">Radio Buttons</option>
                 <option value="checkbox">Checkboxes</option>
                 <option value="file-upload">File Upload</option>
+                <option value="multi-field">Multi-Field (Fixed inputs)</option>
                 <option value="repeater">Repeater (Multi-row)</option>
               </select>
 
-              {/* Options editor for radio/checkbox */}
+              {/* Options editor for radio/checkbox (default) */}
               {(gridConfig.cellConfig.type === "radio" ||
                 gridConfig.cellConfig.type === "checkbox") && (
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-gray-700">
-                    Options
+                    Options (one per line)
                   </Label>
-                  {(gridConfig.cellConfig.options || []).map((opt, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Input
-                        value={opt}
-                        onChange={(e) => {
-                          const newOptions = [
-                            ...(gridConfig.cellConfig.options || []),
-                          ];
-                          newOptions[index] = e.target.value;
-                          onUpdate(field.id, {
-                            gridConfig: {
-                              ...gridConfig,
-                              cellConfig: {
-                                ...gridConfig.cellConfig,
-                                options: newOptions,
-                              },
-                            },
-                          });
-                        }}
-                        placeholder={`Option ${index + 1}`}
-                        className="flex-grow bg-white text-sm"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          const newOptions = [
-                            ...(gridConfig.cellConfig.options || []),
-                          ];
-                          newOptions.splice(index, 1);
-                          onUpdate(field.id, {
-                            gridConfig: {
-                              ...gridConfig,
-                              cellConfig: {
-                                ...gridConfig.cellConfig,
-                                options: newOptions,
-                              },
-                            },
-                          });
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3 text-red-400" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const newOptions = [
-                        ...(gridConfig.cellConfig.options || []),
-                        `Option ${(gridConfig.cellConfig.options || []).length + 1}`,
-                      ];
+                  <Textarea
+                    value={(gridConfig.cellConfig.options || []).join("\n")}
+                    onChange={(e) => {
                       onUpdate(field.id, {
                         gridConfig: {
                           ...gridConfig,
                           cellConfig: {
                             ...gridConfig.cellConfig,
-                            options: newOptions,
+                            options: e.target.value.split("\n"),
                           },
                         },
                       });
                     }}
-                    className="bg-white text-xs"
-                  >
-                    <Plus className="mr-1 h-3 w-3" />
-                    Add Option
-                  </Button>
+                    placeholder={"Option 1\nOption 2\nOption 3"}
+                    className="min-h-[80px] bg-white font-mono text-sm"
+                  />
                 </div>
               )}
 
-              {/* Number configuration editor */}
+              {/* Number configuration for default */}
               {gridConfig.cellConfig.type === "number" && (
-                <div className="space-y-3">
-                  <Label className="text-xs font-semibold text-gray-700">
-                    Number Settings
-                  </Label>
-
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id={`whole-numbers-grid-${field.id}`}
-                      checked={
-                        gridConfig.cellConfig.numberConfig?.wholeNumbersOnly ===
-                        true
-                      }
-                      onCheckedChange={(checked) => {
-                        const currentConfig = gridConfig.cellConfig
-                          .numberConfig || {
-                          wholeNumbersOnly: false,
-                          allowNegative: true,
-                          validationType: "none",
-                        };
-                        onUpdate(field.id, {
-                          gridConfig: {
-                            ...gridConfig,
-                            cellConfig: {
-                              ...gridConfig.cellConfig,
-                              numberConfig: {
-                                ...currentConfig,
-                                wholeNumbersOnly: checked,
-                              },
-                            },
-                          },
-                        });
-                      }}
-                    />
-                    <Label
-                      htmlFor={`whole-numbers-grid-${field.id}`}
-                      className="text-xs"
-                    >
-                      Whole Numbers Only
-                    </Label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id={`allow-negative-grid-${field.id}`}
-                      checked={
-                        gridConfig.cellConfig.numberConfig?.allowNegative !==
-                        false
-                      }
-                      onCheckedChange={(checked) => {
-                        const currentConfig = gridConfig.cellConfig
-                          .numberConfig || {
-                          wholeNumbersOnly: false,
-                          allowNegative: true,
-                          validationType: "none",
-                        };
-                        onUpdate(field.id, {
-                          gridConfig: {
-                            ...gridConfig,
-                            cellConfig: {
-                              ...gridConfig.cellConfig,
-                              numberConfig: {
-                                ...currentConfig,
-                                allowNegative: checked,
-                              },
-                            },
-                          },
-                        });
-                      }}
-                    />
-                    <Label
-                      htmlFor={`allow-negative-grid-${field.id}`}
-                      className="text-xs"
-                    >
-                      Allow Negative
-                    </Label>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium">Validation</Label>
-                    <Select
-                      value={
-                        gridConfig.cellConfig.numberConfig?.validationType ||
-                        "none"
-                      }
-                      onValueChange={(
-                        value: "none" | "min" | "max" | "range",
-                      ) => {
-                        const currentConfig = gridConfig.cellConfig
-                          .numberConfig || {
-                          wholeNumbersOnly: false,
-                          allowNegative: true,
-                          validationType: "none",
-                        };
-                        onUpdate(field.id, {
-                          gridConfig: {
-                            ...gridConfig,
-                            cellConfig: {
-                              ...gridConfig.cellConfig,
-                              numberConfig: {
-                                ...currentConfig,
-                                validationType: value,
-                              },
-                            },
-                          },
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="h-8 bg-white text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Validation</SelectItem>
-                        <SelectItem value="min">Minimum</SelectItem>
-                        <SelectItem value="max">Maximum</SelectItem>
-                        <SelectItem value="range">Range</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {(gridConfig.cellConfig.numberConfig?.validationType ===
-                    "min" ||
-                    gridConfig.cellConfig.numberConfig?.validationType ===
-                      "range") && (
-                    <div className="space-y-1">
-                      <Label className="text-xs font-medium">Min Value</Label>
-                      <Input
-                        type="number"
-                        value={gridConfig.cellConfig.numberConfig?.min ?? ""}
-                        onChange={(e) => {
-                          const currentConfig = gridConfig.cellConfig
-                            .numberConfig || {
-                            wholeNumbersOnly: false,
-                            allowNegative: true,
-                            validationType: "none",
-                          };
-                          onUpdate(field.id, {
-                            gridConfig: {
-                              ...gridConfig,
-                              cellConfig: {
-                                ...gridConfig.cellConfig,
-                                numberConfig: {
-                                  ...currentConfig,
-                                  min: e.target.value
-                                    ? Number(e.target.value)
-                                    : undefined,
-                                },
-                              },
-                            },
-                          });
-                        }}
-                        placeholder="Min"
-                        className="h-8 bg-white text-sm"
-                      />
-                    </div>
-                  )}
-
-                  {(gridConfig.cellConfig.numberConfig?.validationType ===
-                    "max" ||
-                    gridConfig.cellConfig.numberConfig?.validationType ===
-                      "range") && (
-                    <div className="space-y-1">
-                      <Label className="text-xs font-medium">Max Value</Label>
-                      <Input
-                        type="number"
-                        value={gridConfig.cellConfig.numberConfig?.max ?? ""}
-                        onChange={(e) => {
-                          const currentConfig = gridConfig.cellConfig
-                            .numberConfig || {
-                            wholeNumbersOnly: false,
-                            allowNegative: true,
-                            validationType: "none",
-                          };
-                          onUpdate(field.id, {
-                            gridConfig: {
-                              ...gridConfig,
-                              cellConfig: {
-                                ...gridConfig.cellConfig,
-                                numberConfig: {
-                                  ...currentConfig,
-                                  max: e.target.value
-                                    ? Number(e.target.value)
-                                    : undefined,
-                                },
-                              },
-                            },
-                          });
-                        }}
-                        placeholder="Max"
-                        className="h-8 bg-white text-sm"
-                      />
-                    </div>
-                  )}
-                </div>
+                <GridNumberConfigEditor
+                  fieldId={field.id}
+                  numberConfig={gridConfig.cellConfig.numberConfig}
+                  onUpdate={(numConfig) => {
+                    onUpdate(field.id, {
+                      gridConfig: {
+                        ...gridConfig,
+                        cellConfig: {
+                          ...gridConfig.cellConfig,
+                          numberConfig: numConfig,
+                        },
+                      },
+                    });
+                  }}
+                />
               )}
 
-              {/* Column editor for repeater */}
-              {gridConfig.cellConfig.type === "repeater" && (
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-gray-700">
-                    Repeater Columns
-                  </Label>
-                  <p className="text-xs text-gray-600">
-                    Define the columns that will appear in each cell&apos;s
-                    repeater
-                  </p>
-                  {(gridConfig.cellConfig.columns || []).map(
-                    (col, colIndex) => (
-                      <div
-                        key={col.id}
-                        className="space-y-2 rounded border border-gray-300 bg-white p-2"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={col.label}
-                            onChange={(e) => {
-                              const newColumns = [
-                                ...(gridConfig.cellConfig.columns || []),
-                              ];
-                              newColumns[colIndex] = {
-                                ...col,
-                                label: e.target.value,
-                              };
-                              onUpdate(field.id, {
-                                gridConfig: {
-                                  ...gridConfig,
-                                  cellConfig: {
-                                    ...gridConfig.cellConfig,
-                                    columns: newColumns,
-                                  },
-                                },
-                              });
-                            }}
-                            placeholder="Column label"
-                            className="flex-grow text-sm"
-                          />
-                          <select
-                            value={col.type}
-                            onChange={(e) => {
-                              const newColumns = [
-                                ...(gridConfig.cellConfig.columns || []),
-                              ];
-                              newColumns[colIndex] = {
-                                ...col,
-                                type: e.target.value as FieldType,
-                              };
-                              onUpdate(field.id, {
-                                gridConfig: {
-                                  ...gridConfig,
-                                  cellConfig: {
-                                    ...gridConfig.cellConfig,
-                                    columns: newColumns,
-                                  },
-                                },
-                              });
-                            }}
-                            className="rounded border px-2 py-1 text-xs"
-                          >
-                            <option value="short-text">Text</option>
-                            <option value="number">Number</option>
-                            <option value="file-upload">File</option>
-                          </select>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              const newColumns = [
-                                ...(gridConfig.cellConfig.columns || []),
-                              ];
-                              newColumns.splice(colIndex, 1);
-                              onUpdate(field.id, {
-                                gridConfig: {
-                                  ...gridConfig,
-                                  cellConfig: {
-                                    ...gridConfig.cellConfig,
-                                    columns: newColumns,
-                                  },
-                                },
-                              });
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3 text-red-400" />
-                          </Button>
-                        </div>
-                      </div>
-                    ),
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const newColumns = [
-                        ...(gridConfig.cellConfig.columns || []),
-                        {
-                          id: `col_${Date.now()}`,
-                          type: "short-text" as FieldType,
-                          label: `Column ${(gridConfig.cellConfig.columns || []).length + 1}`,
-                          required: false,
+              {/* Column editor for repeater or multi-field */}
+              {(gridConfig.cellConfig.type === "repeater" ||
+                gridConfig.cellConfig.type === "multi-field") && (
+                <GridRepeaterColumnsEditor
+                  fieldId={field.id}
+                  columns={gridConfig.cellConfig.columns || []}
+                  onUpdate={(newCols) => {
+                    onUpdate(field.id, {
+                      gridConfig: {
+                        ...gridConfig,
+                        cellConfig: {
+                          ...gridConfig.cellConfig,
+                          columns: newCols,
                         },
-                      ];
-                      onUpdate(field.id, {
-                        gridConfig: {
-                          ...gridConfig,
-                          cellConfig: {
-                            ...gridConfig.cellConfig,
-                            columns: newColumns,
-                          },
-                        },
-                      });
-                    }}
-                    className="bg-white text-xs"
-                  >
-                    <Plus className="mr-1 h-3 w-3" />
-                    Add Column
-                  </Button>
-                </div>
+                      },
+                    });
+                  }}
+                  label={
+                    gridConfig.cellConfig.type === "multi-field"
+                      ? "Cell Fields"
+                      : "Repeater Columns"
+                  }
+                  description={
+                    gridConfig.cellConfig.type === "multi-field"
+                      ? "Define the fixed set of inputs for each cell"
+                      : "Define the columns for each repeater row"
+                  }
+                />
               )}
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={swapRowsAndColumns}
-              className="bg-white text-gray-700 hover:bg-gray-50"
-              title="Swap rows and columns"
-            >
-              Columns
-              <ArrowRightLeft className="mr-1 h-4 w-4" />
-              Rows
-            </Button>
+            {/* Cell Directions */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-700">
+                Cell Directions (shown above grid)
+              </Label>
+              <Input
+                value={gridConfig.cellDirections || ""}
+                onChange={(e) =>
+                  onUpdate(field.id, {
+                    gridConfig: {
+                      ...gridConfig,
+                      cellDirections: e.target.value,
+                    },
+                  })
+                }
+                placeholder="e.g., Enter positive whole numbers only"
+                className="bg-white"
+              />
+            </div>
 
             {/* Row labels editor */}
             <div className="space-y-2">
@@ -1106,7 +876,30 @@ function SortableFieldCard({
                 Row Labels
               </h4>
               {gridConfig.rows.map((row, index) => (
-                <div key={index} className="flex items-center gap-2">
+                <div key={index} className="flex items-center gap-1">
+                  <div className="flex flex-col">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-4 w-6"
+                      onClick={() => moveGridRow(index, index - 1)}
+                      disabled={index === 0}
+                    >
+                      <ChevronUp className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-4 w-6"
+                      onClick={() => moveGridRow(index, index + 1)}
+                      disabled={index === gridConfig.rows.length - 1}
+                    >
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <span className="text-muted-foreground w-5 text-center text-xs">
+                    {index + 1}
+                  </span>
                   <Input
                     value={row}
                     onChange={(e) => updateGridRow(index, e.target.value)}
@@ -1133,28 +926,227 @@ function SortableFieldCard({
               </Button>
             </div>
 
-            {/* Column labels editor */}
+            {/* Column labels + per-column config editor */}
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-gray-700">
-                Column Labels
-              </h4>
-              {gridConfig.columns.map((column, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Input
-                    value={column}
-                    onChange={(e) => updateGridColumn(index, e.target.value)}
-                    placeholder={`Column ${index + 1}`}
-                    className="flex-grow bg-white"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeGridColumn(index)}
+              <h4 className="text-sm font-semibold text-gray-700">Columns</h4>
+              <p className="text-muted-foreground text-xs">
+                Each column uses the default cell type unless overridden. Set a
+                column to &quot;Formula&quot; for auto-calculated display-only
+                columns.
+              </p>
+              {gridConfig.columns.map((column, index) => {
+                const colConfig = getColConfig(index);
+                const hasOverride =
+                  colConfig !== null && colConfig !== undefined;
+                const isFormula = colConfig?.type === "formula";
+
+                return (
+                  <div
+                    key={index}
+                    className="space-y-2 rounded-md border bg-white p-3"
                   >
-                    <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
-                  </Button>
-                </div>
-              ))}
+                    <div className="flex items-center gap-1">
+                      <div className="flex flex-col">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-6"
+                          onClick={() => moveGridColumn(index, index - 1)}
+                          disabled={index === 0}
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-6"
+                          onClick={() => moveGridColumn(index, index + 1)}
+                          disabled={index === gridConfig.columns.length - 1}
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <span className="text-muted-foreground w-5 text-center text-xs">
+                        {index + 1}
+                      </span>
+                      <Input
+                        value={column}
+                        onChange={(e) =>
+                          updateGridColumn(index, e.target.value)
+                        }
+                        placeholder={`Column ${index + 1}`}
+                        className="flex-grow bg-white"
+                      />
+                      <select
+                        value={
+                          hasOverride
+                            ? colConfig?.type || "short-text"
+                            : "default"
+                        }
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "default") {
+                            updateColumnConfig(index, null);
+                          } else if (val === "formula") {
+                            updateColumnConfig(index, {
+                              type: "formula",
+                              formula: "",
+                            });
+                          } else {
+                            const newConfig: GridColumnConfig = {
+                              type: val as GridCellType,
+                            };
+                            if (val === "radio" || val === "checkbox") {
+                              newConfig.options = ["Option 1"];
+                            }
+                            if (val === "repeater" || val === "multi-field") {
+                              newConfig.columns = [];
+                            }
+                            updateColumnConfig(index, newConfig);
+                          }
+                        }}
+                        className="rounded border px-2 py-1.5 text-xs"
+                      >
+                        <option value="default">Default</option>
+                        <option value="short-text">Short Text</option>
+                        <option value="long-text">Long Text</option>
+                        <option value="number">Number</option>
+                        <option value="radio">Radio</option>
+                        <option value="checkbox">Checkbox</option>
+                        <option value="file-upload">File Upload</option>
+                        <option value="multi-field">Multi-Field</option>
+                        <option value="repeater">Repeater</option>
+                        <option value="formula">Formula (Display Only)</option>
+                      </select>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeGridColumn(index)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
+                      </Button>
+                    </div>
+
+                    {/* Formula editor */}
+                    {isFormula && (
+                      <div className="ml-8 space-y-2 rounded border border-blue-200 bg-blue-50/50 p-3">
+                        <Label className="text-xs font-semibold text-blue-800">
+                          Formula
+                        </Label>
+                        <Input
+                          value={colConfig?.formula || ""}
+                          onChange={(e) =>
+                            updateColumnConfig(index, {
+                              ...colConfig!,
+                              formula: e.target.value,
+                            })
+                          }
+                          placeholder="e.g., ={Column 1} + {Column 2}"
+                          className="bg-white font-mono text-sm"
+                        />
+                        <p className="text-[11px] leading-relaxed text-blue-700">
+                          Reference columns with{" "}
+                          <code className="rounded bg-blue-100 px-1">
+                            {"{Column Name}"}
+                          </code>
+                          . For repeater cells use{" "}
+                          <code className="rounded bg-blue-100 px-1">
+                            {"{Column Name}.fieldName"}
+                          </code>{" "}
+                          to auto-sum.
+                          <br />
+                          Operators:{" "}
+                          <code className="rounded bg-blue-100 px-1">
+                            +
+                          </code>{" "}
+                          <code className="rounded bg-blue-100 px-1">-</code>{" "}
+                          <code className="rounded bg-blue-100 px-1">*</code>{" "}
+                          <code className="rounded bg-blue-100 px-1">/</code>.
+                          Functions:{" "}
+                          <code className="rounded bg-blue-100 px-1">
+                            SUM()
+                          </code>{" "}
+                          <code className="rounded bg-blue-100 px-1">
+                            CONCAT()
+                          </code>
+                          .
+                          <br />
+                          Example:{" "}
+                          <code className="rounded bg-blue-100 px-1">
+                            {"=SUM({Items}.cost * {Items}.qty)"}
+                          </code>
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Per-column options for radio/checkbox */}
+                    {hasOverride &&
+                      (colConfig?.type === "radio" ||
+                        colConfig?.type === "checkbox") && (
+                        <div className="ml-8 space-y-2">
+                          <Label className="text-xs font-semibold text-gray-700">
+                            Options (one per line)
+                          </Label>
+                          <Textarea
+                            value={(colConfig?.options || []).join("\n")}
+                            onChange={(e) =>
+                              updateColumnConfig(index, {
+                                ...colConfig!,
+                                options: e.target.value.split("\n"),
+                              })
+                            }
+                            placeholder={"Option 1\nOption 2"}
+                            className="min-h-[60px] bg-white font-mono text-xs"
+                          />
+                        </div>
+                      )}
+
+                    {/* Per-column number config */}
+                    {hasOverride && colConfig?.type === "number" && (
+                      <div className="ml-8">
+                        <GridNumberConfigEditor
+                          fieldId={`${field.id}-col-${index}`}
+                          numberConfig={colConfig?.numberConfig}
+                          onUpdate={(numConfig) =>
+                            updateColumnConfig(index, {
+                              ...colConfig!,
+                              numberConfig: numConfig,
+                            })
+                          }
+                        />
+                      </div>
+                    )}
+
+                    {/* Per-column repeater or multi-field config */}
+                    {hasOverride &&
+                      (colConfig?.type === "repeater" ||
+                        colConfig?.type === "multi-field") && (
+                        <div className="ml-8">
+                          <GridRepeaterColumnsEditor
+                            fieldId={`${field.id}-col-${index}`}
+                            columns={(colConfig?.columns || []) as FormField[]}
+                            onUpdate={(newCols) =>
+                              updateColumnConfig(index, {
+                                ...colConfig!,
+                                columns: newCols,
+                              })
+                            }
+                            label={
+                              colConfig?.type === "multi-field"
+                                ? "Cell Fields"
+                                : "Repeater Columns"
+                            }
+                            description={
+                              colConfig?.type === "multi-field"
+                                ? "Define the fixed set of inputs for each cell"
+                                : "Define the columns for each repeater row"
+                            }
+                          />
+                        </div>
+                      )}
+                  </div>
+                );
+              })}
               <Button
                 variant="outline"
                 size="sm"
@@ -1172,47 +1164,34 @@ function SortableFieldCard({
                 <h4 className="mb-2 text-sm font-semibold text-gray-700">
                   Preview
                 </h4>
-                <div className="mb-2 rounded bg-gray-100 px-3 py-2">
-                  <span className="text-xs font-medium text-gray-700">
-                    Cell Type:{" "}
-                    {gridConfig.cellConfig.type === "short-text" &&
-                      "Short Text"}
-                    {gridConfig.cellConfig.type === "long-text" && "Long Text"}
-                    {gridConfig.cellConfig.type === "number" && "Number"}
-                    {gridConfig.cellConfig.type === "radio" && "Radio Buttons"}
-                    {gridConfig.cellConfig.type === "checkbox" && "Checkboxes"}
-                    {gridConfig.cellConfig.type === "file-upload" &&
-                      "File Upload"}
-                    {gridConfig.cellConfig.type === "repeater" && "Repeater"}
-                  </span>
-                  {(gridConfig.cellConfig.type === "radio" ||
-                    gridConfig.cellConfig.type === "checkbox") &&
-                    gridConfig.cellConfig.options && (
-                      <span className="ml-3 text-xs text-gray-600">
-                        ({gridConfig.cellConfig.options.length} options)
-                      </span>
-                    )}
-                  {gridConfig.cellConfig.type === "repeater" &&
-                    gridConfig.cellConfig.columns && (
-                      <span className="ml-3 text-xs text-gray-600">
-                        ({gridConfig.cellConfig.columns.length} columns per
-                        entry)
-                      </span>
-                    )}
-                </div>
+                {gridConfig.cellDirections && (
+                  <div className="mb-2 flex items-center gap-2 rounded bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                    <span className="font-medium">Directions:</span>{" "}
+                    {gridConfig.cellDirections}
+                  </div>
+                )}
                 <div className="overflow-x-auto rounded border bg-white">
                   <table className="min-w-full text-sm">
                     <thead>
                       <tr className="bg-muted">
                         <th className="border px-2 py-1"></th>
-                        {gridConfig.columns.map((col, i) => (
-                          <th
-                            key={i}
-                            className="border px-2 py-1 font-semibold"
-                          >
-                            {col}
-                          </th>
-                        ))}
+                        {gridConfig.columns.map((col, i) => {
+                          const cc = getColConfig(i);
+                          const isFormulaCol = cc?.type === "formula";
+                          return (
+                            <th
+                              key={i}
+                              className={`border px-2 py-1 font-semibold ${isFormulaCol ? "bg-blue-50 text-blue-700" : ""}`}
+                            >
+                              {col}
+                              {isFormulaCol && (
+                                <span className="ml-1 text-[10px] font-normal">
+                                  (auto)
+                                </span>
+                              )}
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
@@ -1221,105 +1200,61 @@ function SortableFieldCard({
                           <td className="bg-muted border px-2 py-1 font-semibold">
                             {row}
                           </td>
-                          {gridConfig.columns.map((_, j) => (
-                            <td key={j} className="border px-2 py-1">
-                              {gridConfig.cellConfig.type === "short-text" && (
-                                <Input
-                                  disabled
-                                  className="h-6 text-xs"
-                                  placeholder="text"
-                                />
-                              )}
-                              {gridConfig.cellConfig.type === "long-text" && (
-                                <Textarea
-                                  disabled
-                                  className="h-12 text-xs"
-                                  placeholder="textarea"
-                                />
-                              )}
-                              {gridConfig.cellConfig.type === "number" && (
-                                <Input
-                                  disabled
-                                  type="number"
-                                  className="h-6 text-xs"
-                                  placeholder="0"
-                                />
-                              )}
-                              {gridConfig.cellConfig.type === "radio" && (
-                                <div className="space-y-1 text-left">
-                                  {(gridConfig.cellConfig.options || [])
-                                    .slice(0, 3)
-                                    .map((opt, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="flex items-center gap-1"
-                                      >
-                                        <Circle className="h-3 w-3 text-gray-400" />
-                                        <span className="text-xs text-gray-600">
-                                          {opt}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  {(gridConfig.cellConfig.options || [])
-                                    .length > 3 && (
-                                    <span className="text-xs text-gray-400 italic">
-                                      +
-                                      {(gridConfig.cellConfig.options || [])
-                                        .length - 3}{" "}
-                                      more
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                              {gridConfig.cellConfig.type === "checkbox" && (
-                                <div className="space-y-1 text-left">
-                                  {(gridConfig.cellConfig.options || [])
-                                    .slice(0, 3)
-                                    .map((opt, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="flex items-center gap-1"
-                                      >
-                                        <CheckSquare className="h-3 w-3 text-gray-400" />
-                                        <span className="text-xs text-gray-600">
-                                          {opt}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  {(gridConfig.cellConfig.options || [])
-                                    .length > 3 && (
-                                    <span className="text-xs text-gray-400 italic">
-                                      +
-                                      {(gridConfig.cellConfig.options || [])
-                                        .length - 3}{" "}
-                                      more
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                              {gridConfig.cellConfig.type === "file-upload" && (
-                                <Input
-                                  disabled
-                                  type="file"
-                                  className="h-6 text-xs"
-                                />
-                              )}
-                              {gridConfig.cellConfig.type === "repeater" && (
-                                <div className="space-y-1">
-                                  <div className="rounded border border-dashed border-gray-300 bg-gray-50 p-1">
-                                    <span className="text-xs text-gray-500 italic">
-                                      Repeater (
-                                      {
-                                        (gridConfig.cellConfig.columns || [])
-                                          .length
-                                      }{" "}
-                                      cols)
+                          {gridConfig.columns.map((_, j) => {
+                            const cc = getColConfig(j);
+                            const effectiveType =
+                              cc?.type || gridConfig.cellConfig.type;
+
+                            return (
+                              <td
+                                key={j}
+                                className={`border px-2 py-1 ${effectiveType === "formula" ? "bg-blue-50/50" : ""}`}
+                              >
+                                {effectiveType === "formula" ? (
+                                  <span className="text-xs text-blue-500 italic">
+                                    = calculated
+                                  </span>
+                                ) : effectiveType === "short-text" ? (
+                                  <Input
+                                    disabled
+                                    className="h-6 text-xs"
+                                    placeholder="text"
+                                  />
+                                ) : effectiveType === "long-text" ? (
+                                  <Textarea
+                                    disabled
+                                    className="h-12 text-xs"
+                                    placeholder="textarea"
+                                  />
+                                ) : effectiveType === "number" ? (
+                                  <Input
+                                    disabled
+                                    type="number"
+                                    className="h-6 text-xs"
+                                    placeholder="0"
+                                  />
+                                ) : effectiveType === "multi-field" ? (
+                                  <div className="rounded border border-dashed border-purple-300 bg-purple-50 p-1">
+                                    <span className="text-xs text-purple-500 italic">
+                                      Multi-field
                                     </span>
                                   </div>
-                                </div>
-                              )}
-                            </td>
-                          ))}
+                                ) : effectiveType === "repeater" ? (
+                                  <div className="rounded border border-dashed border-gray-300 bg-gray-50 p-1">
+                                    <span className="text-xs text-gray-500 italic">
+                                      Repeater
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <Input
+                                    disabled
+                                    className="h-6 text-xs"
+                                    placeholder={effectiveType}
+                                  />
+                                )}
+                              </td>
+                            );
+                          })}
                         </tr>
                       ))}
                     </tbody>
@@ -1677,41 +1612,25 @@ function ColumnField({
 
       case "radio":
       case "checkbox":
-        const Icon = field.type === "radio" ? Circle : CheckSquare;
+      case "select":
         return (
           <div className="mt-3 space-y-2 border-t pt-3">
             <Label className="text-muted-foreground text-xs font-semibold">
-              Options
+              Options (one per line)
             </Label>
-            {field.options?.map((option, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <Icon className="text-muted-foreground h-4 w-4" />
-                <Input
-                  value={option}
-                  onChange={(e) => updateOption(index, e.target.value)}
-                  className="h-8 flex-grow bg-white"
-                  placeholder={`Option ${index + 1}`}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeOption(index)}
-                  className="h-8 w-8 shrink-0"
-                >
-                  <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
-                </Button>
-              </div>
-            ))}
-            <div className="flex items-center gap-2">
-              <Icon className="text-muted-foreground/50 h-4 w-4" />
-              <Button
-                variant="link"
-                onClick={addOption}
-                className="text-primary h-8 px-1 text-sm"
-              >
-                Add option
-              </Button>
-            </div>
+            <Textarea
+              value={(field.options || []).join("\n")}
+              onChange={(e) => {
+                const newOptions = e.target.value.split("\n");
+                onUpdate(field.id, { options: newOptions }, parentId);
+              }}
+              placeholder={"Option 1\nOption 2\nOption 3"}
+              className="min-h-[80px] bg-white font-mono text-xs"
+            />
+            <p className="text-muted-foreground text-[10px]">
+              {(field.options || []).filter((o: string) => o.trim()).length}{" "}
+              option(s)
+            </p>
           </div>
         );
       case "file-upload":
@@ -1814,6 +1733,252 @@ function ColumnField({
         </Button>
       </div>
       {renderColumnContent()}
+    </div>
+  );
+}
+
+// --- GRID HELPER COMPONENTS ---
+
+function GridNumberConfigEditor({
+  fieldId,
+  numberConfig: config,
+  onUpdate,
+}: {
+  fieldId: string;
+  numberConfig?: NumberFieldConfig;
+  onUpdate: (config: NumberFieldConfig) => void;
+}) {
+  const numberConfig = config || {
+    wholeNumbersOnly: false,
+    allowNegative: true,
+    validationType: "none" as const,
+  };
+
+  return (
+    <div className="space-y-3">
+      <Label className="text-xs font-semibold text-gray-700">
+        Number Settings
+      </Label>
+      <div className="flex items-center space-x-2">
+        <Switch
+          id={`whole-num-${fieldId}`}
+          checked={numberConfig.wholeNumbersOnly === true}
+          onCheckedChange={(checked) =>
+            onUpdate({ ...numberConfig, wholeNumbersOnly: checked })
+          }
+        />
+        <Label htmlFor={`whole-num-${fieldId}`} className="text-xs">
+          Whole Numbers Only
+        </Label>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Switch
+          id={`allow-neg-${fieldId}`}
+          checked={numberConfig.allowNegative !== false}
+          onCheckedChange={(checked) =>
+            onUpdate({ ...numberConfig, allowNegative: checked })
+          }
+        />
+        <Label htmlFor={`allow-neg-${fieldId}`} className="text-xs">
+          Allow Negative
+        </Label>
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs font-medium">Validation</Label>
+        <Select
+          value={numberConfig.validationType || "none"}
+          onValueChange={(value: "none" | "min" | "max" | "range") =>
+            onUpdate({ ...numberConfig, validationType: value })
+          }
+        >
+          <SelectTrigger className="h-8 bg-white text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No Validation</SelectItem>
+            <SelectItem value="min">Minimum</SelectItem>
+            <SelectItem value="max">Maximum</SelectItem>
+            <SelectItem value="range">Range</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {(numberConfig.validationType === "min" ||
+        numberConfig.validationType === "range") && (
+        <div className="space-y-1">
+          <Label className="text-xs font-medium">Min Value</Label>
+          <Input
+            type="number"
+            value={numberConfig.min ?? ""}
+            onChange={(e) =>
+              onUpdate({
+                ...numberConfig,
+                min: e.target.value ? Number(e.target.value) : undefined,
+              })
+            }
+            placeholder="Min"
+            className="h-8 bg-white text-sm"
+          />
+        </div>
+      )}
+      {(numberConfig.validationType === "max" ||
+        numberConfig.validationType === "range") && (
+        <div className="space-y-1">
+          <Label className="text-xs font-medium">Max Value</Label>
+          <Input
+            type="number"
+            value={numberConfig.max ?? ""}
+            onChange={(e) =>
+              onUpdate({
+                ...numberConfig,
+                max: e.target.value ? Number(e.target.value) : undefined,
+              })
+            }
+            placeholder="Max"
+            className="h-8 bg-white text-sm"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GridRepeaterColumnsEditor({
+  fieldId,
+  columns,
+  onUpdate,
+  label = "Repeater Columns",
+  description = "Define the columns for each repeater row",
+}: {
+  fieldId: string;
+  columns: FormField[];
+  onUpdate: (columns: FormField[]) => void;
+  label?: string;
+  description?: string;
+}) {
+  const updateColumn = (colIndex: number, updates: Partial<FormField>) => {
+    const newColumns = [...columns];
+    newColumns[colIndex] = { ...columns[colIndex], ...updates };
+    onUpdate(newColumns);
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold text-gray-700">{label}</Label>
+      <p className="text-xs text-gray-600">{description}</p>
+      {columns.map((col, colIndex) => (
+        <div
+          key={col.id}
+          className="space-y-2 rounded border border-gray-300 bg-white p-2"
+        >
+          <div className="flex items-center gap-2">
+            <Input
+              value={col.label}
+              onChange={(e) =>
+                updateColumn(colIndex, { label: e.target.value })
+              }
+              placeholder="Column label"
+              className="flex-grow text-sm"
+            />
+            <select
+              value={col.type}
+              onChange={(e) => {
+                const newType = e.target.value as FieldType;
+                const updates: Partial<FormField> = { type: newType };
+                // Reset type-specific configs when changing type
+                if (newType === "number") {
+                  updates.numberConfig = undefined;
+                  updates.options = undefined;
+                } else if (
+                  newType === "radio" ||
+                  newType === "checkbox" ||
+                  newType === "select"
+                ) {
+                  updates.options = col.options?.length
+                    ? col.options
+                    : ["Option 1"];
+                  updates.numberConfig = undefined;
+                } else {
+                  updates.options = undefined;
+                  updates.numberConfig = undefined;
+                }
+                updateColumn(colIndex, updates);
+              }}
+              className="rounded border px-2 py-1 text-xs"
+            >
+              <option value="short-text">Text</option>
+              <option value="number">Number</option>
+              <option value="radio">Radio</option>
+              <option value="checkbox">Checkbox</option>
+              <option value="select">Dropdown</option>
+              <option value="file-upload">File</option>
+            </select>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                const newColumns = [...columns];
+                newColumns.splice(colIndex, 1);
+                onUpdate(newColumns);
+              }}
+            >
+              <Trash2 className="h-3 w-3 text-red-400" />
+            </Button>
+          </div>
+
+          {/* Number config for number sub-fields */}
+          {col.type === "number" && (
+            <div className="ml-4">
+              <GridNumberConfigEditor
+                fieldId={`${fieldId}-rep-${colIndex}`}
+                numberConfig={col.numberConfig}
+                onUpdate={(numConfig) =>
+                  updateColumn(colIndex, { numberConfig: numConfig })
+                }
+              />
+            </div>
+          )}
+
+          {/* Options for radio/checkbox/select sub-fields */}
+          {(col.type === "radio" ||
+            col.type === "checkbox" ||
+            col.type === "select") && (
+            <div className="ml-4 space-y-1">
+              <Label className="text-xs font-semibold text-gray-700">
+                Options (one per line)
+              </Label>
+              <Textarea
+                value={(col.options || []).join("\n")}
+                onChange={(e) =>
+                  updateColumn(colIndex, {
+                    options: e.target.value.split("\n"),
+                  })
+                }
+                placeholder={"Option 1\nOption 2\nOption 3"}
+                className="min-h-[60px] bg-white font-mono text-xs"
+              />
+            </div>
+          )}
+        </div>
+      ))}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          onUpdate([
+            ...columns,
+            {
+              id: `col_${Date.now()}`,
+              type: "short-text" as FieldType,
+              label: `Column ${columns.length + 1}`,
+              required: false,
+            },
+          ]);
+        }}
+        className="bg-white text-xs"
+      >
+        <Plus className="mr-1 h-3 w-3" />
+        Add Column
+      </Button>
     </div>
   );
 }

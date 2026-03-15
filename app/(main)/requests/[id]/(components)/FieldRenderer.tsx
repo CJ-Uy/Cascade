@@ -48,9 +48,16 @@ export function FieldRenderer({
     case "number":
       return <p className="text-foreground text-sm">{String(value)}</p>;
 
-    case "radio": {
-      const option = field.options?.find((opt: any) => opt.value === value);
-      const label = option ? option.label : String(value);
+    case "radio":
+    case "select": {
+      const option = field.options?.find((opt: any) =>
+        typeof opt === "object" ? opt.value === value : opt === value,
+      );
+      const label = option
+        ? typeof option === "object"
+          ? option.label
+          : option
+        : String(value);
       return (
         <div className="flex items-center gap-2">
           <Badge variant="secondary">{label}</Badge>
@@ -175,6 +182,7 @@ export function FieldRenderer({
       const gridConfig = field.gridConfig || field.field_config;
       const rows = gridConfig?.rows || [];
       const columns = gridConfig?.columns || [];
+      const columnConfigs = gridConfig?.columnConfigs || [];
 
       if (rows.length === 0 || columns.length === 0) {
         return (
@@ -192,14 +200,23 @@ export function FieldRenderer({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="bg-muted/50"></TableHead>
-                    {columns.map((col: string, colIndex: number) => (
-                      <TableHead
-                        key={colIndex}
-                        className="bg-muted/50 text-center font-semibold"
-                      >
-                        {col}
-                      </TableHead>
-                    ))}
+                    {columns.map((col: string, colIndex: number) => {
+                      const cc = columnConfigs[colIndex];
+                      const isFormula = cc?.type === "formula";
+                      return (
+                        <TableHead
+                          key={colIndex}
+                          className={`text-center font-semibold ${isFormula ? "bg-blue-50/70 text-blue-700" : "bg-muted/50"}`}
+                        >
+                          {col}
+                          {isFormula && (
+                            <span className="ml-1 text-[10px] font-normal opacity-70">
+                              (auto)
+                            </span>
+                          )}
+                        </TableHead>
+                      );
+                    })}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -211,12 +228,26 @@ export function FieldRenderer({
                       {columns.map((_: string, colIndex: number) => {
                         const cellKey = `${rowIndex}-${colIndex}`;
                         const cellValue = value[cellKey];
+                        const cc = columnConfigs[colIndex];
+                        const isFormula = cc?.type === "formula";
+                        const effectiveConfig = cc || gridConfig?.cellConfig;
                         return (
-                          <TableCell key={colIndex}>
-                            <GridCellRenderer
-                              cellConfig={gridConfig?.cellConfig}
-                              value={cellValue}
-                            />
+                          <TableCell
+                            key={colIndex}
+                            className={isFormula ? "bg-blue-50/30" : ""}
+                          >
+                            {isFormula ? (
+                              <span className="font-medium tabular-nums">
+                                {cellValue !== undefined && cellValue !== null
+                                  ? String(cellValue)
+                                  : "—"}
+                              </span>
+                            ) : (
+                              <GridCellRenderer
+                                cellConfig={effectiveConfig}
+                                value={cellValue}
+                              />
+                            )}
                           </TableCell>
                         );
                       })}
@@ -723,11 +754,51 @@ function GridCellRenderer({
                   <span key={col.id}>
                     {colIdx > 0 && ", "}
                     <span className="font-medium">{col.label}:</span>{" "}
-                    {row[col.field_key] || "-"}
+                    {row[col.field_key] || row[col.id] || "-"}
                   </span>
                 ))}
             </div>
           ))}
+        </div>
+      );
+
+    case "multi-field":
+      if (typeof value !== "object" || value === null) {
+        return <span className="text-muted-foreground text-sm italic">-</span>;
+      }
+
+      return (
+        <div className="space-y-0.5">
+          {cellConfig.columns &&
+            cellConfig.columns.map((col: any) => {
+              const fieldVal = value[col.field_key] || value[col.id];
+              return (
+                <div key={col.id} className="text-xs">
+                  <span className="text-muted-foreground font-medium">
+                    {col.label}:
+                  </span>{" "}
+                  {fieldVal &&
+                  typeof fieldVal === "object" &&
+                  fieldVal.storage_path ? (
+                    <a
+                      href={
+                        createClient()
+                          .storage.from("attachments")
+                          .getPublicUrl(fieldVal.storage_path).data.publicUrl
+                      }
+                      download={fieldVal.filename}
+                      className="underline hover:no-underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {fieldVal.filename}
+                    </a>
+                  ) : (
+                    <span>{fieldVal || "-"}</span>
+                  )}
+                </div>
+              );
+            })}
         </div>
       );
 

@@ -200,6 +200,16 @@ export function FormList({
               transformedField.numberConfig = field_config;
             }
 
+            // Set dateTimeConfig for date/time/datetime fields
+            if (
+              (field_type === "date" ||
+                field_type === "time" ||
+                field_type === "datetime") &&
+              field_config
+            ) {
+              transformedField.dateTimeConfig = field_config;
+            }
+
             return [field.id, transformedField];
           }),
         );

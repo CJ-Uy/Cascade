@@ -8,7 +8,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Table } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Table,
+  ChevronsUpDown,
+  Check,
+  Search,
+} from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { DatePicker, DateRangePicker } from "@/components/ui/date-picker";
 import { TimePicker, TimeRangePicker } from "@/components/ui/time-picker";
 import {
@@ -234,6 +255,15 @@ export function FormPreview({
               </div>
             ))}
           </div>,
+        );
+      case "select":
+        return fieldWrapper(
+          field.label,
+          <SearchableSelectPreview
+            options={(field.options || []).filter((o) => o.trim())}
+            value={formData[field.id] || ""}
+            onChange={(val) => handleValueChange(field.id, val)}
+          />,
         );
       case "table":
       case "repeater":
@@ -585,6 +615,15 @@ function ColumnPreview({
           ))}
         </div>,
       );
+    case "select":
+      return fieldWrapper(
+        column.label,
+        <SearchableSelectPreview
+          options={(column.options || []).filter((o) => o.trim())}
+          value={value || ""}
+          onChange={onChange}
+        />,
+      );
     case "file-upload":
       const fileName = value ? value.name : "No file chosen";
       return fieldWrapper(
@@ -853,6 +892,77 @@ function GridTablePreview({
             </Button>
           </div>
         );
+      case "multi-field":
+        const multiData = cellValue || {};
+        return (
+          <div className="min-w-[220px] space-y-2 p-1">
+            {(cellConfig.columns || []).map((col) => (
+              <div key={col.id} className="space-y-1">
+                <Label className="text-xs">{col.label}</Label>
+                {col.type === "short-text" && (
+                  <Input
+                    value={multiData[col.id] || ""}
+                    onChange={(e) =>
+                      handleCellChange(rowIndex, colIndex, {
+                        ...multiData,
+                        [col.id]: e.target.value,
+                      })
+                    }
+                    className="text-xs"
+                  />
+                )}
+                {col.type === "number" && (
+                  <Input
+                    type="number"
+                    value={multiData[col.id] || ""}
+                    onChange={(e) =>
+                      handleCellChange(rowIndex, colIndex, {
+                        ...multiData,
+                        [col.id]: e.target.value,
+                      })
+                    }
+                    className="text-xs"
+                  />
+                )}
+                {col.type === "file-upload" && (
+                  <Input
+                    type="file"
+                    onChange={(e) =>
+                      handleCellChange(rowIndex, colIndex, {
+                        ...multiData,
+                        [col.id]: e.target.files ? e.target.files[0] : null,
+                      })
+                    }
+                    className="text-xs"
+                  />
+                )}
+                {(col.type === "radio" ||
+                  col.type === "checkbox" ||
+                  col.type === "select") && (
+                  <select
+                    value={multiData[col.id] || ""}
+                    onChange={(e) =>
+                      handleCellChange(rowIndex, colIndex, {
+                        ...multiData,
+                        [col.id]: e.target.value,
+                      })
+                    }
+                    className="border-input w-full rounded-md border bg-transparent px-2 py-1 text-xs"
+                  >
+                    <option value="">Select...</option>
+                    {(col.options || [])
+                      .filter((o: string) => o.trim())
+                      .map((opt: string) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                  </select>
+                )}
+              </div>
+            ))}
+          </div>
+        );
       default:
         return (
           <Input
@@ -908,5 +1018,68 @@ function GridTablePreview({
         </table>
       </div>
     </div>
+  );
+}
+
+function SearchableSelectPreview({
+  options,
+  value,
+  onChange,
+}: {
+  options: string[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+        >
+          {value ? (
+            <span>{value}</span>
+          ) : (
+            <span className="text-muted-foreground flex items-center gap-2">
+              <Search className="h-3.5 w-3.5" />
+              Search and select...
+            </span>
+          )}
+          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <Command>
+          <CommandInput placeholder="Search options..." />
+          <CommandList>
+            <CommandEmpty>No option found.</CommandEmpty>
+            <CommandGroup>
+              {options.map((opt) => (
+                <CommandItem
+                  key={opt}
+                  value={opt}
+                  onSelect={() => {
+                    onChange(opt === value ? "" : opt);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === opt ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  {opt}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
