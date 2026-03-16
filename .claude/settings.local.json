@@ -63,7 +63,18 @@
       "Bash(npx next:*)",
       "Bash(ls \"c:/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/requests/[id]/\")",
       "Bash(ls \"c:/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/requests/[id]/\\(components\\)/\")",
-      "Bash(ls \"c:/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/approvals/to-approve/\")"
+      "Bash(ls \"c:/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/approvals/to-approve/\")",
+      "Bash(wc -l /c/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/requests/create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id]/\\\\\\(components\\\\\\)/FormFiller.tsx)",
+      "Bash(grep -n \"grid-table\" /c/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/requests/create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id]/\\\\\\(components\\\\\\)/FormFiller.tsx)",
+      "Bash(grep -n \"function GridTablePreview\\\\|const GridTablePreview\" /c/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/requests/create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id]/\\\\\\(components\\\\\\)/FormFiller.tsx)",
+      "Bash(grep -n \"function evaluateFormula\\\\|const evaluateFormula\" /c/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/requests/create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id]/\\\\\\(components\\\\\\)/FormFiller.tsx)",
+      "Bash(grep -n \"function GridCellRenderer\\\\|const GridCellRenderer\" /c/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/requests/[id]/\\\\\\(components\\\\\\)/FieldRenderer.tsx)",
+      "Bash(wc -l /c/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/management/forms/[bu_id]/\\\\\\(components\\\\\\)/FormPreview.tsx)",
+      "Bash(grep -n \"grid-table\" /c/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/management/forms/[bu_id]/\\\\\\(components\\\\\\)/FormPreview.tsx)",
+      "Bash(grep -n \"gridConfig\\\\|cellConfig\\\\|columnConfigs\" /c/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/management/forms/[bu_id]/\\\\\\(components\\\\\\)/FormBuilder.tsx)",
+      "Bash(grep -n \"formula\" /c/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/management/forms/[bu_id]/\\\\\\(components\\\\\\)/FormBuilder.tsx)",
+      "Bash(wc -l \"c:/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/requests/create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id]/\\(components\\)/FormFiller.tsx\")",
+      "Bash(wc -l \"c:/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/management/forms/[bu_id]/\\(components\\)/FormBuilder.tsx\")"
     ],
     "deny": [],
     "ask": []

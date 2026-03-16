@@ -90,6 +90,8 @@ interface FormField {
       formula?: string;
     }[];
     cellDirections?: string;
+    columnGroups?: { label: string; startIndex: number; endIndex: number }[];
+    rowGroups?: { label: string; startIndex: number; endIndex: number }[];
   };
   dateTimeConfig?: {
     allowRange?: boolean;
@@ -1039,10 +1041,51 @@ function SearchableSelect({
 
 // --- FORMULA ENGINE ---
 
+/**
+ * Find a sub-field's ID by its label name within a column's multi-field/repeater config.
+ * Searches both the column-specific config and the default cellConfig.
+ */
+function findSubFieldIdByLabel(
+  colIndex: number,
+  columnConfigs: any[],
+  cellConfig: any,
+  label: string,
+): string | null {
+  const cc = columnConfigs[colIndex] || cellConfig;
+  const subFields = cc?.columns || [];
+  const match = subFields.find(
+    (f: any) => f.label?.toLowerCase() === label.toLowerCase(),
+  );
+  return match?.id || null;
+}
+
+/**
+ * Extract a numeric value for a sub-field (by label) from a cell value.
+ * Handles both multi-field objects and repeater arrays (sums repeater entries).
+ */
+function extractSubFieldValue(cellVal: any, subFieldId: string): number {
+  if (cellVal === null || cellVal === undefined) return 0;
+  // Multi-field: object with sub-field keys
+  if (typeof cellVal === "object" && !Array.isArray(cellVal)) {
+    return parseFloat(cellVal[subFieldId] || 0) || 0;
+  }
+  // Repeater: array of entry objects
+  if (Array.isArray(cellVal)) {
+    return cellVal.reduce(
+      (sum: number, entry: any) =>
+        sum + (parseFloat(entry[subFieldId] || 0) || 0),
+      0,
+    );
+  }
+  return 0;
+}
+
 function evaluateFormula(
   formula: string,
   rowIndex: number,
+  colIndex: number,
   value: Record<string, any>,
+  rows: string[],
   columns: string[],
   columnConfigs: any[],
   cellConfig: any,
@@ -1088,6 +1131,79 @@ function evaluateFormula(
 
   if (sumMatch) {
     const inner = sumMatch[1].trim();
+
+    // =SUM(ROW) — sum all plain numeric values across columns in current row
+    if (/^ROW$/i.test(inner)) {
+      let total = 0;
+      for (let ci = 0; ci < columns.length; ci++) {
+        const cc = columnConfigs[ci];
+        if (cc?.type === "formula") continue;
+        const cellKey = `${rowIndex}-${ci}`;
+        const cellVal = value[cellKey];
+        if (
+          cellVal !== undefined &&
+          cellVal !== null &&
+          cellVal !== "" &&
+          typeof cellVal !== "object"
+        ) {
+          total += parseFloat(cellVal) || 0;
+        }
+      }
+      return Math.round(total * 100) / 100;
+    }
+
+    // =SUM(ROW.{Label}) or =SUM(ROW[start:end].{Label})
+    // Iterates columns in the current row, extracts sub-field by label name
+    const rowSubMatch = inner.match(/^ROW(?:\[(\d+):(\d+)\])?\.?\{(.+?)\}$/i);
+    if (rowSubMatch) {
+      const [, startStr, endStr, fieldLabel] = rowSubMatch;
+      const start = startStr ? parseInt(startStr, 10) - 1 : 0;
+      const end = endStr ? parseInt(endStr, 10) : columns.length;
+      let total = 0;
+      for (let ci = start; ci < end && ci < columns.length; ci++) {
+        const cc = columnConfigs[ci];
+        if (cc?.type === "formula") continue;
+        const subFieldId = findSubFieldIdByLabel(
+          ci,
+          columnConfigs,
+          cellConfig,
+          fieldLabel,
+        );
+        if (!subFieldId) continue;
+        const cellKey = `${rowIndex}-${ci}`;
+        total += extractSubFieldValue(value[cellKey], subFieldId);
+      }
+      return Math.round(total * 100) / 100;
+    }
+
+    // =SUM(COLUMN.{Label}) or =SUM(COLUMN[start:end].{Label})
+    // Iterates rows, for each row looks across all columns for the sub-field
+    const colSubMatch = inner.match(
+      /^COLUMN(?:\[(\d+):(\d+)\])?\.?\{(.+?)\}$/i,
+    );
+    if (colSubMatch) {
+      const [, startStr, endStr, fieldLabel] = colSubMatch;
+      const startRow = startStr ? parseInt(startStr, 10) - 1 : 0;
+      const endRow = endStr ? parseInt(endStr, 10) : rows.length;
+      let total = 0;
+      for (let ri = startRow; ri < endRow && ri < rows.length; ri++) {
+        for (let ci = 0; ci < columns.length; ci++) {
+          const cc = columnConfigs[ci];
+          if (cc?.type === "formula") continue;
+          const subFieldId = findSubFieldIdByLabel(
+            ci,
+            columnConfigs,
+            cellConfig,
+            fieldLabel,
+          );
+          if (!subFieldId) continue;
+          const cellKey = `${ri}-${ci}`;
+          total += extractSubFieldValue(value[cellKey], subFieldId);
+        }
+      }
+      return Math.round(total * 100) / 100;
+    }
+
     // SUM({Col}.field * {Col}.field) — row-wise multiply then sum from repeater
     const mulMatch = inner.match(/^\{(.+?)\}\.(\w+)\s*\*\s*\{(.+?)\}\.(\w+)$/);
     if (mulMatch) {
@@ -1118,18 +1234,41 @@ function evaluateFormula(
       return total;
     }
 
-    // SUM({Col}.field) — sum a repeater sub-field
-    const singleMatch = inner.match(/^\{(.+?)\}\.(\w+)$/);
+    // SUM({Col}.field) — sum a repeater/multi-field sub-field (by ID or label)
+    const singleMatch = inner.match(/^\{(.+?)\}\.(.+)$/);
     if (singleMatch) {
-      const [, colName, fieldName] = singleMatch;
+      const [, colName, fieldRef] = singleMatch;
       const idx = colIndexMap[colName];
       if (idx === undefined) return "REF?";
       const cellKey = `${rowIndex}-${idx}`;
-      const rows = Array.isArray(value[cellKey]) ? value[cellKey] : [];
-      return rows.reduce(
-        (sum: number, row: any) => sum + parseFloat(row[fieldName] || 0),
-        0,
-      );
+      const cellVal = value[cellKey];
+      // Try direct field ID first, then try by label
+      if (Array.isArray(cellVal)) {
+        // Check if fieldRef is a label name by looking up the sub-field
+        const subFieldId = findSubFieldIdByLabel(
+          idx,
+          columnConfigs,
+          cellConfig,
+          fieldRef,
+        );
+        const resolvedField = subFieldId || fieldRef;
+        return cellVal.reduce(
+          (sum: number, row: any) =>
+            sum + (parseFloat(row[resolvedField] || 0) || 0),
+          0,
+        );
+      }
+      if (typeof cellVal === "object" && cellVal !== null) {
+        const subFieldId = findSubFieldIdByLabel(
+          idx,
+          columnConfigs,
+          cellConfig,
+          fieldRef,
+        );
+        const resolvedField = subFieldId || fieldRef;
+        return parseFloat(cellVal[resolvedField] || 0) || 0;
+      }
+      return 0;
     }
 
     return "ERR";
@@ -1138,22 +1277,33 @@ function evaluateFormula(
   // Simple arithmetic: ={Col1} + {Col2}, ={Col1} * {Col2}, etc.
   try {
     let resolved = expr;
-    // Replace {ColName}.fieldName references
+    // Replace {ColName}.fieldRef references (supports label names)
     resolved = resolved.replace(
-      /\{(.+?)\}\.(\w+)/g,
-      (_match, colName, fieldName) => {
+      /\{(.+?)\}\.([^\s+\-*/(){}]+)/g,
+      (_match, colName, fieldRef) => {
         const idx = colIndexMap[colName];
         if (idx === undefined) return "0";
         const cellKey = `${rowIndex}-${idx}`;
         const cellVal = value[cellKey];
+        // Try label lookup first, fall back to direct ID
+        const subFieldId = findSubFieldIdByLabel(
+          idx,
+          columnConfigs,
+          cellConfig,
+          fieldRef,
+        );
+        const resolvedField = subFieldId || fieldRef;
         if (Array.isArray(cellVal)) {
-          // Sum the sub-field from all repeater rows
           return String(
             cellVal.reduce(
-              (sum: number, row: any) => sum + parseFloat(row[fieldName] || 0),
+              (sum: number, row: any) =>
+                sum + (parseFloat(row[resolvedField] || 0) || 0),
               0,
             ),
           );
+        }
+        if (typeof cellVal === "object" && cellVal !== null) {
+          return String(parseFloat(cellVal[resolvedField] || 0) || 0);
         }
         return "0";
       },
@@ -1265,6 +1415,8 @@ function GridTablePreview({
   const cellConfig = field.gridConfig?.cellConfig || { type: "short-text" };
   const columnConfigs = field.gridConfig?.columnConfigs || [];
   const cellDirections = field.gridConfig?.cellDirections;
+  const columnGroups = field.gridConfig?.columnGroups || [];
+  const rowGroups = field.gridConfig?.rowGroups || [];
 
   const getEffectiveConfig = (colIndex: number) => {
     const cc = columnConfigs[colIndex];
@@ -1290,7 +1442,9 @@ function GridTablePreview({
           formulaUpdates[fCellKey] = evaluateFormula(
             cc.formula!,
             fRowIdx,
+            fColIdx,
             { ...newValue, ...formulaUpdates },
+            rows,
             columns,
             columnConfigs,
             cellConfig,
@@ -1314,7 +1468,9 @@ function GridTablePreview({
           const computed = evaluateFormula(
             cc.formula!,
             fRowIdx,
+            fColIdx,
             value,
+            rows,
             columns,
             columnConfigs,
             cellConfig,
@@ -1394,7 +1550,9 @@ function GridTablePreview({
       const result = evaluateFormula(
         (effectiveConfig as any).formula || "",
         rowIndex,
+        colIndex,
         value,
+        rows,
         columns,
         columnConfigs,
         cellConfig,
@@ -1507,10 +1665,44 @@ function GridTablePreview({
         const isImage = fileData?.filetype?.startsWith("image/");
 
         return (
-          <div className="space-y-1">
-            {!fileData ? (
-              <Input
+          <div className="min-w-[140px] space-y-1.5 p-1">
+            {/* File preview when uploaded */}
+            {fileData && (
+              <div className="border-border bg-muted/30 flex items-center gap-2 rounded-md border p-1.5">
+                {isImage ? (
+                  <ImageIcon className="text-muted-foreground h-4 w-4 shrink-0" />
+                ) : (
+                  <FileText className="text-muted-foreground h-4 w-4 shrink-0" />
+                )}
+                <span
+                  className="flex-1 truncate text-xs font-medium"
+                  title={fileData.filename}
+                >
+                  {fileData.filename}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleCellFileRemove(rowIndex, colIndex)}
+                  className="h-5 w-5 shrink-0 hover:bg-red-100"
+                  type="button"
+                  title="Remove file"
+                >
+                  <X className="h-3 w-3 text-red-500" />
+                </Button>
+              </div>
+            )}
+            {/* Upload button */}
+            <label
+              className={cn(
+                "flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed px-2 py-1.5 text-xs transition-colors",
+                "border-muted-foreground/30 text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5",
+                isUploadingCell && "pointer-events-none opacity-50",
+              )}
+            >
+              <input
                 type="file"
+                className="hidden"
                 onChange={(e) =>
                   handleCellFileUpload(
                     rowIndex,
@@ -1519,33 +1711,17 @@ function GridTablePreview({
                   )
                 }
                 disabled={isUploadingCell}
-                className="border-0 text-xs focus-visible:ring-1"
                 accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
               />
-            ) : (
-              <div className="border-border bg-background flex items-center gap-1 rounded border p-1">
-                {isImage ? (
-                  <ImageIcon className="text-muted-foreground h-3 w-3" />
-                ) : (
-                  <FileText className="text-muted-foreground h-3 w-3" />
-                )}
-                <span className="flex-1 truncate text-xs">
-                  {fileData.filename}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleCellFileRemove(rowIndex, colIndex)}
-                  className="h-5 w-5"
-                  type="button"
-                >
-                  <X className="h-2 w-2" />
-                </Button>
-              </div>
-            )}
-            {isUploadingCell && (
-              <p className="text-muted-foreground text-[10px]">Uploading...</p>
-            )}
+              {isUploadingCell ? (
+                <span className="animate-pulse">Uploading...</span>
+              ) : (
+                <>
+                  <Plus className="h-3 w-3" />
+                  {fileData ? "Replace" : "Upload"}
+                </>
+              )}
+            </label>
           </div>
         );
       }
@@ -1837,8 +2013,51 @@ function GridTablePreview({
       <div className="overflow-x-auto rounded-lg border shadow-sm">
         <table className="w-full border-collapse">
           <thead>
+            {/* Column group header row */}
+            {columnGroups.length > 0 && (
+              <tr>
+                <th
+                  className="bg-muted/70 border-b px-3 py-1.5"
+                  rowSpan={1}
+                ></th>
+                {(() => {
+                  // Build cells for column group header row
+                  const groupCells: React.ReactNode[] = [];
+                  let ci = 0;
+                  while (ci < columns.length) {
+                    const group = columnGroups.find(
+                      (g) => ci >= g.startIndex && ci <= g.endIndex,
+                    );
+                    if (group && ci === group.startIndex) {
+                      const span = group.endIndex - group.startIndex + 1;
+                      groupCells.push(
+                        <th
+                          key={`cg-${ci}`}
+                          colSpan={span}
+                          className="border-x border-b bg-indigo-50 px-3 py-1.5 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                        >
+                          {group.label}
+                        </th>,
+                      );
+                      ci = group.endIndex + 1;
+                    } else {
+                      groupCells.push(
+                        <th
+                          key={`cg-${ci}`}
+                          className="bg-muted/70 border-b px-3 py-1.5"
+                        ></th>,
+                      );
+                      ci++;
+                    }
+                  }
+                  return groupCells;
+                })()}
+              </tr>
+            )}
             <tr>
-              <th className="bg-muted/70 border-b px-3 py-2.5 text-left text-xs font-semibold tracking-wider text-gray-500 uppercase"></th>
+              <th className="bg-muted/70 border-b px-3 py-2.5 text-left text-xs font-semibold tracking-wider text-gray-500 uppercase">
+                {rowGroups.length > 0 && ""}
+              </th>
               {columns.map((col, colIndex) => {
                 const cc = columnConfigs[colIndex];
                 const isFormula = cc?.type === "formula";
@@ -1867,31 +2086,64 @@ function GridTablePreview({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, rowIndex) => (
-              <tr
-                key={rowIndex}
-                className="transition-colors hover:bg-gray-50/50"
-              >
-                <td className="bg-muted/30 border-r border-b px-3 py-2 text-sm font-medium text-gray-700">
-                  {row}
-                </td>
-                {columns.map((_, colIndex) => {
-                  const cc = columnConfigs[colIndex];
-                  const isFormula = cc?.type === "formula";
-                  return (
+            {rows.map((row, rowIndex) => {
+              // Check if this row starts a new row group
+              const rowGroup = rowGroups.find((g) => g.startIndex === rowIndex);
+              const isInRowGroup = rowGroups.some(
+                (g) => rowIndex >= g.startIndex && rowIndex <= g.endIndex,
+              );
+              const rowGroupSpan = rowGroup
+                ? rowGroup.endIndex - rowGroup.startIndex + 1
+                : 0;
+
+              return (
+                <tr
+                  key={rowIndex}
+                  className={cn(
+                    "transition-colors hover:bg-gray-100/70",
+                    rowIndex % 2 === 1 && "bg-muted/30",
+                  )}
+                >
+                  {/* Row group header cell */}
+                  {rowGroup && (
                     <td
-                      key={colIndex}
-                      className={cn(
-                        "border-b px-1 py-0.5",
-                        isFormula ? "bg-blue-50/30" : "",
-                      )}
+                      rowSpan={rowGroupSpan}
+                      className="border-r border-b bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                      style={{
+                        writingMode:
+                          rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                        textOrientation: "mixed",
+                      }}
                     >
-                      {renderCellInput(rowIndex, colIndex)}
+                      {rowGroup.label}
                     </td>
-                  );
-                })}
-              </tr>
-            ))}
+                  )}
+                  <td
+                    className={cn(
+                      "bg-muted/30 border-r border-b px-3 py-2 text-sm font-medium text-gray-700",
+                      isInRowGroup && "border-l-0",
+                    )}
+                  >
+                    {row}
+                  </td>
+                  {columns.map((_, colIndex) => {
+                    const cc = columnConfigs[colIndex];
+                    const isFormula = cc?.type === "formula";
+                    return (
+                      <td
+                        key={colIndex}
+                        className={cn(
+                          "border-b px-1 py-0.5",
+                          isFormula ? "bg-blue-50/30" : "",
+                        )}
+                      >
+                        {renderCellInput(rowIndex, colIndex)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

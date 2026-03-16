@@ -183,6 +183,8 @@ export function FieldRenderer({
       const rows = gridConfig?.rows || [];
       const columns = gridConfig?.columns || [];
       const columnConfigs = gridConfig?.columnConfigs || [];
+      const columnGroups = gridConfig?.columnGroups || [];
+      const rowGroups = gridConfig?.rowGroups || [];
 
       if (rows.length === 0 || columns.length === 0) {
         return (
@@ -198,6 +200,43 @@ export function FieldRenderer({
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
+                  {/* Column group header row */}
+                  {columnGroups.length > 0 && (
+                    <TableRow>
+                      <TableHead className="bg-muted/50"></TableHead>
+                      {(() => {
+                        const cells: React.ReactNode[] = [];
+                        let ci = 0;
+                        while (ci < columns.length) {
+                          const group = columnGroups.find(
+                            (g: any) => ci >= g.startIndex && ci <= g.endIndex,
+                          );
+                          if (group && ci === group.startIndex) {
+                            const span = group.endIndex - group.startIndex + 1;
+                            cells.push(
+                              <TableHead
+                                key={`cg-${ci}`}
+                                colSpan={span}
+                                className="bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                              >
+                                {group.label}
+                              </TableHead>,
+                            );
+                            ci = group.endIndex + 1;
+                          } else {
+                            cells.push(
+                              <TableHead
+                                key={`cg-${ci}`}
+                                className="bg-muted/50"
+                              ></TableHead>,
+                            );
+                            ci++;
+                          }
+                        }
+                        return cells;
+                      })()}
+                    </TableRow>
+                  )}
                   <TableRow>
                     <TableHead className="bg-muted/50"></TableHead>
                     {columns.map((col: string, colIndex: number) => {
@@ -220,39 +259,65 @@ export function FieldRenderer({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((row: string, rowIndex: number) => (
-                    <TableRow key={rowIndex}>
-                      <TableCell className="bg-muted/50 font-semibold">
-                        {row}
-                      </TableCell>
-                      {columns.map((_: string, colIndex: number) => {
-                        const cellKey = `${rowIndex}-${colIndex}`;
-                        const cellValue = value[cellKey];
-                        const cc = columnConfigs[colIndex];
-                        const isFormula = cc?.type === "formula";
-                        const effectiveConfig = cc || gridConfig?.cellConfig;
-                        return (
+                  {rows.map((row: string, rowIndex: number) => {
+                    const rowGroup = rowGroups.find(
+                      (g: any) => g.startIndex === rowIndex,
+                    );
+                    const rowGroupSpan = rowGroup
+                      ? rowGroup.endIndex - rowGroup.startIndex + 1
+                      : 0;
+
+                    return (
+                      <TableRow
+                        key={rowIndex}
+                        className={rowIndex % 2 === 1 ? "bg-muted/30" : ""}
+                      >
+                        {/* Row group header cell */}
+                        {rowGroup && (
                           <TableCell
-                            key={colIndex}
-                            className={isFormula ? "bg-blue-50/30" : ""}
+                            rowSpan={rowGroupSpan}
+                            className="bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                            style={{
+                              writingMode:
+                                rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                              textOrientation: "mixed" as any,
+                            }}
                           >
-                            {isFormula ? (
-                              <span className="font-medium tabular-nums">
-                                {cellValue !== undefined && cellValue !== null
-                                  ? String(cellValue)
-                                  : "—"}
-                              </span>
-                            ) : (
-                              <GridCellRenderer
-                                cellConfig={effectiveConfig}
-                                value={cellValue}
-                              />
-                            )}
+                            {rowGroup.label}
                           </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ))}
+                        )}
+                        <TableCell className="bg-muted/50 font-semibold">
+                          {row}
+                        </TableCell>
+                        {columns.map((_: string, colIndex: number) => {
+                          const cellKey = `${rowIndex}-${colIndex}`;
+                          const cellValue = value[cellKey];
+                          const cc = columnConfigs[colIndex];
+                          const isFormula = cc?.type === "formula";
+                          const effectiveConfig = cc || gridConfig?.cellConfig;
+                          return (
+                            <TableCell
+                              key={colIndex}
+                              className={isFormula ? "bg-blue-50/30" : ""}
+                            >
+                              {isFormula ? (
+                                <span className="font-medium tabular-nums">
+                                  {cellValue !== undefined && cellValue !== null
+                                    ? String(cellValue)
+                                    : "—"}
+                                </span>
+                              ) : (
+                                <GridCellRenderer
+                                  cellConfig={effectiveConfig}
+                                  value={cellValue}
+                                />
+                              )}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
