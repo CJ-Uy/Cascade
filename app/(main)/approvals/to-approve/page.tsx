@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboardHeader";
 import { Button } from "@/components/ui/button";
@@ -23,45 +23,25 @@ import {
   ArrowRight,
   Users,
   Workflow,
+  LayoutGrid,
+  TableProperties,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { getApproverRequests } from "../actions";
 import { toast } from "sonner";
 import { icons } from "lucide-react";
-
-type ApprovalRequest = {
-  id: string;
-  form_id: string;
-  workflow_chain_id: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  form_name: string;
-  form_icon: string;
-  form_description: string;
-  initiator_name: string;
-  business_unit_name: string;
-  workflow_name: string;
-  current_section_order: number;
-  current_section_name: string;
-  current_step_number: number;
-  total_steps_in_section: number;
-  waiting_on_role_name: string;
-  is_my_turn: boolean;
-  is_in_my_workflow: boolean;
-  has_already_approved: boolean;
-  my_approval_position: number;
-  section_initiator_name: string;
-  previous_section_order: number | null;
-  previous_section_name: string | null;
-  previous_section_initiator_name: string | null;
-};
+import {
+  BulkApprovalTable,
+  type ApprovalRequest,
+} from "./(components)/BulkApprovalTable";
 
 type ApprovalData = {
   myTurn: ApprovalRequest[];
   inProgress: ApprovalRequest[];
   alreadyApproved: ApprovalRequest[];
 };
+
+type ViewMode = "cards" | "grouped";
 
 export default function ApprovalQueuePage() {
   const router = useRouter();
@@ -71,23 +51,56 @@ export default function ApprovalQueuePage() {
     alreadyApproved: [],
   });
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const result = await getApproverRequests();
+
+    if (result.error) {
+      toast.error(result.error);
+      setData({ myTurn: [], inProgress: [], alreadyApproved: [] });
+    } else if (result.data) {
+      setData(result.data as ApprovalData);
+    }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const result = await getApproverRequests();
-
-      if (result.error) {
-        toast.error(result.error);
-        setData({ myTurn: [], inProgress: [], alreadyApproved: [] });
-      } else if (result.data) {
-        setData(result.data);
-      }
-      setLoading(false);
-    };
-
     fetchData();
-  }, []);
+  }, [fetchData]);
+
+  // Group "My Turn" requests by form_id for grouped view
+  const groupedRequests = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        formId: string;
+        formName: string;
+        formIcon: string;
+        requests: ApprovalRequest[];
+      }
+    >();
+
+    for (const request of data.myTurn) {
+      const existing = groups.get(request.form_id);
+      if (existing) {
+        existing.requests.push(request);
+      } else {
+        groups.set(request.form_id, {
+          formId: request.form_id,
+          formName: request.form_name,
+          formIcon: request.form_icon,
+          requests: [request],
+        });
+      }
+    }
+
+    // Sort groups by count (largest first)
+    return Array.from(groups.values()).sort(
+      (a, b) => b.requests.length - a.requests.length,
+    );
+  }, [data.myTurn]);
 
   const renderRequestCard = (
     request: ApprovalRequest,
@@ -272,32 +285,61 @@ export default function ApprovalQueuePage() {
       </p>
 
       <Tabs defaultValue="my-turn" className="w-full">
-        <TabsList className="mb-6 grid w-full grid-cols-1 sm:grid-cols-3">
-          <TabsTrigger value="my-turn" className="relative">
-            My Turn
-            {data.myTurn.length > 0 && (
-              <Badge variant="destructive" className="ml-2 px-2 py-0.5 text-xs">
-                {data.myTurn.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="in-progress">
-            In Progress
-            {data.inProgress.length > 0 && (
-              <Badge variant="secondary" className="ml-2 px-2 py-0.5 text-xs">
-                {data.inProgress.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="completed">
-            Already Approved
-            {data.alreadyApproved.length > 0 && (
-              <Badge variant="outline" className="ml-2 px-2 py-0.5 text-xs">
-                {data.alreadyApproved.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList className="grid w-full grid-cols-1 sm:w-auto sm:grid-cols-3">
+            <TabsTrigger value="my-turn" className="relative">
+              My Turn
+              {data.myTurn.length > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="ml-2 px-2 py-0.5 text-xs"
+                >
+                  {data.myTurn.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="in-progress">
+              In Progress
+              {data.inProgress.length > 0 && (
+                <Badge variant="secondary" className="ml-2 px-2 py-0.5 text-xs">
+                  {data.inProgress.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="completed">
+              Already Approved
+              {data.alreadyApproved.length > 0 && (
+                <Badge variant="outline" className="ml-2 px-2 py-0.5 text-xs">
+                  {data.alreadyApproved.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          {/* View Toggle - only relevant for My Turn */}
+          {data.myTurn.length > 0 && (
+            <div className="bg-muted flex items-center gap-1 rounded-lg p-1">
+              <Button
+                variant={viewMode === "cards" ? "default" : "ghost"}
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => setViewMode("cards")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Cards
+              </Button>
+              <Button
+                variant={viewMode === "grouped" ? "default" : "ghost"}
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => setViewMode("grouped")}
+              >
+                <TableProperties className="h-4 w-4" />
+                Grouped
+              </Button>
+            </div>
+          )}
+        </div>
 
         <TabsContent value="my-turn" className="space-y-4">
           {data.myTurn.length === 0 ? (
@@ -310,11 +352,29 @@ export default function ApprovalQueuePage() {
                 </p>
               </CardContent>
             </Card>
-          ) : (
+          ) : viewMode === "cards" ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {data.myTurn.map((request) =>
                 renderRequestCard(request, "my-turn"),
               )}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <p className="text-muted-foreground text-sm">
+                Requests grouped by form type. Select multiple requests to
+                approve or reject in bulk. Click the arrow icon on any row to
+                view the full request and its linked chain.
+              </p>
+              {groupedRequests.map((group) => (
+                <BulkApprovalTable
+                  key={group.formId}
+                  requests={group.requests}
+                  formId={group.formId}
+                  formName={group.formName}
+                  formIcon={group.formIcon}
+                  onActionComplete={fetchData}
+                />
+              ))}
             </div>
           )}
         </TabsContent>

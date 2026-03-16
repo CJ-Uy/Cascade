@@ -327,3 +327,149 @@ export async function getRequestComments(requestId: string) {
 
   return { success: true, error: null, data: transformedData };
 }
+
+/**
+ * Get form fields for a given form (for bulk approval table columns)
+ */
+export async function getFormFields(formId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("form_fields")
+    .select(
+      "id, field_key, label, field_type, display_order, options, parent_list_field_id, field_config",
+    )
+    .eq("form_id", formId)
+    .is("parent_list_field_id", null)
+    .order("display_order", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching form fields:", error);
+    return { success: false, error: error.message, data: null };
+  }
+
+  return { success: true, error: null, data: data || [] };
+}
+
+/**
+ * Bulk approve multiple requests
+ */
+export async function bulkApproveRequests(
+  requestIds: string[],
+  comment?: string,
+) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "User not authenticated", results: [] };
+  }
+
+  if (!requestIds.length) {
+    return { success: false, error: "No requests selected", results: [] };
+  }
+
+  const results = await Promise.allSettled(
+    requestIds.map(async (requestId) => {
+      const { error } = await supabase.rpc("approve_request", {
+        p_request_id: requestId,
+        p_comments: comment || null,
+      });
+      if (error) throw new Error(error.message);
+      return requestId;
+    }),
+  );
+
+  const succeeded: string[] = [];
+  const failed: { id: string; error: string }[] = [];
+
+  results.forEach((result, index) => {
+    if (result.status === "fulfilled") {
+      succeeded.push(requestIds[index]);
+    } else {
+      failed.push({
+        id: requestIds[index],
+        error: result.reason?.message || "Unknown error",
+      });
+    }
+  });
+
+  revalidatePath("/approvals");
+  succeeded.forEach((id) => revalidatePath(`/requests/${id}`));
+
+  return {
+    success: failed.length === 0,
+    error:
+      failed.length > 0
+        ? `${failed.length} of ${requestIds.length} failed`
+        : null,
+    results: { succeeded, failed },
+  };
+}
+
+/**
+ * Bulk reject multiple requests
+ */
+export async function bulkRejectRequests(requestIds: string[], reason: string) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "User not authenticated", results: [] };
+  }
+
+  if (!requestIds.length) {
+    return { success: false, error: "No requests selected", results: [] };
+  }
+
+  if (!reason || reason.trim().length === 0) {
+    return {
+      success: false,
+      error: "Rejection reason is required",
+      results: [],
+    };
+  }
+
+  const results = await Promise.allSettled(
+    requestIds.map(async (requestId) => {
+      const { error } = await supabase.rpc("reject_request", {
+        p_request_id: requestId,
+        p_comments: reason,
+      });
+      if (error) throw new Error(error.message);
+      return requestId;
+    }),
+  );
+
+  const succeeded: string[] = [];
+  const failed: { id: string; error: string }[] = [];
+
+  results.forEach((result, index) => {
+    if (result.status === "fulfilled") {
+      succeeded.push(requestIds[index]);
+    } else {
+      failed.push({
+        id: requestIds[index],
+        error: result.reason?.message || "Unknown error",
+      });
+    }
+  });
+
+  revalidatePath("/approvals");
+  succeeded.forEach((id) => revalidatePath(`/requests/${id}`));
+
+  return {
+    success: failed.length === 0,
+    error:
+      failed.length > 0
+        ? `${failed.length} of ${requestIds.length} failed`
+        : null,
+    results: { succeeded, failed },
+  };
+}

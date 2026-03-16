@@ -60,7 +60,10 @@
       "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/approvals\" -type f -name \"page.tsx\" -o -type f -name \"*.tsx\")",
       "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/approvals\" -type d)",
       "Bash(ls -la \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/approvals/\")",
-      "Bash(npx next:*)"
+      "Bash(npx next:*)",
+      "Bash(ls \"c:/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/requests/[id]/\")",
+      "Bash(ls \"c:/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/requests/[id]/\\(components\\)/\")",
+      "Bash(ls \"c:/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/approvals/to-approve/\")"
     ],
     "deny": [],
     "ask": []
