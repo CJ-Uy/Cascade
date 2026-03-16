@@ -23,7 +23,6 @@ import {
   Circle,
   MessageSquare,
   Share2,
-  Download,
   Edit,
 } from "lucide-react";
 import { icons } from "lucide-react";
@@ -35,6 +34,7 @@ import { WorkflowChainDetails } from "./WorkflowChainDetails";
 import { CommentThread } from "./CommentThread";
 import { ApprovalActions } from "./ApprovalActions";
 import { LinkedRequestsChain } from "./LinkedRequestsChain";
+import { ExportPdfButton } from "./ExportPdf";
 
 interface DocumentViewProps {
   document: any;
@@ -180,10 +180,11 @@ export function DocumentView({
             <Share2 className="mr-2 h-4 w-4" />
             Share
           </Button>
-          <Button variant="outline" size="sm" className="w-full sm:w-auto">
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
+          <ExportPdfButton
+            document={document}
+            formFields={form?.form_fields || []}
+            formData={formData}
+          />
         </div>
       </div>
 

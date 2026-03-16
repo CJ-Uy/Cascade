@@ -1433,6 +1433,60 @@ function SortableFieldCard({
           )}
         </div>
 
+        <div className="mt-2">
+          <Select
+            value={field.type}
+            onValueChange={(newType: FieldType) => {
+              const updated: Partial<FormField> = { type: newType };
+              // Initialize type-specific defaults
+              if (
+                newType === "radio" ||
+                newType === "checkbox" ||
+                newType === "select"
+              ) {
+                if (!field.options?.length) updated.options = ["Option 1"];
+              }
+              if (newType === "repeater" && !field.columns) {
+                updated.columns = [];
+              }
+              if (
+                (newType === "date" ||
+                  newType === "time" ||
+                  newType === "datetime") &&
+                !field.dateTimeConfig
+              ) {
+                updated.dateTimeConfig = { allowRange: false };
+              }
+              if (newType === "grid-table" && !field.gridConfig) {
+                updated.gridConfig = {
+                  rows: ["Row 1"],
+                  columns: ["Column 1"],
+                  cellConfig: { type: "short-text" },
+                };
+              }
+              if (newType === "number" && !field.numberConfig) {
+                updated.numberConfig = {
+                  wholeNumbersOnly: false,
+                  allowNegative: false,
+                  validationType: "none",
+                };
+              }
+              onUpdate(field.id, updated);
+            }}
+          >
+            <SelectTrigger className="text-muted-foreground h-8 w-fit gap-2 border-none bg-transparent px-0 text-sm shadow-none focus:ring-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(fieldTypeDisplay).map(([type, label]) => (
+                <SelectItem key={type} value={type}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="mt-4">{renderFieldTypeContent()}</div>
       </div>
     </div>

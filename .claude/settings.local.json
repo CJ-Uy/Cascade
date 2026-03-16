@@ -53,7 +53,14 @@
       "Bash(timeout 30 npx next dev:*)",
       "Bash(curl:*)",
       "Bash(npx supabase db push:*)",
-      "Bash(grep -r \"FieldRenderer\\\\|FormDataDisplay\" --include=\"*.tsx\" app/\\\\\\(main\\\\\\)/requests/[id]/)"
+      "Bash(grep -r \"FieldRenderer\\\\|FormDataDisplay\" --include=\"*.tsx\" app/\\\\\\(main\\\\\\)/requests/[id]/)",
+      "Bash(ls -la c:/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/management/forms/[bu_id]/\\\\\\(components\\\\\\)/)",
+      "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/requests/\\\\[id\\\\]\" -type f -name \"*.tsx\" -o -name \"*.ts\")",
+      "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/approvals\" -type f -name \"*.tsx\" -o -name \"*.ts\")",
+      "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/approvals\" -type f -name \"page.tsx\" -o -type f -name \"*.tsx\")",
+      "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/approvals\" -type d)",
+      "Bash(ls -la \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/approvals/\")",
+      "Bash(npx next:*)"
     ],
     "deny": [],
     "ask": []
