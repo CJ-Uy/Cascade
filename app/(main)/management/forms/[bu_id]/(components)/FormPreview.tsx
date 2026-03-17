@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { computeAllFormulas } from "@/lib/formula-engine";
 import { type FormField } from "./FormBuilder";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,12 @@ import {
   ChevronsUpDown,
   Check,
   Search,
+  Calculator,
+  FileText,
+  Image as ImageIcon,
+  X,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   Command,
   CommandEmpty,
@@ -394,7 +400,7 @@ export function FormPreview({
 
   return (
     <div className="h-full overflow-y-auto rounded-md bg-slate-100 p-4 sm:p-6">
-      <div className="mx-auto max-w-3xl rounded-lg border bg-white p-8 shadow-sm">
+      <div className="mx-auto max-w-7xl rounded-lg border bg-white p-8 shadow-sm">
         <div className="mb-12 text-center">
           <h1 className="text-4xl font-bold">{name}</h1>
           {description && (
@@ -664,6 +670,41 @@ function GridTablePreview({
   const rows = field.gridConfig?.rows || [];
   const columns = field.gridConfig?.columns || [];
   const cellConfig = field.gridConfig?.cellConfig || { type: "short-text" };
+  const columnConfigs = field.gridConfig?.columnConfigs || [];
+  const columnGroups = (field.gridConfig as any)?.columnGroups || [];
+  const rowGroups = (field.gridConfig as any)?.rowGroups || [];
+
+  const getEffectiveConfig = (colIndex: number) => {
+    const cc = columnConfigs[colIndex];
+    if (cc) return cc;
+    return cellConfig;
+  };
+
+  const recomputeFormulas = useCallback(
+    (currentValue: Record<string, any>) => {
+      const formulaUpdates = computeAllFormulas(
+        currentValue,
+        rows,
+        columns,
+        columnConfigs,
+        cellConfig,
+      );
+      if (Object.keys(formulaUpdates).length > 0) {
+        return { ...currentValue, ...formulaUpdates };
+      }
+      return currentValue;
+    },
+    [rows, columns, columnConfigs, cellConfig],
+  );
+
+  // Compute formulas on initial render
+  useEffect(() => {
+    const updated = recomputeFormulas(value);
+    if (updated !== value) {
+      onChange(updated);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCellChange = (
     rowIndex: number,
@@ -672,14 +713,91 @@ function GridTablePreview({
   ) => {
     const cellKey = `${rowIndex}-${colIndex}`;
     const newValue = { ...value, [cellKey]: cellValue };
-    onChange(newValue);
+    const withFormulas = recomputeFormulas(newValue);
+    onChange(withFormulas);
+  };
+
+  const renderFileUpload = (
+    fileValue: any,
+    onFileChange: (file: File | null) => void,
+    onRemove: () => void,
+  ) => {
+    const isImage = fileValue?.name?.match?.(/\.(jpg|jpeg|png|gif|webp)$/i);
+    return (
+      <div className="min-w-[140px] space-y-1.5 p-1">
+        {fileValue && (
+          <div className="border-border bg-muted/30 flex items-center gap-2 rounded-md border p-1.5">
+            {isImage ? (
+              <ImageIcon className="text-muted-foreground h-4 w-4 shrink-0" />
+            ) : (
+              <FileText className="text-muted-foreground h-4 w-4 shrink-0" />
+            )}
+            <span
+              className="flex-1 truncate text-xs font-medium"
+              title={fileValue.name || "file"}
+            >
+              {fileValue.name || "file"}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onRemove}
+              className="h-5 w-5 shrink-0 hover:bg-red-100"
+              type="button"
+            >
+              <X className="h-3 w-3 text-red-500" />
+            </Button>
+          </div>
+        )}
+        <label className="border-muted-foreground/30 text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed px-2 py-1.5 text-xs transition-colors">
+          <input
+            type="file"
+            className="hidden"
+            onChange={(e) =>
+              onFileChange(e.target.files ? e.target.files[0] : null)
+            }
+          />
+          <Plus className="h-3 w-3" />
+          {fileValue ? "Replace" : "Upload"}
+        </label>
+      </div>
+    );
   };
 
   const renderCellInput = (rowIndex: number, colIndex: number) => {
+    const effectiveConfig = getEffectiveConfig(colIndex);
     const cellKey = `${rowIndex}-${colIndex}`;
     const cellValue = value[cellKey];
 
-    switch (cellConfig.type) {
+    // Formula column — display only, show computed value or "—"
+    if (effectiveConfig.type === "formula") {
+      const computed = cellValue;
+      const isEmpty =
+        computed === undefined ||
+        computed === null ||
+        computed === "" ||
+        computed === 0;
+      return (
+        <div className="flex items-center justify-center px-2 py-1.5">
+          <span
+            className={cn(
+              "text-sm font-medium tabular-nums",
+              isEmpty ? "text-muted-foreground" : "text-foreground",
+            )}
+          >
+            {isEmpty ? "—" : computed}
+          </span>
+        </div>
+      );
+    }
+
+    const configType = effectiveConfig.type;
+    const configOptions = effectiveConfig.options || cellConfig.options || [];
+    const configColumns = effectiveConfig.columns || cellConfig.columns || [];
+    const numberConfig =
+      effectiveConfig.numberConfig || cellConfig.numberConfig;
+
+    switch (configType) {
       case "short-text":
         return (
           <Input
@@ -702,61 +820,40 @@ function GridTablePreview({
             placeholder=""
           />
         );
-      case "number":
-        const numberConfig = cellConfig.numberConfig;
+      case "number": {
         const step = numberConfig?.wholeNumbersOnly === true ? "1" : "any";
-
         return (
-          <div className="space-y-1">
-            <Input
-              type="number"
-              step={step}
-              value={cellValue || ""}
-              onChange={(e) =>
-                handleCellChange(rowIndex, colIndex, e.target.value)
-              }
-              className="border-0 focus-visible:ring-1"
-              placeholder=""
-              min={
-                numberConfig?.validationType === "min" ||
-                numberConfig?.validationType === "range"
-                  ? numberConfig.min
-                  : undefined
-              }
-              max={
-                numberConfig?.validationType === "max" ||
-                numberConfig?.validationType === "range"
-                  ? numberConfig.max
-                  : undefined
-              }
-            />
-            {numberConfig && (
-              <p className="text-muted-foreground text-[10px] leading-tight">
-                {numberConfig.wholeNumbersOnly === true &&
-                  "Whole numbers only. "}
-                {numberConfig.allowNegative === false &&
-                  "Positive numbers only. "}
-                {numberConfig.validationType === "min" &&
-                  numberConfig.min !== undefined &&
-                  `Min: ${numberConfig.min}. `}
-                {numberConfig.validationType === "max" &&
-                  numberConfig.max !== undefined &&
-                  `Max: ${numberConfig.max}. `}
-                {numberConfig.validationType === "range" &&
-                  numberConfig.min !== undefined &&
-                  numberConfig.max !== undefined &&
-                  `Range: ${numberConfig.min}-${numberConfig.max}. `}
-              </p>
-            )}
-          </div>
+          <Input
+            type="number"
+            step={step}
+            value={cellValue || ""}
+            onChange={(e) =>
+              handleCellChange(rowIndex, colIndex, e.target.value)
+            }
+            className="border-0 focus-visible:ring-1"
+            placeholder=""
+            min={
+              numberConfig?.validationType === "min" ||
+              numberConfig?.validationType === "range"
+                ? numberConfig.min
+                : undefined
+            }
+            max={
+              numberConfig?.validationType === "max" ||
+              numberConfig?.validationType === "range"
+                ? numberConfig.max
+                : undefined
+            }
+          />
         );
+      }
       case "radio":
         return (
           <RadioGroup
             value={cellValue || ""}
             onValueChange={(val) => handleCellChange(rowIndex, colIndex, val)}
           >
-            {(cellConfig.options || []).map((opt) => (
+            {configOptions.map((opt: string) => (
               <div key={opt} className="flex items-center space-x-2">
                 <RadioGroupItem value={opt} id={`${cellKey}-${opt}`} />
                 <Label htmlFor={`${cellKey}-${opt}`} className="text-sm">
@@ -769,15 +866,16 @@ function GridTablePreview({
       case "checkbox":
         return (
           <div>
-            {(cellConfig.options || []).map((opt) => (
+            {configOptions.map((opt: string) => (
               <div key={opt} className="mb-2 flex items-center space-x-2">
                 <Checkbox
                   id={`${cellKey}-${opt}`}
                   checked={cellValue?.[opt] || false}
                   onCheckedChange={(checked) => {
-                    const current = cellValue || {};
-                    const updated = { ...current, [opt]: checked };
-                    handleCellChange(rowIndex, colIndex, updated);
+                    handleCellChange(rowIndex, colIndex, {
+                      ...(cellValue || {}),
+                      [opt]: checked,
+                    });
                   }}
                 />
                 <Label htmlFor={`${cellKey}-${opt}`} className="text-sm">
@@ -788,181 +886,215 @@ function GridTablePreview({
           </div>
         );
       case "file-upload":
-        const fileName = cellValue ? cellValue.name : "No file chosen";
-        return (
-          <div className="flex flex-col gap-1">
-            <Input
-              type="file"
-              onChange={(e) =>
-                handleCellChange(
-                  rowIndex,
-                  colIndex,
-                  e.target.files ? e.target.files[0] : null,
-                )
-              }
-              className="border-0 text-xs focus-visible:ring-1"
-            />
-            {cellValue && (
-              <span className="text-muted-foreground text-xs">{fileName}</span>
-            )}
-          </div>
+        return renderFileUpload(
+          cellValue,
+          (file) => handleCellChange(rowIndex, colIndex, file),
+          () => handleCellChange(rowIndex, colIndex, null),
         );
-      case "repeater":
+      case "repeater": {
         const repeaterRows = cellValue || [];
         return (
-          <div className="min-w-[300px] space-y-2">
+          <div className="min-w-[280px] space-y-2 p-1">
             {repeaterRows.map((row: any, rowIdx: number) => (
               <div
                 key={rowIdx}
-                className="relative space-y-2 rounded border bg-white p-2"
+                className="relative rounded-md border bg-white p-2 shadow-sm"
               >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute -top-2 -right-2 h-6 w-6"
-                  onClick={() => {
-                    const newRows = [...repeaterRows];
-                    newRows.splice(rowIdx, 1);
-                    handleCellChange(rowIndex, colIndex, newRows);
-                  }}
-                >
-                  <Trash2 className="h-3 w-3 text-red-500" />
-                </Button>
-                {(cellConfig.columns || []).map((col) => (
-                  <div key={col.id} className="space-y-1">
-                    <Label className="text-xs">{col.label}</Label>
-                    {col.type === "short-text" && (
-                      <Input
-                        value={row[col.id] || ""}
-                        onChange={(e) => {
-                          const newRows = [...repeaterRows];
-                          newRows[rowIdx] = {
-                            ...newRows[rowIdx],
-                            [col.id]: e.target.value,
-                          };
-                          handleCellChange(rowIndex, colIndex, newRows);
-                        }}
-                        className="text-xs"
-                      />
-                    )}
-                    {col.type === "number" && (
-                      <Input
-                        type="number"
-                        value={row[col.id] || ""}
-                        onChange={(e) => {
-                          const newRows = [...repeaterRows];
-                          newRows[rowIdx] = {
-                            ...newRows[rowIdx],
-                            [col.id]: e.target.value,
-                          };
-                          handleCellChange(rowIndex, colIndex, newRows);
-                        }}
-                        className="text-xs"
-                      />
-                    )}
-                    {col.type === "file-upload" && (
-                      <Input
-                        type="file"
-                        onChange={(e) => {
-                          const newRows = [...repeaterRows];
-                          newRows[rowIdx] = {
-                            ...newRows[rowIdx],
-                            [col.id]: e.target.files ? e.target.files[0] : null,
-                          };
-                          handleCellChange(rowIndex, colIndex, newRows);
-                        }}
-                        className="text-xs"
-                      />
-                    )}
-                  </div>
-                ))}
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                    Entry {rowIdx + 1}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    onClick={() => {
+                      const newRows = [...repeaterRows];
+                      newRows.splice(rowIdx, 1);
+                      handleCellChange(rowIndex, colIndex, newRows);
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3 text-red-500" />
+                  </Button>
+                </div>
+                <div className="grid gap-2">
+                  {configColumns.map((col: any) => {
+                    const colType = col.type || col.field_type || "short-text";
+                    return (
+                      <div key={col.id} className="space-y-1">
+                        <Label className="text-[11px] font-medium">
+                          {col.label}
+                        </Label>
+                        {colType === "short-text" && (
+                          <Input
+                            value={row[col.id] || ""}
+                            onChange={(e) => {
+                              const newRows = [...repeaterRows];
+                              newRows[rowIdx] = {
+                                ...newRows[rowIdx],
+                                [col.id]: e.target.value,
+                              };
+                              handleCellChange(rowIndex, colIndex, newRows);
+                            }}
+                            className="h-8 text-xs"
+                          />
+                        )}
+                        {colType === "number" && (
+                          <Input
+                            type="number"
+                            value={row[col.id] || ""}
+                            onChange={(e) => {
+                              const newRows = [...repeaterRows];
+                              newRows[rowIdx] = {
+                                ...newRows[rowIdx],
+                                [col.id]: e.target.value,
+                              };
+                              handleCellChange(rowIndex, colIndex, newRows);
+                            }}
+                            className="h-8 text-xs"
+                          />
+                        )}
+                        {colType === "file-upload" &&
+                          renderFileUpload(
+                            row[col.id],
+                            (file) => {
+                              const newRows = [...repeaterRows];
+                              newRows[rowIdx] = {
+                                ...newRows[rowIdx],
+                                [col.id]: file,
+                              };
+                              handleCellChange(rowIndex, colIndex, newRows);
+                            },
+                            () => {
+                              const newRows = [...repeaterRows];
+                              newRows[rowIdx] = {
+                                ...newRows[rowIdx],
+                                [col.id]: null,
+                              };
+                              handleCellChange(rowIndex, colIndex, newRows);
+                            },
+                          )}
+                        {(colType === "radio" ||
+                          colType === "checkbox" ||
+                          colType === "select") && (
+                          <select
+                            value={row[col.id] || ""}
+                            onChange={(e) => {
+                              const newRows = [...repeaterRows];
+                              newRows[rowIdx] = {
+                                ...newRows[rowIdx],
+                                [col.id]: e.target.value,
+                              };
+                              handleCellChange(rowIndex, colIndex, newRows);
+                            }}
+                            className="border-input h-8 w-full rounded-md border bg-transparent px-2 text-xs"
+                          >
+                            <option value="">Select...</option>
+                            {(col.options || [])
+                              .filter((o: string) => o.trim())
+                              .map((opt: string) => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                          </select>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ))}
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                const newRows = [...repeaterRows, {}];
-                handleCellChange(rowIndex, colIndex, newRows);
-              }}
+              onClick={() =>
+                handleCellChange(rowIndex, colIndex, [...repeaterRows, {}])
+              }
               className="w-full text-xs"
             >
-              <Plus className="mr-1 h-3 w-3" />
-              Add Row
+              <Plus className="mr-1 h-3 w-3" /> Add Entry
             </Button>
           </div>
         );
-      case "multi-field":
+      }
+      case "multi-field": {
         const multiData = cellValue || {};
         return (
           <div className="min-w-[220px] space-y-2 p-1">
-            {(cellConfig.columns || []).map((col) => (
-              <div key={col.id} className="space-y-1">
-                <Label className="text-xs">{col.label}</Label>
-                {col.type === "short-text" && (
-                  <Input
-                    value={multiData[col.id] || ""}
-                    onChange={(e) =>
-                      handleCellChange(rowIndex, colIndex, {
-                        ...multiData,
-                        [col.id]: e.target.value,
-                      })
-                    }
-                    className="text-xs"
-                  />
-                )}
-                {col.type === "number" && (
-                  <Input
-                    type="number"
-                    value={multiData[col.id] || ""}
-                    onChange={(e) =>
-                      handleCellChange(rowIndex, colIndex, {
-                        ...multiData,
-                        [col.id]: e.target.value,
-                      })
-                    }
-                    className="text-xs"
-                  />
-                )}
-                {col.type === "file-upload" && (
-                  <Input
-                    type="file"
-                    onChange={(e) =>
-                      handleCellChange(rowIndex, colIndex, {
-                        ...multiData,
-                        [col.id]: e.target.files ? e.target.files[0] : null,
-                      })
-                    }
-                    className="text-xs"
-                  />
-                )}
-                {(col.type === "radio" ||
-                  col.type === "checkbox" ||
-                  col.type === "select") && (
-                  <select
-                    value={multiData[col.id] || ""}
-                    onChange={(e) =>
-                      handleCellChange(rowIndex, colIndex, {
-                        ...multiData,
-                        [col.id]: e.target.value,
-                      })
-                    }
-                    className="border-input w-full rounded-md border bg-transparent px-2 py-1 text-xs"
-                  >
-                    <option value="">Select...</option>
-                    {(col.options || [])
-                      .filter((o: string) => o.trim())
-                      .map((opt: string) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                  </select>
-                )}
-              </div>
-            ))}
+            {configColumns.map((col: any) => {
+              const colType = col.type || col.field_type || "short-text";
+              return (
+                <div key={col.id} className="space-y-1">
+                  <Label className="text-[11px] font-medium">{col.label}</Label>
+                  {colType === "short-text" && (
+                    <Input
+                      value={multiData[col.id] || ""}
+                      onChange={(e) =>
+                        handleCellChange(rowIndex, colIndex, {
+                          ...multiData,
+                          [col.id]: e.target.value,
+                        })
+                      }
+                      className="h-8 text-xs"
+                    />
+                  )}
+                  {colType === "number" && (
+                    <Input
+                      type="number"
+                      value={multiData[col.id] || ""}
+                      onChange={(e) =>
+                        handleCellChange(rowIndex, colIndex, {
+                          ...multiData,
+                          [col.id]: e.target.value,
+                        })
+                      }
+                      className="h-8 text-xs"
+                    />
+                  )}
+                  {colType === "file-upload" &&
+                    renderFileUpload(
+                      multiData[col.id],
+                      (file) =>
+                        handleCellChange(rowIndex, colIndex, {
+                          ...multiData,
+                          [col.id]: file,
+                        }),
+                      () =>
+                        handleCellChange(rowIndex, colIndex, {
+                          ...multiData,
+                          [col.id]: null,
+                        }),
+                    )}
+                  {(colType === "radio" ||
+                    colType === "checkbox" ||
+                    colType === "select") && (
+                    <select
+                      value={multiData[col.id] || ""}
+                      onChange={(e) =>
+                        handleCellChange(rowIndex, colIndex, {
+                          ...multiData,
+                          [col.id]: e.target.value,
+                        })
+                      }
+                      className="border-input h-8 w-full rounded-md border bg-transparent px-2 text-xs"
+                    >
+                      <option value="">Select...</option>
+                      {(col.options || [])
+                        .filter((o: string) => o.trim())
+                        .map((opt: string) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
+      }
       default:
         return (
           <Input
@@ -986,34 +1118,133 @@ function GridTablePreview({
           <span className="ml-1 text-sm font-normal text-red-500">*</span>
         )}
       </h3>
-      <div className="overflow-x-auto rounded-md border bg-white shadow-sm">
+
+      {field.gridConfig?.cellDirections && (
+        <div className="mb-3 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+          <span className="text-sm text-blue-700">
+            {field.gridConfig.cellDirections}
+          </span>
+        </div>
+      )}
+
+      <div
+        className="overflow-auto rounded-md border bg-white shadow-sm"
+        style={{ maxHeight: "70vh" }}
+      >
         <table className="w-full border-collapse">
-          <thead>
+          <thead className="sticky top-0 z-20">
+            {/* Column group header row */}
+            {columnGroups.length > 0 && (
+              <tr>
+                <th className="border-border bg-muted/50 sticky left-0 z-30 border p-2"></th>
+                {(() => {
+                  const cells: React.ReactNode[] = [];
+                  let ci = 0;
+                  while (ci < columns.length) {
+                    const group = columnGroups.find(
+                      (g: any) => ci >= g.startIndex && ci <= g.endIndex,
+                    );
+                    if (group && ci === group.startIndex) {
+                      const span = group.endIndex - group.startIndex + 1;
+                      cells.push(
+                        <th
+                          key={`cg-${ci}`}
+                          colSpan={span}
+                          className="border bg-indigo-50 px-2 py-1.5 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                        >
+                          {group.label}
+                        </th>,
+                      );
+                      ci = group.endIndex + 1;
+                    } else {
+                      cells.push(
+                        <th
+                          key={`cg-${ci}`}
+                          className="border-border bg-muted/50 border p-2"
+                        ></th>,
+                      );
+                      ci++;
+                    }
+                  }
+                  return cells;
+                })()}
+              </tr>
+            )}
             <tr>
-              <th className="border-border bg-muted/50 border p-2"></th>
-              {columns.map((col, colIndex) => (
-                <th
-                  key={colIndex}
-                  className="border-border bg-muted/50 border p-2 text-center font-semibold"
-                >
-                  {col}
-                </th>
-              ))}
+              <th className="border-border bg-muted/50 sticky left-0 z-30 border p-2"></th>
+              {columns.map((col, colIndex) => {
+                const cc = columnConfigs[colIndex];
+                const isFormula = cc?.type === "formula";
+                return (
+                  <th
+                    key={colIndex}
+                    className={cn(
+                      "border-border border p-2 text-center font-semibold",
+                      isFormula ? "bg-blue-50/70 text-blue-700" : "bg-muted/50",
+                    )}
+                  >
+                    {col}
+                    {isFormula && (
+                      <Badge
+                        variant="outline"
+                        className="ml-1.5 text-[10px] font-normal"
+                      >
+                        auto
+                      </Badge>
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                <td className="border-border bg-muted/50 border p-2 font-semibold">
-                  {row}
-                </td>
-                {columns.map((_, colIndex) => (
-                  <td key={colIndex} className="border-border border p-1">
-                    {renderCellInput(rowIndex, colIndex)}
+            {rows.map((row, rowIndex) => {
+              const rowGroup = rowGroups.find(
+                (g: any) => g.startIndex === rowIndex,
+              );
+              const rowGroupSpan = rowGroup
+                ? rowGroup.endIndex - rowGroup.startIndex + 1
+                : 0;
+
+              return (
+                <tr
+                  key={rowIndex}
+                  className={rowIndex % 2 === 1 ? "bg-muted/50" : ""}
+                >
+                  {rowGroup && (
+                    <td
+                      rowSpan={rowGroupSpan}
+                      className="sticky left-0 z-10 border bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                      style={{
+                        writingMode:
+                          rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                        textOrientation: "mixed",
+                      }}
+                    >
+                      {rowGroup.label}
+                    </td>
+                  )}
+                  <td className="border-border bg-muted/50 sticky left-0 z-10 border p-2 font-semibold">
+                    {row}
                   </td>
-                ))}
-              </tr>
-            ))}
+                  {columns.map((_, colIndex) => {
+                    const cc = columnConfigs[colIndex];
+                    const isFormula = cc?.type === "formula";
+                    return (
+                      <td
+                        key={colIndex}
+                        className={cn(
+                          "border-border border",
+                          isFormula ? "bg-blue-50/30 p-1" : "p-1",
+                        )}
+                      >
+                        {renderCellInput(rowIndex, colIndex)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

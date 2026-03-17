@@ -197,13 +197,13 @@ export function FieldRenderer({
       return (
         <Card className="mt-2">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="overflow-auto" style={{ maxHeight: "70vh" }}>
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-20">
                   {/* Column group header row */}
                   {columnGroups.length > 0 && (
                     <TableRow>
-                      <TableHead className="bg-muted/50"></TableHead>
+                      <TableHead className="bg-muted/50 sticky left-0 z-30"></TableHead>
                       {(() => {
                         const cells: React.ReactNode[] = [];
                         let ci = 0;
@@ -238,7 +238,7 @@ export function FieldRenderer({
                     </TableRow>
                   )}
                   <TableRow>
-                    <TableHead className="bg-muted/50"></TableHead>
+                    <TableHead className="bg-muted/50 sticky left-0 z-30"></TableHead>
                     {columns.map((col: string, colIndex: number) => {
                       const cc = columnConfigs[colIndex];
                       const isFormula = cc?.type === "formula";
@@ -270,13 +270,13 @@ export function FieldRenderer({
                     return (
                       <TableRow
                         key={rowIndex}
-                        className={rowIndex % 2 === 1 ? "bg-muted/30" : ""}
+                        className={rowIndex % 2 === 1 ? "bg-muted/50" : ""}
                       >
                         {/* Row group header cell */}
                         {rowGroup && (
                           <TableCell
                             rowSpan={rowGroupSpan}
-                            className="bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                            className="sticky left-0 z-10 bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
                             style={{
                               writingMode:
                                 rowGroupSpan > 2 ? "vertical-rl" : undefined,
@@ -286,7 +286,7 @@ export function FieldRenderer({
                             {rowGroup.label}
                           </TableCell>
                         )}
-                        <TableCell className="bg-muted/50 font-semibold">
+                        <TableCell className="bg-muted/50 sticky left-0 z-10 font-semibold">
                           {row}
                         </TableCell>
                         {columns.map((_: string, colIndex: number) => {
