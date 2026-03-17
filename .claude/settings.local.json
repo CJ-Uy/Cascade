@@ -74,7 +74,12 @@
       "Bash(grep -n \"gridConfig\\\\|cellConfig\\\\|columnConfigs\" /c/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/management/forms/[bu_id]/\\\\\\(components\\\\\\)/FormBuilder.tsx)",
       "Bash(grep -n \"formula\" /c/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/management/forms/[bu_id]/\\\\\\(components\\\\\\)/FormBuilder.tsx)",
       "Bash(wc -l \"c:/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/requests/create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id]/\\(components\\)/FormFiller.tsx\")",
-      "Bash(wc -l \"c:/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/management/forms/[bu_id]/\\(components\\)/FormBuilder.tsx\")"
+      "Bash(wc -l \"c:/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/management/forms/[bu_id]/\\(components\\)/FormBuilder.tsx\")",
+      "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/management/approval-system\" -name \"layout.tsx\" -type f)",
+      "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/management\" -name \"layout.tsx\" -o -name \"actions.ts\")",
+      "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/management\" -maxdepth 1 -name \"layout.tsx\")",
+      "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/management\" -maxdepth 2 -name \"layout.tsx\" -o -name \"page.tsx\")",
+      "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)\" -maxdepth 1 -name \"layout.tsx\")"
     ],
     "deny": [],
     "ask": []
