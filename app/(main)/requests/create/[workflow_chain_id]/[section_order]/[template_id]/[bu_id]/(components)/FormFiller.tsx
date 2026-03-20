@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { evaluateFormula, computeAllFormulas } from "@/lib/formula-engine";
+import { evaluateFormula, evaluateRowFormula, computeAllFormulas } from "@/lib/formula-engine";
 
 interface FormField {
   id: string;
@@ -90,6 +90,7 @@ interface FormField {
       };
       formula?: string;
     }[];
+    rowConfigs?: { type: string; formula?: string }[];
     cellDirections?: string;
     columnGroups?: { label: string; startIndex: number; endIndex: number }[];
     rowGroups?: { label: string; startIndex: number; endIndex: number }[];
@@ -1058,6 +1059,7 @@ function GridTablePreview({
   const columns = field.gridConfig?.columns || [];
   const cellConfig = field.gridConfig?.cellConfig || { type: "short-text" };
   const columnConfigs = field.gridConfig?.columnConfigs || [];
+  const rowConfigs = field.gridConfig?.rowConfigs || [];
   const cellDirections = field.gridConfig?.cellDirections;
   const columnGroups = field.gridConfig?.columnGroups || [];
   const rowGroups = field.gridConfig?.rowGroups || [];
@@ -1076,12 +1078,13 @@ function GridTablePreview({
     const cellKey = `${rowIndex}-${colIndex}`;
     const newValue = { ...value, [cellKey]: cellValue };
 
-    // Also compute and store formula column values
+    // Compute formula column values
     const formulaUpdates: Record<string, any> = {};
     columns.forEach((_, fColIdx) => {
       const cc = columnConfigs[fColIdx];
       if (cc?.type === "formula" && cc.formula) {
         rows.forEach((_, fRowIdx) => {
+          if (rowConfigs[fRowIdx]?.type === "formula") return;
           const fCellKey = `${fRowIdx}-${fColIdx}`;
           formulaUpdates[fCellKey] = evaluateFormula(
             cc.formula!,
@@ -1097,6 +1100,26 @@ function GridTablePreview({
       }
     });
 
+    // Compute formula row values
+    rows.forEach((_, fRowIdx) => {
+      const rc = rowConfigs[fRowIdx];
+      if (rc?.type === "formula" && rc.formula) {
+        columns.forEach((_, fColIdx) => {
+          const fCellKey = `${fRowIdx}-${fColIdx}`;
+          formulaUpdates[fCellKey] = evaluateRowFormula(
+            rc.formula!,
+            fRowIdx,
+            fColIdx,
+            { ...newValue, ...formulaUpdates },
+            rows,
+            columns,
+            columnConfigs,
+            rowConfigs,
+          );
+        });
+      }
+    });
+
     onChange({ ...newValue, ...formulaUpdates });
   };
 
@@ -1104,16 +1127,19 @@ function GridTablePreview({
   useEffect(() => {
     const formulaUpdates: Record<string, any> = {};
     let hasUpdates = false;
+
+    // Formula columns
     columns.forEach((_, fColIdx) => {
       const cc = columnConfigs[fColIdx];
       if (cc?.type === "formula" && cc.formula) {
         rows.forEach((_, fRowIdx) => {
+          if (rowConfigs[fRowIdx]?.type === "formula") return;
           const fCellKey = `${fRowIdx}-${fColIdx}`;
           const computed = evaluateFormula(
             cc.formula!,
             fRowIdx,
             fColIdx,
-            value,
+            { ...value, ...formulaUpdates },
             rows,
             columns,
             columnConfigs,
@@ -1126,6 +1152,31 @@ function GridTablePreview({
         });
       }
     });
+
+    // Formula rows
+    rows.forEach((_, fRowIdx) => {
+      const rc = rowConfigs[fRowIdx];
+      if (rc?.type === "formula" && rc.formula) {
+        columns.forEach((_, fColIdx) => {
+          const fCellKey = `${fRowIdx}-${fColIdx}`;
+          const computed = evaluateRowFormula(
+            rc.formula!,
+            fRowIdx,
+            fColIdx,
+            { ...value, ...formulaUpdates },
+            rows,
+            columns,
+            columnConfigs,
+            rowConfigs,
+          );
+          if (value[fCellKey] !== computed) {
+            formulaUpdates[fCellKey] = computed;
+            hasUpdates = true;
+          }
+        });
+      }
+    });
+
     if (hasUpdates) {
       onChange({ ...value, ...formulaUpdates });
     }
@@ -1665,6 +1716,36 @@ function GridTablePreview({
           </div>
         );
       }
+      case "date":
+        return (
+          <DatePicker
+            value={cellValue ? new Date(cellValue) : undefined}
+            onChange={(date) =>
+              handleCellChange(rowIndex, colIndex, date ? dateToUTC8String(date) : null)
+            }
+            placeholder="Pick a date"
+          />
+        );
+      case "time":
+        return (
+          <TimePicker
+            value={cellValue || undefined}
+            onChange={(time) =>
+              handleCellChange(rowIndex, colIndex, time || null)
+            }
+            placeholder="Pick a time"
+          />
+        );
+      case "datetime":
+        return (
+          <DateTimePicker
+            value={cellValue || undefined}
+            onChange={(dt) =>
+              handleCellChange(rowIndex, colIndex, dt || null)
+            }
+            placeholder="Pick date & time"
+          />
+        );
       default:
         return (
           <Input
@@ -1802,6 +1883,9 @@ function GridTablePreview({
           </thead>
           <tbody>
             {rows.map((row, rowIndex) => {
+              const rc = rowConfigs[rowIndex];
+              const rowType = rc?.type || "data";
+
               // Check if this row starts a new row group
               const rowGroup = rowGroups.find((g) => g.startIndex === rowIndex);
               const isInRowGroup = rowGroups.some(
@@ -1811,6 +1895,79 @@ function GridTablePreview({
                 ? rowGroup.endIndex - rowGroup.startIndex + 1
                 : 0;
 
+              // Header row — spans all columns as a section label
+              if (rowType === "header") {
+                return (
+                  <tr key={rowIndex} className="bg-muted/70">
+                    {rowGroup && (
+                      <td
+                        rowSpan={rowGroupSpan}
+                        className="sticky left-0 z-10 border-r border-b bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                        style={{
+                          writingMode:
+                            rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                          textOrientation: "mixed",
+                        }}
+                      >
+                        {rowGroup.label}
+                      </td>
+                    )}
+                    <td
+                      colSpan={columns.length + 1}
+                      className="sticky left-0 z-10 border-b px-3 py-2 text-sm font-bold text-gray-800"
+                    >
+                      {row}
+                    </td>
+                  </tr>
+                );
+              }
+
+              // Formula row — read-only computed values
+              if (rowType === "formula") {
+                return (
+                  <tr key={rowIndex} className="bg-emerald-50/70">
+                    {rowGroup && (
+                      <td
+                        rowSpan={rowGroupSpan}
+                        className="sticky left-0 z-10 border-r border-b bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                        style={{
+                          writingMode:
+                            rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                          textOrientation: "mixed",
+                        }}
+                      >
+                        {rowGroup.label}
+                      </td>
+                    )}
+                    <td
+                      className={cn(
+                        "sticky left-0 z-10 border-r border-b bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800",
+                        isInRowGroup && "border-l-0",
+                      )}
+                    >
+                      {row}
+                    </td>
+                    {columns.map((_, colIndex) => {
+                      const cellKey = `${rowIndex}-${colIndex}`;
+                      const cellVal = value[cellKey];
+                      return (
+                        <td
+                          key={colIndex}
+                          className="border-b bg-emerald-50/30 px-2 py-1.5 text-right"
+                        >
+                          <span className="font-semibold tabular-nums text-emerald-800">
+                            {cellVal !== undefined && cellVal !== null && cellVal !== ""
+                              ? String(cellVal)
+                              : "—"}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              }
+
+              // Data row — normal editable cells
               return (
                 <tr
                   key={rowIndex}

@@ -354,7 +354,139 @@ export function evaluateFormula(
 }
 
 /**
- * Compute all formula column values for a grid table.
+ * Evaluate a row-based formula for a specific column.
+ * Row formulas reference row labels (e.g., {Breakfast}, {Lunch}) and resolve
+ * values from those rows in the current column.
+ *
+ * Supported patterns:
+ *   =SUM(ROWS[start:end])   — sum rows in range [start, end) for current column
+ *   =SUM(ROWS)              — sum all non-formula, non-header rows for current column
+ *   ={Row1} + {Row2}        — arithmetic with named row references
+ */
+export function evaluateRowFormula(
+  formula: string,
+  rowIndex: number,
+  colIndex: number,
+  value: Record<string, any>,
+  rows: string[],
+  columns: string[],
+  columnConfigs: any[],
+  rowConfigs: any[],
+): string | number {
+  if (!formula || !formula.startsWith("=")) return "";
+
+  const expr = formula.slice(1).trim();
+
+  // Build a map of row label -> row index
+  const rowIndexMap: Record<string, number> = {};
+  rows.forEach((row, i) => {
+    rowIndexMap[row] = i;
+  });
+
+  const isSkippableRow = (ri: number) => {
+    const rc = rowConfigs[ri];
+    return rc?.type === "formula" || rc?.type === "header";
+  };
+
+  // Check for SUM() function
+  const sumMatch = expr.match(/^SUM\((.+)\)$/i);
+
+  if (sumMatch) {
+    const inner = sumMatch[1].trim();
+
+    // =SUM(ROWS) — sum all data rows in the current column
+    if (/^ROWS$/i.test(inner)) {
+      let total = 0;
+      for (let ri = 0; ri < rows.length; ri++) {
+        if (isSkippableRow(ri)) continue;
+        const cellKey = `${ri}-${colIndex}`;
+        const cellVal = value[cellKey];
+        if (
+          cellVal !== undefined &&
+          cellVal !== null &&
+          cellVal !== "" &&
+          typeof cellVal !== "object"
+        ) {
+          total += parseFloat(cellVal) || 0;
+        }
+      }
+      return Math.round(total * 100) / 100;
+    }
+
+    // =SUM(ROWS[start:end]) — sum specific row range (1-based, converted to 0-based)
+    const rowRangeMatch = inner.match(/^ROWS\[(\d+):(\d+)\]$/i);
+    if (rowRangeMatch) {
+      const start = parseInt(rowRangeMatch[1], 10) - 1;
+      const end = parseInt(rowRangeMatch[2], 10);
+      let total = 0;
+      for (let ri = start; ri < end && ri < rows.length; ri++) {
+        if (ri < 0) continue;
+        const cellKey = `${ri}-${colIndex}`;
+        const cellVal = value[cellKey];
+        if (
+          cellVal !== undefined &&
+          cellVal !== null &&
+          cellVal !== "" &&
+          typeof cellVal !== "object"
+        ) {
+          total += parseFloat(cellVal) || 0;
+        }
+      }
+      return Math.round(total * 100) / 100;
+    }
+
+    // =SUM({Row1}, {Row2}, ...) — sum specific named rows
+    const refs = inner.match(/\{(.+?)\}/g);
+    if (refs) {
+      let total = 0;
+      for (const ref of refs) {
+        const rowName = ref.slice(1, -1);
+        const ri = rowIndexMap[rowName];
+        if (ri === undefined) continue;
+        const cellKey = `${ri}-${colIndex}`;
+        const cellVal = value[cellKey];
+        if (
+          cellVal !== undefined &&
+          cellVal !== null &&
+          cellVal !== "" &&
+          typeof cellVal !== "object"
+        ) {
+          total += parseFloat(cellVal) || 0;
+        }
+      }
+      return Math.round(total * 100) / 100;
+    }
+
+    return "ERR";
+  }
+
+  // Simple arithmetic: ={Row1} + {Row2}, ={Row1} * 2, etc.
+  try {
+    let resolved = expr;
+    resolved = resolved.replace(/\{(.+?)\}/g, (_match, rowName) => {
+      const ri = rowIndexMap[rowName];
+      if (ri === undefined) return "0";
+      const cellKey = `${ri}-${colIndex}`;
+      const cellVal = value[cellKey];
+      if (cellVal === undefined || cellVal === null || cellVal === "")
+        return "0";
+      if (typeof cellVal === "object") return "0";
+      return String(cellVal);
+    });
+    if (/^[\d\s+\-*/().]+$/.test(resolved)) {
+      const result = Function(`"use strict"; return (${resolved})`)();
+      if (typeof result === "number" && !isNaN(result)) {
+        return Math.round(result * 100) / 100;
+      }
+    }
+    return resolved;
+  } catch {
+    return "ERR";
+  }
+}
+
+/**
+ * Compute all formula column AND formula row values for a grid table.
  * Returns a map of cellKey -> computed value.
  */
 export function computeAllFormulas(
@@ -363,12 +495,18 @@ export function computeAllFormulas(
   columns: string[],
   columnConfigs: any[],
   cellConfig: any,
+  rowConfigs?: any[],
 ): Record<string, any> {
   const formulaUpdates: Record<string, any> = {};
+  const rc = rowConfigs || [];
+
+  // First pass: compute formula columns (existing behavior)
   columns.forEach((_, fColIdx) => {
     const cc = columnConfigs[fColIdx];
     if (cc?.type === "formula" && cc.formula) {
       rows.forEach((_, fRowIdx) => {
+        // Skip formula rows — they'll be computed in the second pass
+        if (rc[fRowIdx]?.type === "formula") return;
         const fCellKey = `${fRowIdx}-${fColIdx}`;
         formulaUpdates[fCellKey] = evaluateFormula(
           cc.formula!,
@@ -383,5 +521,26 @@ export function computeAllFormulas(
       });
     }
   });
+
+  // Second pass: compute formula rows
+  rows.forEach((_, fRowIdx) => {
+    const rowCfg = rc[fRowIdx];
+    if (rowCfg?.type === "formula" && rowCfg.formula) {
+      columns.forEach((_, fColIdx) => {
+        const fCellKey = `${fRowIdx}-${fColIdx}`;
+        formulaUpdates[fCellKey] = evaluateRowFormula(
+          rowCfg.formula!,
+          fRowIdx,
+          fColIdx,
+          { ...value, ...formulaUpdates },
+          rows,
+          columns,
+          columnConfigs,
+          rc,
+        );
+      });
+    }
+  });
+
   return formulaUpdates;
 }

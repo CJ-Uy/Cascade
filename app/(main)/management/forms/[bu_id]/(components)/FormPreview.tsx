@@ -671,6 +671,7 @@ function GridTablePreview({
   const columns = field.gridConfig?.columns || [];
   const cellConfig = field.gridConfig?.cellConfig || { type: "short-text" };
   const columnConfigs = field.gridConfig?.columnConfigs || [];
+  const rowConfigs = (field.gridConfig as any)?.rowConfigs || [];
   const columnGroups = (field.gridConfig as any)?.columnGroups || [];
   const rowGroups = (field.gridConfig as any)?.rowGroups || [];
 
@@ -688,13 +689,14 @@ function GridTablePreview({
         columns,
         columnConfigs,
         cellConfig,
+        rowConfigs,
       );
       if (Object.keys(formulaUpdates).length > 0) {
         return { ...currentValue, ...formulaUpdates };
       }
       return currentValue;
     },
-    [rows, columns, columnConfigs, cellConfig],
+    [rows, columns, columnConfigs, cellConfig, rowConfigs],
   );
 
   // Compute formulas on initial render
@@ -1095,6 +1097,36 @@ function GridTablePreview({
           </div>
         );
       }
+      case "date":
+        return (
+          <DatePicker
+            value={cellValue ? new Date(cellValue) : undefined}
+            onChange={(date) =>
+              handleCellChange(rowIndex, colIndex, date ? dateToUTC8String(date) : null)
+            }
+            placeholder="Pick a date"
+          />
+        );
+      case "time":
+        return (
+          <TimePicker
+            value={cellValue || undefined}
+            onChange={(time) =>
+              handleCellChange(rowIndex, colIndex, time || null)
+            }
+            placeholder="Pick a time"
+          />
+        );
+      case "datetime":
+        return (
+          <DateTimePicker
+            value={cellValue || undefined}
+            onChange={(dt) =>
+              handleCellChange(rowIndex, colIndex, dt || null)
+            }
+            placeholder="Pick date & time"
+          />
+        );
       default:
         return (
           <Input
@@ -1199,13 +1231,89 @@ function GridTablePreview({
           </thead>
           <tbody>
             {rows.map((row, rowIndex) => {
+              const rc = rowConfigs[rowIndex];
+              const rowType = rc?.type || "data";
               const rowGroup = rowGroups.find(
                 (g: any) => g.startIndex === rowIndex,
+              );
+              const isInRowGroup = rowGroups.some(
+                (g: any) => rowIndex >= g.startIndex && rowIndex <= g.endIndex,
               );
               const rowGroupSpan = rowGroup
                 ? rowGroup.endIndex - rowGroup.startIndex + 1
                 : 0;
 
+              // Header row
+              if (rowType === "header") {
+                return (
+                  <tr key={rowIndex} className="bg-muted/70">
+                    {rowGroup && (
+                      <td
+                        rowSpan={rowGroupSpan}
+                        className="sticky left-0 z-10 border bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                        style={{
+                          writingMode:
+                            rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                          textOrientation: "mixed",
+                        }}
+                      >
+                        {rowGroup.label}
+                      </td>
+                    )}
+                    <td
+                      colSpan={columns.length + 1}
+                      className="border-border sticky left-0 z-10 border p-2 font-bold text-gray-800"
+                    >
+                      {row}
+                    </td>
+                  </tr>
+                );
+              }
+
+              // Formula row
+              if (rowType === "formula") {
+                return (
+                  <tr key={rowIndex} className="bg-emerald-50/70">
+                    {rowGroup && (
+                      <td
+                        rowSpan={rowGroupSpan}
+                        className="sticky left-0 z-10 border bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                        style={{
+                          writingMode:
+                            rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                          textOrientation: "mixed",
+                        }}
+                      >
+                        {rowGroup.label}
+                      </td>
+                    )}
+                    <td className={cn(
+                      "border-border sticky left-0 z-10 border bg-emerald-50 p-2 font-semibold text-emerald-800",
+                      isInRowGroup && "border-l-0",
+                    )}>
+                      {row}
+                    </td>
+                    {columns.map((_, colIndex) => {
+                      const cellKey = `${rowIndex}-${colIndex}`;
+                      const cellVal = value[cellKey];
+                      return (
+                        <td
+                          key={colIndex}
+                          className="border-border border bg-emerald-50/30 p-1 text-right"
+                        >
+                          <span className="font-semibold tabular-nums text-emerald-800">
+                            {cellVal !== undefined && cellVal !== null && cellVal !== ""
+                              ? String(cellVal)
+                              : "—"}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              }
+
+              // Data row (default)
               return (
                 <tr
                   key={rowIndex}

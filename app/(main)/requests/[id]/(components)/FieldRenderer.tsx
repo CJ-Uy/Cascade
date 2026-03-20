@@ -183,6 +183,7 @@ export function FieldRenderer({
       const rows = gridConfig?.rows || [];
       const columns = gridConfig?.columns || [];
       const columnConfigs = gridConfig?.columnConfigs || [];
+      const rowConfigs = gridConfig?.rowConfigs || [];
       const columnGroups = gridConfig?.columnGroups || [];
       const rowGroups = gridConfig?.rowGroups || [];
 
@@ -260,19 +261,93 @@ export function FieldRenderer({
                 </TableHeader>
                 <TableBody>
                   {rows.map((row: string, rowIndex: number) => {
+                    const rc = rowConfigs[rowIndex];
+                    const rowType = rc?.type || "data";
                     const rowGroup = rowGroups.find(
                       (g: any) => g.startIndex === rowIndex,
+                    );
+                    const isInRowGroup = rowGroups.some(
+                      (g: any) => rowIndex >= g.startIndex && rowIndex <= g.endIndex,
                     );
                     const rowGroupSpan = rowGroup
                       ? rowGroup.endIndex - rowGroup.startIndex + 1
                       : 0;
 
+                    // Header row
+                    if (rowType === "header") {
+                      return (
+                        <TableRow key={rowIndex} className="bg-muted/70">
+                          {rowGroup && (
+                            <TableCell
+                              rowSpan={rowGroupSpan}
+                              className="sticky left-0 z-10 bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                              style={{
+                                writingMode:
+                                  rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                                textOrientation: "mixed" as any,
+                              }}
+                            >
+                              {rowGroup.label}
+                            </TableCell>
+                          )}
+                          <TableCell
+                            colSpan={columns.length + 1}
+                            className="sticky left-0 z-10 font-bold text-gray-800"
+                          >
+                            {row}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+
+                    // Formula row
+                    if (rowType === "formula") {
+                      return (
+                        <TableRow key={rowIndex} className="bg-emerald-50/70">
+                          {rowGroup && (
+                            <TableCell
+                              rowSpan={rowGroupSpan}
+                              className="sticky left-0 z-10 bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                              style={{
+                                writingMode:
+                                  rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                                textOrientation: "mixed" as any,
+                              }}
+                            >
+                              {rowGroup.label}
+                            </TableCell>
+                          )}
+                          <TableCell
+                            className={`sticky left-0 z-10 bg-emerald-50 font-semibold text-emerald-800 ${isInRowGroup ? "" : ""}`}
+                          >
+                            {row}
+                          </TableCell>
+                          {columns.map((_: string, colIndex: number) => {
+                            const cellKey = `${rowIndex}-${colIndex}`;
+                            const cellValue = value[cellKey];
+                            return (
+                              <TableCell
+                                key={colIndex}
+                                className="bg-emerald-50/30 text-right"
+                              >
+                                <span className="font-semibold tabular-nums text-emerald-800">
+                                  {cellValue !== undefined && cellValue !== null && cellValue !== ""
+                                    ? String(cellValue)
+                                    : "—"}
+                                </span>
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      );
+                    }
+
+                    // Data row (default)
                     return (
                       <TableRow
                         key={rowIndex}
                         className={rowIndex % 2 === 1 ? "bg-muted/50" : ""}
                       >
-                        {/* Row group header cell */}
                         {rowGroup && (
                           <TableCell
                             rowSpan={rowGroupSpan}

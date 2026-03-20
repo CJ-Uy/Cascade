@@ -64,7 +64,10 @@ export type GridCellType =
   | "checkbox"
   | "file-upload"
   | "repeater"
-  | "multi-field";
+  | "multi-field"
+  | "date"
+  | "time"
+  | "datetime";
 
 export interface GridColumnConfig {
   type: GridCellType | "formula";
@@ -93,9 +96,17 @@ export interface RowGroup {
   endIndex: number; // End row index (inclusive, 0-based)
 }
 
+export type GridRowType = "data" | "header" | "formula";
+
+export interface GridRowConfig {
+  type: GridRowType; // Row type: data (default), header (section label), formula (computed)
+  formula?: string; // Formula for formula rows, e.g., "=SUM(ROWS[0:2])" or "={Row0} + {Row1}"
+}
+
 export interface GridTableConfig {
   rows: string[]; // Row labels (e.g., ["9:00 AM", "10:00 AM"])
   columnConfigs?: GridColumnConfig[]; // Per-column config (overrides cellConfig when present)
+  rowConfigs?: GridRowConfig[]; // Per-row config (type, formula, etc.)
   cellDirections?: string; // Directions shown above the table instead of per-cell
   columns: string[]; // Column labels (e.g., ["Monday", "Tuesday"])
   cellConfig: GridCellConfig; // Configuration for each cell
@@ -345,10 +356,22 @@ function GridTableBuilder({
   };
 
   const columnConfigs = gridConfig.columnConfigs || [];
+  const rowConfigs = gridConfig.rowConfigs || [];
   const columnGroups = gridConfig.columnGroups || [];
   const rowGroups = gridConfig.rowGroups || [];
 
   const getColConfig = (colIndex: number) => columnConfigs[colIndex] || null;
+  const getRowConfig = (rowIndex: number): GridRowConfig =>
+    rowConfigs[rowIndex] || { type: "data" as GridRowType };
+
+  const updateRowConfig = (rowIndex: number, config: GridRowConfig) => {
+    const newConfigs = [...rowConfigs];
+    while (newConfigs.length <= rowIndex) newConfigs.push({ type: "data" as GridRowType });
+    newConfigs[rowIndex] = config;
+    onUpdate(field.id, {
+      gridConfig: { ...gridConfig, rowConfigs: newConfigs },
+    });
+  };
 
   const updateColumnConfig = (
     colIndex: number,
@@ -370,12 +393,15 @@ function GridTableBuilder({
 
   const addGridRow = () => {
     const newRows = [...gridConfig.rows, `Row ${gridConfig.rows.length + 1}`];
-    onUpdate(field.id, { gridConfig: { ...gridConfig, rows: newRows } });
+    const newRowConfigs = [...rowConfigs, { type: "data" as GridRowType }];
+    onUpdate(field.id, { gridConfig: { ...gridConfig, rows: newRows, rowConfigs: newRowConfigs } });
   };
 
   const removeGridRow = (index: number) => {
     const newRows = [...gridConfig.rows];
     newRows.splice(index, 1);
+    const newRowConfigs = [...rowConfigs];
+    newRowConfigs.splice(index, 1);
     // Adjust row groups when removing a row
     const newRowGroups = rowGroups
       .map((g) => {
@@ -391,7 +417,7 @@ function GridTableBuilder({
       })
       .filter((g): g is RowGroup => g !== null && g.startIndex <= g.endIndex);
     onUpdate(field.id, {
-      gridConfig: { ...gridConfig, rows: newRows, rowGroups: newRowGroups },
+      gridConfig: { ...gridConfig, rows: newRows, rowConfigs: newRowConfigs, rowGroups: newRowGroups },
     });
   };
 
@@ -451,7 +477,10 @@ function GridTableBuilder({
     const newRows = [...gridConfig.rows];
     const [moved] = newRows.splice(fromIndex, 1);
     newRows.splice(toIndex, 0, moved);
-    onUpdate(field.id, { gridConfig: { ...gridConfig, rows: newRows } });
+    const newRowConfigs = [...rowConfigs];
+    const [movedConfig] = newRowConfigs.splice(fromIndex, 1);
+    newRowConfigs.splice(toIndex, 0, movedConfig);
+    onUpdate(field.id, { gridConfig: { ...gridConfig, rows: newRows, rowConfigs: newRowConfigs } });
   };
 
   const moveGridColumn = (fromIndex: number, toIndex: number) => {
@@ -478,6 +507,7 @@ function GridTableBuilder({
         rows: gridConfig.columns,
         columns: gridConfig.rows,
         columnConfigs: undefined,
+        rowConfigs: undefined,
         columnGroups: undefined,
         rowGroups: undefined,
       },
@@ -614,47 +644,81 @@ function GridTableBuilder({
               <h4 className="text-sm font-semibold text-gray-700">
                 Row Labels
               </h4>
-              <div className="max-h-[300px] space-y-1 overflow-y-auto">
-                {gridConfig.rows.map((row, index) => (
-                  <div key={index} className="flex items-center gap-1">
-                    <div className="flex flex-col">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-4 w-6"
-                        onClick={() => moveGridRow(index, index - 1)}
-                        disabled={index === 0}
-                      >
-                        <ChevronUp className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-4 w-6"
-                        onClick={() => moveGridRow(index, index + 1)}
-                        disabled={index === gridConfig.rows.length - 1}
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </Button>
+              <div className="max-h-[400px] space-y-1 overflow-y-auto">
+                {gridConfig.rows.map((row, index) => {
+                  const rc = getRowConfig(index);
+                  return (
+                    <div key={index} className="space-y-1">
+                      <div className="flex items-center gap-1">
+                        <div className="flex flex-col">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-6"
+                            onClick={() => moveGridRow(index, index - 1)}
+                            disabled={index === 0}
+                          >
+                            <ChevronUp className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-6"
+                            onClick={() => moveGridRow(index, index + 1)}
+                            disabled={index === gridConfig.rows.length - 1}
+                          >
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <span className="text-muted-foreground w-5 text-center text-xs">
+                          {index + 1}
+                        </span>
+                        <Input
+                          value={row}
+                          onChange={(e) => updateGridRow(index, e.target.value)}
+                          placeholder={`Row ${index + 1}`}
+                          className="flex-grow bg-white"
+                        />
+                        <select
+                          value={rc.type}
+                          onChange={(e) =>
+                            updateRowConfig(index, {
+                              ...rc,
+                              type: e.target.value as GridRowType,
+                              formula: e.target.value === "formula" ? rc.formula || "" : undefined,
+                            })
+                          }
+                          className="h-8 rounded-md border bg-white px-1.5 text-xs"
+                          title="Row type"
+                        >
+                          <option value="data">Data</option>
+                          <option value="header">Header</option>
+                          <option value="formula">Formula</option>
+                        </select>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeGridRow(index)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
+                        </Button>
+                      </div>
+                      {rc.type === "formula" && (
+                        <div className="ml-12 flex items-center gap-1">
+                          <span className="text-muted-foreground text-xs">fx</span>
+                          <Input
+                            value={rc.formula || ""}
+                            onChange={(e) =>
+                              updateRowConfig(index, { ...rc, formula: e.target.value })
+                            }
+                            placeholder="e.g., =SUM(ROWS[0:2]) or ={Breakfast} + {Lunch}"
+                            className="h-7 bg-white text-xs"
+                          />
+                        </div>
+                      )}
                     </div>
-                    <span className="text-muted-foreground w-5 text-center text-xs">
-                      {index + 1}
-                    </span>
-                    <Input
-                      value={row}
-                      onChange={(e) => updateGridRow(index, e.target.value)}
-                      placeholder={`Row ${index + 1}`}
-                      className="flex-grow bg-white"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeGridRow(index)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <Button
                 variant="outline"
@@ -753,6 +817,9 @@ function GridTableBuilder({
               <option value="short-text">Short Text</option>
               <option value="long-text">Long Text (Textarea)</option>
               <option value="number">Number</option>
+              <option value="date">Date</option>
+              <option value="time">Time</option>
+              <option value="datetime">Date & Time</option>
               <option value="radio">Radio Buttons</option>
               <option value="checkbox">Checkboxes</option>
               <option value="file-upload">File Upload</option>
@@ -898,6 +965,9 @@ function GridTableBuilder({
                           <option value="short-text">Short Text</option>
                           <option value="long-text">Long Text</option>
                           <option value="number">Number</option>
+                          <option value="date">Date</option>
+                          <option value="time">Time</option>
+                          <option value="datetime">Date & Time</option>
                           <option value="radio">Radio</option>
                           <option value="checkbox">Checkbox</option>
                           <option value="file-upload">File Upload</option>
@@ -1273,6 +1343,7 @@ function GridTableBuilder({
                   </thead>
                   <tbody>
                     {gridConfig.rows.map((row, i) => {
+                      const rc = getRowConfig(i);
                       const rowGroup = rowGroups.find(
                         (g) => g.startIndex === i,
                       );
@@ -1280,6 +1351,68 @@ function GridTableBuilder({
                         ? rowGroup.endIndex - rowGroup.startIndex + 1
                         : 0;
 
+                      // Header row
+                      if (rc.type === "header") {
+                        return (
+                          <tr key={i} className="bg-muted/70">
+                            {rowGroup && (
+                              <td
+                                rowSpan={rowGroupSpan}
+                                className="border bg-indigo-50 px-2 py-1 text-center text-xs font-bold text-indigo-700 uppercase"
+                                style={{
+                                  writingMode:
+                                    rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                                  textOrientation: "mixed",
+                                }}
+                              >
+                                {rowGroup.label}
+                              </td>
+                            )}
+                            <td
+                              colSpan={gridConfig.columns.length + 1}
+                              className="border px-2 py-1 font-bold text-gray-800"
+                            >
+                              {row}
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      // Formula row
+                      if (rc.type === "formula") {
+                        return (
+                          <tr key={i} className="bg-emerald-50/70">
+                            {rowGroup && (
+                              <td
+                                rowSpan={rowGroupSpan}
+                                className="border bg-indigo-50 px-2 py-1 text-center text-xs font-bold text-indigo-700 uppercase"
+                                style={{
+                                  writingMode:
+                                    rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                                  textOrientation: "mixed",
+                                }}
+                              >
+                                {rowGroup.label}
+                              </td>
+                            )}
+                            <td className="border bg-emerald-50 px-2 py-1 font-semibold text-emerald-800">
+                              {row}
+                            </td>
+                            {gridConfig.columns.map((_, j) => (
+                              <td
+                                key={j}
+                                className="border bg-emerald-50/30 px-2 py-1"
+                              >
+                                <span className="text-xs text-emerald-600 italic">
+                                  = calculated
+                                </span>
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      }
+
+                      // Data row (default)
                       return (
                         <tr key={i}>
                           {rowGroup && (
@@ -1321,6 +1454,18 @@ function GridTableBuilder({
                                   <div className="rounded border border-dashed border-gray-300 bg-gray-50 p-1">
                                     <span className="text-xs text-gray-500 italic">
                                       Repeater
+                                    </span>
+                                  </div>
+                                ) : effectiveType === "date" ||
+                                  effectiveType === "time" ||
+                                  effectiveType === "datetime" ? (
+                                  <div className="rounded border border-dashed border-teal-300 bg-teal-50 p-1">
+                                    <span className="text-xs text-teal-600 italic">
+                                      {effectiveType === "date"
+                                        ? "Date"
+                                        : effectiveType === "time"
+                                          ? "Time"
+                                          : "Date & Time"}
                                     </span>
                                   </div>
                                 ) : (
@@ -2337,6 +2482,9 @@ function GridRepeaterColumnsEditor({
             >
               <option value="short-text">Text</option>
               <option value="number">Number</option>
+              <option value="date">Date</option>
+              <option value="time">Time</option>
+              <option value="datetime">Date & Time</option>
               <option value="radio">Radio</option>
               <option value="checkbox">Checkbox</option>
               <option value="select">Dropdown</option>
