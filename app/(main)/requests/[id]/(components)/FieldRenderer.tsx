@@ -186,6 +186,7 @@ export function FieldRenderer({
       const rowConfigs = gridConfig?.rowConfigs || [];
       const columnGroups = gridConfig?.columnGroups || [];
       const rowGroups = gridConfig?.rowGroups || [];
+      const cellOverrides = gridConfig?.cellOverrides || {};
 
       if (rows.length === 0 || columns.length === 0) {
         return (
@@ -200,11 +201,14 @@ export function FieldRenderer({
           <CardContent className="p-0">
             <div className="overflow-auto" style={{ maxHeight: "70vh" }}>
               <Table>
-                <TableHeader className="sticky top-0 z-20">
-                  {/* Column group header row */}
-                  {columnGroups.length > 0 && (
+                {/* Column group header row - not sticky, scrolls away */}
+                {columnGroups.length > 0 && (
+                  <TableHeader>
                     <TableRow>
-                      <TableHead className="bg-muted/50 sticky left-0 z-30"></TableHead>
+                      {rowGroups.length > 0 && (
+                        <TableHead className="bg-muted/50"></TableHead>
+                      )}
+                      <TableHead className="bg-muted/50"></TableHead>
                       {(() => {
                         const cells: React.ReactNode[] = [];
                         let ci = 0;
@@ -237,8 +241,13 @@ export function FieldRenderer({
                         return cells;
                       })()}
                     </TableRow>
-                  )}
+                  </TableHeader>
+                )}
+                <TableHeader className="sticky top-0 z-20">
                   <TableRow>
+                    {rowGroups.length > 0 && (
+                      <TableHead className="bg-muted/50 sticky left-0 z-30"></TableHead>
+                    )}
                     <TableHead className="bg-muted/50 sticky left-0 z-30"></TableHead>
                     {columns.map((col: string, colIndex: number) => {
                       const cc = columnConfigs[colIndex];
@@ -267,7 +276,8 @@ export function FieldRenderer({
                       (g: any) => g.startIndex === rowIndex,
                     );
                     const isInRowGroup = rowGroups.some(
-                      (g: any) => rowIndex >= g.startIndex && rowIndex <= g.endIndex,
+                      (g: any) =>
+                        rowIndex >= g.startIndex && rowIndex <= g.endIndex,
                     );
                     const rowGroupSpan = rowGroup
                       ? rowGroup.endIndex - rowGroup.startIndex + 1
@@ -280,7 +290,7 @@ export function FieldRenderer({
                           {rowGroup && (
                             <TableCell
                               rowSpan={rowGroupSpan}
-                              className="sticky left-0 z-10 bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                              className="bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
                               style={{
                                 writingMode:
                                   rowGroupSpan > 2 ? "vertical-rl" : undefined,
@@ -292,7 +302,7 @@ export function FieldRenderer({
                           )}
                           <TableCell
                             colSpan={columns.length + 1}
-                            className="sticky left-0 z-10 font-bold text-gray-800"
+                            className="font-bold text-gray-800"
                           >
                             {row}
                           </TableCell>
@@ -307,7 +317,7 @@ export function FieldRenderer({
                           {rowGroup && (
                             <TableCell
                               rowSpan={rowGroupSpan}
-                              className="sticky left-0 z-10 bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                              className="bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
                               style={{
                                 writingMode:
                                   rowGroupSpan > 2 ? "vertical-rl" : undefined,
@@ -317,9 +327,7 @@ export function FieldRenderer({
                               {rowGroup.label}
                             </TableCell>
                           )}
-                          <TableCell
-                            className={`sticky left-0 z-10 bg-emerald-50 font-semibold text-emerald-800 ${isInRowGroup ? "" : ""}`}
-                          >
+                          <TableCell className="sticky left-0 z-10 bg-emerald-50 font-semibold text-emerald-800">
                             {row}
                           </TableCell>
                           {columns.map((_: string, colIndex: number) => {
@@ -330,8 +338,52 @@ export function FieldRenderer({
                                 key={colIndex}
                                 className="bg-emerald-50/30 text-right"
                               >
-                                <span className="font-semibold tabular-nums text-emerald-800">
-                                  {cellValue !== undefined && cellValue !== null && cellValue !== ""
+                                <span className="font-semibold text-emerald-800 tabular-nums">
+                                  {cellValue !== undefined &&
+                                  cellValue !== null &&
+                                  cellValue !== ""
+                                    ? String(cellValue)
+                                    : "—"}
+                                </span>
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      );
+                    }
+
+                    // Display row — read-only label/value row (e.g., subtotals, info)
+                    if (rowType === "display") {
+                      return (
+                        <TableRow key={rowIndex} className="bg-amber-50/70">
+                          {rowGroup && (
+                            <TableCell
+                              rowSpan={rowGroupSpan}
+                              className="bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                              style={{
+                                writingMode:
+                                  rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                                textOrientation: "mixed" as any,
+                              }}
+                            >
+                              {rowGroup.label}
+                            </TableCell>
+                          )}
+                          <TableCell className="sticky left-0 z-10 bg-amber-50 font-semibold text-amber-800">
+                            {row}
+                          </TableCell>
+                          {columns.map((_: string, colIndex: number) => {
+                            const cellKey = `${rowIndex}-${colIndex}`;
+                            const cellValue = value[cellKey];
+                            return (
+                              <TableCell
+                                key={colIndex}
+                                className="bg-amber-50/30 text-right"
+                              >
+                                <span className="font-medium text-amber-800 tabular-nums">
+                                  {cellValue !== undefined &&
+                                  cellValue !== null &&
+                                  cellValue !== ""
                                     ? String(cellValue)
                                     : "—"}
                                 </span>
@@ -351,7 +403,7 @@ export function FieldRenderer({
                         {rowGroup && (
                           <TableCell
                             rowSpan={rowGroupSpan}
-                            className="sticky left-0 z-10 bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                            className="bg-indigo-50 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
                             style={{
                               writingMode:
                                 rowGroupSpan > 2 ? "vertical-rl" : undefined,
@@ -367,9 +419,10 @@ export function FieldRenderer({
                         {columns.map((_: string, colIndex: number) => {
                           const cellKey = `${rowIndex}-${colIndex}`;
                           const cellValue = value[cellKey];
+                          const co = cellOverrides[cellKey];
                           const cc = columnConfigs[colIndex];
-                          const isFormula = cc?.type === "formula";
-                          const effectiveConfig = cc || gridConfig?.cellConfig;
+                          const effectiveConfig = co || cc || gridConfig?.cellConfig;
+                          const isFormula = effectiveConfig?.type === "formula";
                           return (
                             <TableCell
                               key={colIndex}

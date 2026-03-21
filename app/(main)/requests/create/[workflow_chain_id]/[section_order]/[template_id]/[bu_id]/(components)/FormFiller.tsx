@@ -43,7 +43,11 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { evaluateFormula, evaluateRowFormula, computeAllFormulas } from "@/lib/formula-engine";
+import {
+  evaluateFormula,
+  evaluateRowFormula,
+  computeAllFormulas,
+} from "@/lib/formula-engine";
 
 interface FormField {
   id: string;
@@ -1063,10 +1067,18 @@ function GridTablePreview({
   const cellDirections = field.gridConfig?.cellDirections;
   const columnGroups = field.gridConfig?.columnGroups || [];
   const rowGroups = field.gridConfig?.rowGroups || [];
+  const cellOverrides: Record<string, any> = (field.gridConfig as any)?.cellOverrides || {};
 
-  const getEffectiveConfig = (colIndex: number) => {
+  const getEffectiveConfig = (colIndex: number, rowIndex?: number) => {
+    // Individual cell override takes highest priority
+    if (rowIndex !== undefined) {
+      const co = cellOverrides[`${rowIndex}-${colIndex}`];
+      if (co) return co;
+    }
+    // Then column config
     const cc = columnConfigs[colIndex];
     if (cc) return cc;
+    // Then default
     return cellConfig;
   };
 
@@ -1084,7 +1096,8 @@ function GridTablePreview({
       const cc = columnConfigs[fColIdx];
       if (cc?.type === "formula" && cc.formula) {
         rows.forEach((_, fRowIdx) => {
-          if (rowConfigs[fRowIdx]?.type === "formula") return;
+          const rt = rowConfigs[fRowIdx]?.type;
+          if (rt === "formula" || rt === "header" || rt === "display") return;
           const fCellKey = `${fRowIdx}-${fColIdx}`;
           formulaUpdates[fCellKey] = evaluateFormula(
             cc.formula!,
@@ -1100,10 +1113,10 @@ function GridTablePreview({
       }
     });
 
-    // Compute formula row values
+    // Compute formula and display row values
     rows.forEach((_, fRowIdx) => {
       const rc = rowConfigs[fRowIdx];
-      if (rc?.type === "formula" && rc.formula) {
+      if ((rc?.type === "formula" || rc?.type === "display") && rc.formula) {
         columns.forEach((_, fColIdx) => {
           const fCellKey = `${fRowIdx}-${fColIdx}`;
           formulaUpdates[fCellKey] = evaluateRowFormula(
@@ -1115,8 +1128,26 @@ function GridTablePreview({
             columns,
             columnConfigs,
             rowConfigs,
+            cellConfig,
           );
         });
+      }
+    });
+
+    // Compute individual cell formula overrides
+    Object.entries(cellOverrides).forEach(([key, co]: [string, any]) => {
+      if (co.type === "formula" && co.formula) {
+        const [ri, ci] = key.split("-").map(Number);
+        formulaUpdates[key] = evaluateFormula(
+          co.formula,
+          ri,
+          ci,
+          { ...newValue, ...formulaUpdates },
+          rows,
+          columns,
+          columnConfigs,
+          cellConfig,
+        );
       }
     });
 
@@ -1133,7 +1164,8 @@ function GridTablePreview({
       const cc = columnConfigs[fColIdx];
       if (cc?.type === "formula" && cc.formula) {
         rows.forEach((_, fRowIdx) => {
-          if (rowConfigs[fRowIdx]?.type === "formula") return;
+          const rt = rowConfigs[fRowIdx]?.type;
+          if (rt === "formula" || rt === "header" || rt === "display") return;
           const fCellKey = `${fRowIdx}-${fColIdx}`;
           const computed = evaluateFormula(
             cc.formula!,
@@ -1153,10 +1185,10 @@ function GridTablePreview({
       }
     });
 
-    // Formula rows
+    // Formula and display rows
     rows.forEach((_, fRowIdx) => {
       const rc = rowConfigs[fRowIdx];
-      if (rc?.type === "formula" && rc.formula) {
+      if ((rc?.type === "formula" || rc?.type === "display") && rc.formula) {
         columns.forEach((_, fColIdx) => {
           const fCellKey = `${fRowIdx}-${fColIdx}`;
           const computed = evaluateRowFormula(
@@ -1168,12 +1200,34 @@ function GridTablePreview({
             columns,
             columnConfigs,
             rowConfigs,
+            cellConfig,
           );
           if (value[fCellKey] !== computed) {
             formulaUpdates[fCellKey] = computed;
             hasUpdates = true;
           }
         });
+      }
+    });
+
+    // Individual cell formula overrides
+    Object.entries(cellOverrides).forEach(([key, co]) => {
+      if (co.type === "formula" && co.formula) {
+        const [ri, ci] = key.split("-").map(Number);
+        const computed = evaluateFormula(
+          co.formula,
+          ri,
+          ci,
+          { ...value, ...formulaUpdates },
+          rows,
+          columns,
+          columnConfigs,
+          cellConfig,
+        );
+        if (value[key] !== computed) {
+          formulaUpdates[key] = computed;
+          hasUpdates = true;
+        }
       }
     });
 
@@ -1236,7 +1290,7 @@ function GridTablePreview({
   };
 
   const renderCellInput = (rowIndex: number, colIndex: number) => {
-    const effectiveConfig = getEffectiveConfig(colIndex);
+    const effectiveConfig = getEffectiveConfig(colIndex, rowIndex);
     const cellKey = `${rowIndex}-${colIndex}`;
     const cellValue = value[cellKey];
 
@@ -1721,7 +1775,11 @@ function GridTablePreview({
           <DatePicker
             value={cellValue ? new Date(cellValue) : undefined}
             onChange={(date) =>
-              handleCellChange(rowIndex, colIndex, date ? dateToUTC8String(date) : null)
+              handleCellChange(
+                rowIndex,
+                colIndex,
+                date ? dateToUTC8String(date) : null,
+              )
             }
             placeholder="Pick a date"
           />
@@ -1740,9 +1798,7 @@ function GridTablePreview({
         return (
           <DateTimePicker
             value={cellValue || undefined}
-            onChange={(dt) =>
-              handleCellChange(rowIndex, colIndex, dt || null)
-            }
+            onChange={(dt) => handleCellChange(rowIndex, colIndex, dt || null)}
             placeholder="Pick date & time"
           />
         );
@@ -1808,16 +1864,15 @@ function GridTablePreview({
         style={{ maxHeight: "70vh" }}
       >
         <table className="w-full border-collapse">
-          <thead className="sticky top-0 z-20">
-            {/* Column group header row */}
-            {columnGroups.length > 0 && (
+          {/* Column group header row - not sticky, scrolls away */}
+          {columnGroups.length > 0 && (
+            <thead>
               <tr>
-                <th
-                  className="bg-muted/70 sticky left-0 z-30 border-b px-3 py-1.5"
-                  rowSpan={1}
-                ></th>
+                {rowGroups.length > 0 && (
+                  <th className="bg-muted/70 border-b px-3 py-1.5"></th>
+                )}
+                <th className="bg-muted/70 border-b px-3 py-1.5"></th>
                 {(() => {
-                  // Build cells for column group header row
                   const groupCells: React.ReactNode[] = [];
                   let ci = 0;
                   while (ci < columns.length) {
@@ -1849,11 +1904,14 @@ function GridTablePreview({
                   return groupCells;
                 })()}
               </tr>
-            )}
+            </thead>
+          )}
+          <thead className="sticky top-0 z-20">
             <tr>
-              <th className="bg-muted/70 sticky left-0 z-30 border-b px-3 py-2.5 text-left text-xs font-semibold tracking-wider text-gray-500 uppercase">
-                {rowGroups.length > 0 && ""}
-              </th>
+              {rowGroups.length > 0 && (
+                <th className="bg-muted/70 sticky left-0 z-30 border-b px-3 py-2.5"></th>
+              )}
+              <th className="bg-muted/70 sticky left-0 z-30 border-b px-3 py-2.5 text-left text-xs font-semibold tracking-wider text-gray-500 uppercase"></th>
               {columns.map((col, colIndex) => {
                 const cc = columnConfigs[colIndex];
                 const isFormula = cc?.type === "formula";
@@ -1902,7 +1960,7 @@ function GridTablePreview({
                     {rowGroup && (
                       <td
                         rowSpan={rowGroupSpan}
-                        className="sticky left-0 z-10 border-r border-b bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                        className="border-r border-b bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
                         style={{
                           writingMode:
                             rowGroupSpan > 2 ? "vertical-rl" : undefined,
@@ -1914,7 +1972,7 @@ function GridTablePreview({
                     )}
                     <td
                       colSpan={columns.length + 1}
-                      className="sticky left-0 z-10 border-b px-3 py-2 text-sm font-bold text-gray-800"
+                      className="border-b px-3 py-2 text-sm font-bold text-gray-800"
                     >
                       {row}
                     </td>
@@ -1929,7 +1987,7 @@ function GridTablePreview({
                     {rowGroup && (
                       <td
                         rowSpan={rowGroupSpan}
-                        className="sticky left-0 z-10 border-r border-b bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                        className="border-r border-b bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
                         style={{
                           writingMode:
                             rowGroupSpan > 2 ? "vertical-rl" : undefined,
@@ -1955,8 +2013,57 @@ function GridTablePreview({
                           key={colIndex}
                           className="border-b bg-emerald-50/30 px-2 py-1.5 text-right"
                         >
-                          <span className="font-semibold tabular-nums text-emerald-800">
-                            {cellVal !== undefined && cellVal !== null && cellVal !== ""
+                          <span className="font-semibold text-emerald-800 tabular-nums">
+                            {cellVal !== undefined &&
+                            cellVal !== null &&
+                            cellVal !== ""
+                              ? String(cellVal)
+                              : "—"}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              }
+
+              // Display row — read-only label/value row (e.g., subtotals, info)
+              if (rowType === "display") {
+                return (
+                  <tr key={rowIndex} className="bg-amber-50/70">
+                    {rowGroup && (
+                      <td
+                        rowSpan={rowGroupSpan}
+                        className="border-r border-b bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                        style={{
+                          writingMode:
+                            rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                          textOrientation: "mixed",
+                        }}
+                      >
+                        {rowGroup.label}
+                      </td>
+                    )}
+                    <td
+                      className={cn(
+                        "sticky left-0 z-10 border-r border-b bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800",
+                        isInRowGroup && "border-l-0",
+                      )}
+                    >
+                      {row}
+                    </td>
+                    {columns.map((_, colIndex) => {
+                      const cellKey = `${rowIndex}-${colIndex}`;
+                      const cellVal = value[cellKey];
+                      return (
+                        <td
+                          key={colIndex}
+                          className="border-b bg-amber-50/30 px-2 py-1.5 text-right"
+                        >
+                          <span className="font-medium text-amber-800 tabular-nums">
+                            {cellVal !== undefined &&
+                            cellVal !== null &&
+                            cellVal !== ""
                               ? String(cellVal)
                               : "—"}
                           </span>
@@ -1980,7 +2087,7 @@ function GridTablePreview({
                   {rowGroup && (
                     <td
                       rowSpan={rowGroupSpan}
-                      className="sticky left-0 z-10 border-r border-b bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                      className="border-r border-b bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
                       style={{
                         writingMode:
                           rowGroupSpan > 2 ? "vertical-rl" : undefined,
@@ -1999,8 +2106,8 @@ function GridTablePreview({
                     {row}
                   </td>
                   {columns.map((_, colIndex) => {
-                    const cc = columnConfigs[colIndex];
-                    const isFormula = cc?.type === "formula";
+                    const ec = getEffectiveConfig(colIndex, rowIndex);
+                    const isFormula = ec?.type === "formula";
                     return (
                       <td
                         key={colIndex}

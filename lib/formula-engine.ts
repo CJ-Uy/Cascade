@@ -354,14 +354,96 @@ export function evaluateFormula(
 }
 
 /**
+ * Resolve a cross-reference in a row formula.
+ * Supports:
+ *   {RowName}.{ColumnName}.{Property}  — sub-field from a specific cell
+ *   {RowName}.{ColumnName}             — value of a specific cell
+ *   {RowName}                          — value in the current column
+ */
+function resolveRowCrossRef(
+  ref: string,
+  colIndex: number,
+  value: Record<string, any>,
+  rowIndexMap: Record<string, number>,
+  colIndexMap: Record<string, number>,
+  columnConfigs: any[],
+  cellConfig?: any,
+): { matched: boolean; value: any } {
+  // {Row}.{Column}.{Property} — cross-reference with sub-field
+  const dotPropMatch = ref.match(/^\{(.+?)\}\.\{(.+?)\}\.(\w+)$/);
+  if (dotPropMatch) {
+    const [, rowName, colName, prop] = dotPropMatch;
+    const ri = rowIndexMap[rowName];
+    const ci = colIndexMap[colName];
+    if (ri === undefined || ci === undefined)
+      return { matched: true, value: null };
+    const cellKey = `${ri}-${ci}`;
+    const cellVal = value[cellKey];
+    if (cellVal === null || cellVal === undefined)
+      return { matched: true, value: 0 };
+    // Multi-field object
+    if (typeof cellVal === "object" && !Array.isArray(cellVal)) {
+      const subFieldId = findSubFieldIdByLabel(
+        ci,
+        columnConfigs,
+        cellConfig || {},
+        prop,
+      );
+      const resolvedField = subFieldId || prop;
+      return {
+        matched: true,
+        value: parseFloat(cellVal[resolvedField] || 0) || 0,
+      };
+    }
+    // Repeater array — sum the property
+    if (Array.isArray(cellVal)) {
+      const subFieldId = findSubFieldIdByLabel(
+        ci,
+        columnConfigs,
+        cellConfig || {},
+        prop,
+      );
+      const resolvedField = subFieldId || prop;
+      const total = cellVal.reduce(
+        (sum: number, entry: any) =>
+          sum + (parseFloat(entry[resolvedField] || 0) || 0),
+        0,
+      );
+      return { matched: true, value: total };
+    }
+    return { matched: true, value: 0 };
+  }
+
+  // {Row}.{Column} — cross-reference to specific cell
+  const dotColMatch = ref.match(/^\{(.+?)\}\.\{(.+?)\}$/);
+  if (dotColMatch) {
+    const [, rowName, colName] = dotColMatch;
+    const ri = rowIndexMap[rowName];
+    const ci = colIndexMap[colName];
+    if (ri === undefined || ci === undefined)
+      return { matched: true, value: null };
+    const cellKey = `${ri}-${ci}`;
+    const cellVal = value[cellKey];
+    if (cellVal === undefined || cellVal === null || cellVal === "")
+      return { matched: true, value: 0 };
+    if (typeof cellVal === "object") return { matched: true, value: 0 };
+    return { matched: true, value: parseFloat(cellVal) || 0 };
+  }
+
+  return { matched: false, value: null };
+}
+
+/**
  * Evaluate a row-based formula for a specific column.
  * Row formulas reference row labels (e.g., {Breakfast}, {Lunch}) and resolve
  * values from those rows in the current column.
  *
  * Supported patterns:
- *   =SUM(ROWS[start:end])   — sum rows in range [start, end) for current column
- *   =SUM(ROWS)              — sum all non-formula, non-header rows for current column
- *   ={Row1} + {Row2}        — arithmetic with named row references
+ *   =SUM(ROWS[start:end])              — sum rows in range [start, end) for current column
+ *   =SUM(ROWS)                         — sum all non-formula, non-header rows for current column
+ *   ={Row1} + {Row2}                   — arithmetic with named row references (same column)
+ *   ={Row1}.{Column1}                  — cross-reference: specific row + column
+ *   ={Row1}.{Column1}.{Property}       — cross-reference with sub-field property
  */
 export function evaluateRowFormula(
   formula: string,
@@ -372,20 +454,27 @@ export function evaluateRowFormula(
   columns: string[],
   columnConfigs: any[],
   rowConfigs: any[],
+  cellConfig?: any,
 ): string | number {
   if (!formula || !formula.startsWith("=")) return "";
 
   const expr = formula.slice(1).trim();
 
-  // Build a map of row label -> row index
+  // Build maps
   const rowIndexMap: Record<string, number> = {};
   rows.forEach((row, i) => {
     rowIndexMap[row] = i;
   });
+  const colIndexMap: Record<string, number> = {};
+  columns.forEach((col, i) => {
+    colIndexMap[col] = i;
+  });
 
   const isSkippableRow = (ri: number) => {
     const rc = rowConfigs[ri];
-    return rc?.type === "formula" || rc?.type === "header";
+    return (
+      rc?.type === "formula" || rc?.type === "header" || rc?.type === "display"
+    );
   };
 
   // Check for SUM() function
@@ -435,11 +524,25 @@ export function evaluateRowFormula(
       return Math.round(total * 100) / 100;
     }
 
-    // =SUM({Row1}, {Row2}, ...) — sum specific named rows
-    const refs = inner.match(/\{(.+?)\}/g);
+    // =SUM({Row1}, {Row2}, ...) — sum specific named rows (supports cross-refs)
+    const refs = inner.match(/\{.+?\}(?:\.\{.+?\}(?:\.\w+)?)?/g);
     if (refs) {
       let total = 0;
       for (const ref of refs) {
+        const crossRef = resolveRowCrossRef(
+          ref,
+          colIndex,
+          value,
+          rowIndexMap,
+          colIndexMap,
+          columnConfigs,
+          cellConfig,
+        );
+        if (crossRef.matched) {
+          total += parseFloat(crossRef.value) || 0;
+          continue;
+        }
+        // Simple {RowName} reference
         const rowName = ref.slice(1, -1);
         const ri = rowIndexMap[rowName];
         if (ri === undefined) continue;
@@ -460,9 +563,66 @@ export function evaluateRowFormula(
     return "ERR";
   }
 
-  // Simple arithmetic: ={Row1} + {Row2}, ={Row1} * 2, etc.
+  // Simple arithmetic: ={Row1} + {Row2}, ={Row1}.{Col1} * 2, etc.
   try {
     let resolved = expr;
+
+    // Replace {Row}.{Column}.{Property} references first (most specific)
+    resolved = resolved.replace(
+      /\{(.+?)\}\.\{(.+?)\}\.(\w+)/g,
+      (_match, rowName, colName, prop) => {
+        const ri = rowIndexMap[rowName];
+        const ci = colIndexMap[colName];
+        if (ri === undefined || ci === undefined) return "0";
+        const cellKey = `${ri}-${ci}`;
+        const cellVal = value[cellKey];
+        if (cellVal === null || cellVal === undefined) return "0";
+        if (typeof cellVal === "object" && !Array.isArray(cellVal)) {
+          const subFieldId = findSubFieldIdByLabel(
+            ci,
+            columnConfigs,
+            cellConfig || {},
+            prop,
+          );
+          const resolvedField = subFieldId || prop;
+          return String(parseFloat(cellVal[resolvedField] || 0) || 0);
+        }
+        if (Array.isArray(cellVal)) {
+          const subFieldId = findSubFieldIdByLabel(
+            ci,
+            columnConfigs,
+            cellConfig || {},
+            prop,
+          );
+          const resolvedField = subFieldId || prop;
+          const total = cellVal.reduce(
+            (sum: number, entry: any) =>
+              sum + (parseFloat(entry[resolvedField] || 0) || 0),
+            0,
+          );
+          return String(total);
+        }
+        return "0";
+      },
+    );
+
+    // Replace {Row}.{Column} references
+    resolved = resolved.replace(
+      /\{(.+?)\}\.\{(.+?)\}/g,
+      (_match, rowName, colName) => {
+        const ri = rowIndexMap[rowName];
+        const ci = colIndexMap[colName];
+        if (ri === undefined || ci === undefined) return "0";
+        const cellKey = `${ri}-${ci}`;
+        const cellVal = value[cellKey];
+        if (cellVal === undefined || cellVal === null || cellVal === "")
+          return "0";
+        if (typeof cellVal === "object") return "0";
+        return String(cellVal);
+      },
+    );
+
+    // Replace simple {RowName} references (same column)
     resolved = resolved.replace(/\{(.+?)\}/g, (_match, rowName) => {
       const ri = rowIndexMap[rowName];
       if (ri === undefined) return "0";
@@ -496,6 +656,7 @@ export function computeAllFormulas(
   columnConfigs: any[],
   cellConfig: any,
   rowConfigs?: any[],
+  cellOverrides?: Record<string, any>,
 ): Record<string, any> {
   const formulaUpdates: Record<string, any> = {};
   const rc = rowConfigs || [];
@@ -505,8 +666,9 @@ export function computeAllFormulas(
     const cc = columnConfigs[fColIdx];
     if (cc?.type === "formula" && cc.formula) {
       rows.forEach((_, fRowIdx) => {
-        // Skip formula rows — they'll be computed in the second pass
-        if (rc[fRowIdx]?.type === "formula") return;
+        // Skip formula/header/display rows — they'll be computed in the second pass or are non-data
+        const rt = rc[fRowIdx]?.type;
+        if (rt === "formula" || rt === "header" || rt === "display") return;
         const fCellKey = `${fRowIdx}-${fColIdx}`;
         formulaUpdates[fCellKey] = evaluateFormula(
           cc.formula!,
@@ -522,10 +684,13 @@ export function computeAllFormulas(
     }
   });
 
-  // Second pass: compute formula rows
+  // Second pass: compute formula and display rows
   rows.forEach((_, fRowIdx) => {
     const rowCfg = rc[fRowIdx];
-    if (rowCfg?.type === "formula" && rowCfg.formula) {
+    if (
+      (rowCfg?.type === "formula" || rowCfg?.type === "display") &&
+      rowCfg.formula
+    ) {
       columns.forEach((_, fColIdx) => {
         const fCellKey = `${fRowIdx}-${fColIdx}`;
         formulaUpdates[fCellKey] = evaluateRowFormula(
@@ -537,10 +702,30 @@ export function computeAllFormulas(
           columns,
           columnConfigs,
           rc,
+          cellConfig,
         );
       });
     }
   });
+
+  // Third pass: compute individual cell formula overrides
+  if (cellOverrides) {
+    Object.entries(cellOverrides).forEach(([key, co]: [string, any]) => {
+      if (co.type === "formula" && co.formula) {
+        const [ri, ci] = key.split("-").map(Number);
+        formulaUpdates[key] = evaluateFormula(
+          co.formula,
+          ri,
+          ci,
+          { ...value, ...formulaUpdates },
+          rows,
+          columns,
+          columnConfigs,
+          cellConfig,
+        );
+      }
+    });
+  }
 
   return formulaUpdates;
 }

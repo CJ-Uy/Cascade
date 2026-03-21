@@ -96,11 +96,19 @@ export interface RowGroup {
   endIndex: number; // End row index (inclusive, 0-based)
 }
 
-export type GridRowType = "data" | "header" | "formula";
+export type GridRowType = "data" | "header" | "formula" | "display";
 
 export interface GridRowConfig {
   type: GridRowType; // Row type: data (default), header (section label), formula (computed)
   formula?: string; // Formula for formula rows, e.g., "=SUM(ROWS[0:2])" or "={Row0} + {Row1}"
+}
+
+export interface GridCellOverride {
+  type: GridCellType | "formula";
+  options?: string[];
+  columns?: FormField[];
+  numberConfig?: NumberFieldConfig;
+  formula?: string;
 }
 
 export interface GridTableConfig {
@@ -112,6 +120,7 @@ export interface GridTableConfig {
   cellConfig: GridCellConfig; // Configuration for each cell
   columnGroups?: ColumnGroup[]; // Visual column grouping headers
   rowGroups?: RowGroup[]; // Visual row grouping headers
+  cellOverrides?: Record<string, GridCellOverride>; // Per-cell config overrides, keyed by "rowIndex-colIndex"
 }
 
 export interface NumberFieldConfig {
@@ -366,7 +375,8 @@ function GridTableBuilder({
 
   const updateRowConfig = (rowIndex: number, config: GridRowConfig) => {
     const newConfigs = [...rowConfigs];
-    while (newConfigs.length <= rowIndex) newConfigs.push({ type: "data" as GridRowType });
+    while (newConfigs.length <= rowIndex)
+      newConfigs.push({ type: "data" as GridRowType });
     newConfigs[rowIndex] = config;
     onUpdate(field.id, {
       gridConfig: { ...gridConfig, rowConfigs: newConfigs },
@@ -394,7 +404,9 @@ function GridTableBuilder({
   const addGridRow = () => {
     const newRows = [...gridConfig.rows, `Row ${gridConfig.rows.length + 1}`];
     const newRowConfigs = [...rowConfigs, { type: "data" as GridRowType }];
-    onUpdate(field.id, { gridConfig: { ...gridConfig, rows: newRows, rowConfigs: newRowConfigs } });
+    onUpdate(field.id, {
+      gridConfig: { ...gridConfig, rows: newRows, rowConfigs: newRowConfigs },
+    });
   };
 
   const removeGridRow = (index: number) => {
@@ -417,7 +429,12 @@ function GridTableBuilder({
       })
       .filter((g): g is RowGroup => g !== null && g.startIndex <= g.endIndex);
     onUpdate(field.id, {
-      gridConfig: { ...gridConfig, rows: newRows, rowConfigs: newRowConfigs, rowGroups: newRowGroups },
+      gridConfig: {
+        ...gridConfig,
+        rows: newRows,
+        rowConfigs: newRowConfigs,
+        rowGroups: newRowGroups,
+      },
     });
   };
 
@@ -480,7 +497,9 @@ function GridTableBuilder({
     const newRowConfigs = [...rowConfigs];
     const [movedConfig] = newRowConfigs.splice(fromIndex, 1);
     newRowConfigs.splice(toIndex, 0, movedConfig);
-    onUpdate(field.id, { gridConfig: { ...gridConfig, rows: newRows, rowConfigs: newRowConfigs } });
+    onUpdate(field.id, {
+      gridConfig: { ...gridConfig, rows: newRows, rowConfigs: newRowConfigs },
+    });
   };
 
   const moveGridColumn = (fromIndex: number, toIndex: number) => {
@@ -511,6 +530,26 @@ function GridTableBuilder({
         columnGroups: undefined,
         rowGroups: undefined,
       },
+    });
+  };
+
+  // Cell override management
+  const cellOverrides = gridConfig.cellOverrides || {};
+
+  const getCellOverride = (rowIndex: number, colIndex: number): GridCellOverride | null => {
+    return cellOverrides[`${rowIndex}-${colIndex}`] || null;
+  };
+
+  const updateCellOverride = (rowIndex: number, colIndex: number, override: GridCellOverride | null) => {
+    const newOverrides = { ...cellOverrides };
+    const key = `${rowIndex}-${colIndex}`;
+    if (override === null) {
+      delete newOverrides[key];
+    } else {
+      newOverrides[key] = override;
+    }
+    onUpdate(field.id, {
+      gridConfig: { ...gridConfig, cellOverrides: newOverrides },
     });
   };
 
@@ -645,80 +684,46 @@ function GridTableBuilder({
                 Row Labels
               </h4>
               <div className="max-h-[400px] space-y-1 overflow-y-auto">
-                {gridConfig.rows.map((row, index) => {
-                  const rc = getRowConfig(index);
-                  return (
-                    <div key={index} className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <div className="flex flex-col">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-4 w-6"
-                            onClick={() => moveGridRow(index, index - 1)}
-                            disabled={index === 0}
-                          >
-                            <ChevronUp className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-4 w-6"
-                            onClick={() => moveGridRow(index, index + 1)}
-                            disabled={index === gridConfig.rows.length - 1}
-                          >
-                            <ChevronDown className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <span className="text-muted-foreground w-5 text-center text-xs">
-                          {index + 1}
-                        </span>
-                        <Input
-                          value={row}
-                          onChange={(e) => updateGridRow(index, e.target.value)}
-                          placeholder={`Row ${index + 1}`}
-                          className="flex-grow bg-white"
-                        />
-                        <select
-                          value={rc.type}
-                          onChange={(e) =>
-                            updateRowConfig(index, {
-                              ...rc,
-                              type: e.target.value as GridRowType,
-                              formula: e.target.value === "formula" ? rc.formula || "" : undefined,
-                            })
-                          }
-                          className="h-8 rounded-md border bg-white px-1.5 text-xs"
-                          title="Row type"
-                        >
-                          <option value="data">Data</option>
-                          <option value="header">Header</option>
-                          <option value="formula">Formula</option>
-                        </select>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeGridRow(index)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
-                        </Button>
-                      </div>
-                      {rc.type === "formula" && (
-                        <div className="ml-12 flex items-center gap-1">
-                          <span className="text-muted-foreground text-xs">fx</span>
-                          <Input
-                            value={rc.formula || ""}
-                            onChange={(e) =>
-                              updateRowConfig(index, { ...rc, formula: e.target.value })
-                            }
-                            placeholder="e.g., =SUM(ROWS[0:2]) or ={Breakfast} + {Lunch}"
-                            className="h-7 bg-white text-xs"
-                          />
-                        </div>
-                      )}
+                {gridConfig.rows.map((row, index) => (
+                  <div key={index} className="flex items-center gap-1">
+                    <div className="flex flex-col">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-6"
+                        onClick={() => moveGridRow(index, index - 1)}
+                        disabled={index === 0}
+                      >
+                        <ChevronUp className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-6"
+                        onClick={() => moveGridRow(index, index + 1)}
+                        disabled={index === gridConfig.rows.length - 1}
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
                     </div>
-                  );
-                })}
+                    <span className="text-muted-foreground w-5 text-center text-xs">
+                      {index + 1}
+                    </span>
+                    <Input
+                      value={row}
+                      onChange={(e) => updateGridRow(index, e.target.value)}
+                      placeholder={`Row ${index + 1}`}
+                      className="flex-grow bg-white"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeGridRow(index)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
+                    </Button>
+                  </div>
+                ))}
               </div>
               <Button
                 variant="outline"
@@ -1091,6 +1096,248 @@ function GridTableBuilder({
               </div>
             )}
           </div>
+
+          {/* Per-row overrides */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold text-gray-700">
+              Row Type Overrides
+            </h4>
+            <p className="text-muted-foreground text-xs">
+              Override the default row type. Set to &quot;Header&quot; for section labels,
+              &quot;Formula&quot; for computed rows, or &quot;Display&quot; for read-only info rows (subtotals, etc.).
+            </p>
+            {gridConfig.rows.length === 0 ? (
+              <p className="text-muted-foreground rounded border border-dashed p-3 text-center text-xs">
+                Add rows in the &quot;Rows & Columns&quot; tab first
+              </p>
+            ) : (
+              <div className="max-h-[400px] space-y-2 overflow-y-auto">
+                {gridConfig.rows.map((row, index) => {
+                  const rc = getRowConfig(index);
+                  const isFormulaOrDisplay = rc.type === "formula" || rc.type === "display";
+
+                  return (
+                    <div
+                      key={index}
+                      className="space-y-2 rounded-md border bg-white p-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground w-5 text-center text-xs">
+                          {index + 1}
+                        </span>
+                        <span className="flex-1 truncate text-sm font-medium">
+                          {row}
+                        </span>
+                        <select
+                          value={rc.type}
+                          onChange={(e) => {
+                            const newType = e.target.value as GridRowType;
+                            updateRowConfig(index, {
+                              ...rc,
+                              type: newType,
+                              formula:
+                                newType === "formula" || newType === "display"
+                                  ? rc.formula || ""
+                                  : undefined,
+                            });
+                          }}
+                          className="rounded border px-2 py-1.5 text-xs"
+                        >
+                          <option value="data">Data (default)</option>
+                          <option value="header">Header (section label)</option>
+                          <option value="formula">Formula (computed)</option>
+                          <option value="display">Display (read-only)</option>
+                        </select>
+                      </div>
+
+                      {isFormulaOrDisplay && (
+                        <div className="space-y-2 rounded border border-emerald-200 bg-emerald-50/50 p-3">
+                          <Label className="text-xs font-semibold text-emerald-800">
+                            {rc.type === "display" ? "Display Formula" : "Row Formula"}
+                          </Label>
+                          <Input
+                            value={rc.formula || ""}
+                            onChange={(e) =>
+                              updateRowConfig(index, {
+                                ...rc,
+                                formula: e.target.value,
+                              })
+                            }
+                            placeholder={
+                              rc.type === "display"
+                                ? "e.g., ={Subtotal A}.{Amount} or ={Row1}.{Col1}.{field}"
+                                : "e.g., =SUM(ROWS) or ={Breakfast} + {Lunch}"
+                            }
+                            className="bg-white font-mono text-sm"
+                          />
+                          <p className="text-[11px] leading-relaxed text-emerald-700">
+                            <strong>Row refs:</strong>{" "}
+                            <code className="rounded bg-emerald-100 px-1">
+                              {"{Row Name}"}
+                            </code>{" "}
+                            (same column)
+                            <br />
+                            <strong>Cross-refs:</strong>{" "}
+                            <code className="rounded bg-emerald-100 px-1">
+                              {"{Row}.{Column}"}
+                            </code>{" "}
+                            <code className="rounded bg-emerald-100 px-1">
+                              {"{Row}.{Column}.Property"}
+                            </code>
+                            <br />
+                            <strong>Aggregations:</strong>{" "}
+                            <code className="rounded bg-emerald-100 px-1">
+                              =SUM(ROWS)
+                            </code>{" "}
+                            <code className="rounded bg-emerald-100 px-1">
+                              {"=SUM(ROWS[1:3])"}
+                            </code>{" "}
+                            <code className="rounded bg-emerald-100 px-1">
+                              {"=SUM({Row1}, {Row2})"}
+                            </code>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Individual cell overrides */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold text-gray-700">
+              Individual Cell Overrides
+            </h4>
+            <p className="text-muted-foreground text-xs">
+              Override the type of a specific cell. Takes priority over column and row overrides.
+            </p>
+            {gridConfig.rows.length === 0 || gridConfig.columns.length === 0 ? (
+              <p className="text-muted-foreground rounded border border-dashed p-3 text-center text-xs">
+                Add rows and columns in the &quot;Rows & Columns&quot; tab first
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {/* Existing overrides */}
+                {Object.entries(cellOverrides).map(([key, override]) => {
+                  const [ri, ci] = key.split("-").map(Number);
+                  const rowLabel = gridConfig.rows[ri];
+                  const colLabel = gridConfig.columns[ci];
+                  if (!rowLabel || !colLabel) return null;
+                  const isFormula = override.type === "formula";
+
+                  return (
+                    <div key={key} className="space-y-2 rounded-md border bg-white p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-600">
+                          [{rowLabel}] × [{colLabel}]
+                        </span>
+                        <select
+                          value={override.type}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "formula") {
+                              updateCellOverride(ri, ci, { type: "formula", formula: "" });
+                            } else {
+                              const newOverride: GridCellOverride = { type: val as GridCellType };
+                              if (val === "radio" || val === "checkbox") newOverride.options = ["Option 1"];
+                              updateCellOverride(ri, ci, newOverride);
+                            }
+                          }}
+                          className="rounded border px-2 py-1 text-xs"
+                        >
+                          <option value="short-text">Short Text</option>
+                          <option value="long-text">Long Text</option>
+                          <option value="number">Number</option>
+                          <option value="date">Date</option>
+                          <option value="time">Time</option>
+                          <option value="datetime">Date & Time</option>
+                          <option value="radio">Radio</option>
+                          <option value="checkbox">Checkbox</option>
+                          <option value="file-upload">File Upload</option>
+                          <option value="formula">Formula</option>
+                        </select>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="ml-auto h-7 w-7"
+                          onClick={() => updateCellOverride(ri, ci, null)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                        </Button>
+                      </div>
+                      {isFormula && (
+                        <Input
+                          value={override.formula || ""}
+                          onChange={(e) =>
+                            updateCellOverride(ri, ci, { ...override, formula: e.target.value })
+                          }
+                          placeholder="e.g., ={Row}.{Column} + 10"
+                          className="bg-white font-mono text-xs"
+                        />
+                      )}
+                      {(override.type === "radio" || override.type === "checkbox") && (
+                        <Textarea
+                          value={(override.options || []).join("\n")}
+                          onChange={(e) =>
+                            updateCellOverride(ri, ci, {
+                              ...override,
+                              options: e.target.value.split("\n"),
+                            })
+                          }
+                          placeholder={"Option 1\nOption 2"}
+                          className="min-h-[50px] bg-white font-mono text-xs"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+                {/* Add new override */}
+                <div className="flex items-center gap-2">
+                  <select
+                    id="cell-override-row"
+                    className="flex-1 rounded border px-2 py-1.5 text-xs"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Row...</option>
+                    {gridConfig.rows.map((row, i) => (
+                      <option key={i} value={i}>{i + 1}. {row}</option>
+                    ))}
+                  </select>
+                  <span className="text-muted-foreground text-xs">×</span>
+                  <select
+                    id="cell-override-col"
+                    className="flex-1 rounded border px-2 py-1.5 text-xs"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Column...</option>
+                    {gridConfig.columns.map((col, i) => (
+                      <option key={i} value={i}>{i + 1}. {col}</option>
+                    ))}
+                  </select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white text-xs"
+                    onClick={() => {
+                      const rowSel = document.getElementById("cell-override-row") as HTMLSelectElement;
+                      const colSel = document.getElementById("cell-override-col") as HTMLSelectElement;
+                      if (rowSel.value === "" || colSel.value === "") return;
+                      const ri = parseInt(rowSel.value);
+                      const ci = parseInt(colSel.value);
+                      if (getCellOverride(ri, ci)) return; // already exists
+                      updateCellOverride(ri, ci, { type: "short-text" });
+                      rowSel.value = "";
+                      colSel.value = "";
+                    }}
+                  >
+                    <Plus className="mr-1 h-3 w-3" /> Add
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         {/* Tab: Grouping */}
@@ -1283,9 +1530,10 @@ function GridTableBuilder({
                     {/* Column group header row */}
                     {columnGroups.length > 0 && (
                       <tr>
-                        <th className="bg-muted border px-2 py-1">
-                          {rowGroups.length > 0 ? "" : ""}
-                        </th>
+                        {rowGroups.length > 0 && (
+                          <th className="bg-muted border px-2 py-1"></th>
+                        )}
+                        <th className="bg-muted border px-2 py-1"></th>
                         {(() => {
                           const cells: React.ReactNode[] = [];
                           let ci = 0;
@@ -1321,6 +1569,9 @@ function GridTableBuilder({
                       </tr>
                     )}
                     <tr className="bg-muted">
+                      {rowGroups.length > 0 && (
+                        <th className="border px-2 py-1"></th>
+                      )}
                       <th className="border px-2 py-1"></th>
                       {gridConfig.columns.map((col, i) => {
                         const cc = getColConfig(i);
@@ -1361,7 +1612,9 @@ function GridTableBuilder({
                                 className="border bg-indigo-50 px-2 py-1 text-center text-xs font-bold text-indigo-700 uppercase"
                                 style={{
                                   writingMode:
-                                    rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                                    rowGroupSpan > 2
+                                      ? "vertical-rl"
+                                      : undefined,
                                   textOrientation: "mixed",
                                 }}
                               >
@@ -1388,7 +1641,9 @@ function GridTableBuilder({
                                 className="border bg-indigo-50 px-2 py-1 text-center text-xs font-bold text-indigo-700 uppercase"
                                 style={{
                                   writingMode:
-                                    rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                                    rowGroupSpan > 2
+                                      ? "vertical-rl"
+                                      : undefined,
                                   textOrientation: "mixed",
                                 }}
                               >
@@ -1405,6 +1660,42 @@ function GridTableBuilder({
                               >
                                 <span className="text-xs text-emerald-600 italic">
                                   = calculated
+                                </span>
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      }
+
+                      // Display row
+                      if (rc.type === "display") {
+                        return (
+                          <tr key={i} className="bg-amber-50/70">
+                            {rowGroup && (
+                              <td
+                                rowSpan={rowGroupSpan}
+                                className="border bg-indigo-50 px-2 py-1 text-center text-xs font-bold text-indigo-700 uppercase"
+                                style={{
+                                  writingMode:
+                                    rowGroupSpan > 2
+                                      ? "vertical-rl"
+                                      : undefined,
+                                  textOrientation: "mixed",
+                                }}
+                              >
+                                {rowGroup.label}
+                              </td>
+                            )}
+                            <td className="border bg-amber-50 px-2 py-1 font-semibold text-amber-800">
+                              {row}
+                            </td>
+                            {gridConfig.columns.map((_, j) => (
+                              <td
+                                key={j}
+                                className="border bg-amber-50/30 px-2 py-1"
+                              >
+                                <span className="text-xs text-amber-600 italic">
+                                  {rc.formula ? "= display" : "display only"}
                                 </span>
                               </td>
                             ))}

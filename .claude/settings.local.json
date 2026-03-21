@@ -79,7 +79,13 @@
       "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/management\" -name \"layout.tsx\" -o -name \"actions.ts\")",
       "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/management\" -maxdepth 1 -name \"layout.tsx\")",
       "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)/management\" -maxdepth 2 -name \"layout.tsx\" -o -name \"page.tsx\")",
-      "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)\" -maxdepth 1 -name \"layout.tsx\")"
+      "Bash(find \"/c/Users/charl/Documents/GitHub/Cascade/app/\\(main\\)\" -maxdepth 1 -name \"layout.tsx\")",
+      "Bash(grep -n \"grid-table\\\\|gridConfig\\\\|columnGroups\\\\|rowGroups\" c:/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/requests/[id]/\\\\\\(components\\\\\\)/FieldRenderer.tsx)",
+      "Bash(grep -n \"GridTableBuilder\\\\|interface GridTableConfig\\\\|function GridTableBuilder\" c:/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/management/forms/[bu_id]/\\\\\\(components\\\\\\)/FormBuilder.tsx)",
+      "Bash(grep -n \"GridCellRenderer\\\\|function GridCellRenderer\" c:/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/requests/[id]/\\\\\\(components\\\\\\)/FieldRenderer.tsx)",
+      "Bash(grep -n \"interface ColumnGroup\\\\|interface RowGroup\\\\|type GridRowType\\\\|type GridCellType\" c:/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/management/forms/[bu_id]/\\\\\\(components\\\\\\)/FormBuilder.tsx)",
+      "Bash(grep -n \"function GridTablePreview\\\\|export function evaluateRowFormula\\\\|export function computeAllFormulas\" c:/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/requests/create/[workflow_chain_id]/[section_order]/[template_id]/[bu_id]/\\\\\\(components\\\\\\)/FormFiller.tsx)",
+      "Bash(grep -rn \"sticky\\\\|z-\\\\|overflow\" c:/Users/charl/Documents/GitHub/Cascade/app/\\\\\\(main\\\\\\)/requests/[id]/\\\\\\(components\\\\\\)/FieldRenderer.tsx)"
     ],
     "deny": [],
     "ask": []

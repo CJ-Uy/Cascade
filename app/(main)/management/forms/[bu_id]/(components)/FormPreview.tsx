@@ -674,8 +674,13 @@ function GridTablePreview({
   const rowConfigs = (field.gridConfig as any)?.rowConfigs || [];
   const columnGroups = (field.gridConfig as any)?.columnGroups || [];
   const rowGroups = (field.gridConfig as any)?.rowGroups || [];
+  const cellOverrides = (field.gridConfig as any)?.cellOverrides || {};
 
-  const getEffectiveConfig = (colIndex: number) => {
+  const getEffectiveConfig = (colIndex: number, rowIndex?: number) => {
+    if (rowIndex !== undefined) {
+      const co = cellOverrides[`${rowIndex}-${colIndex}`];
+      if (co) return co;
+    }
     const cc = columnConfigs[colIndex];
     if (cc) return cc;
     return cellConfig;
@@ -690,6 +695,7 @@ function GridTablePreview({
         columnConfigs,
         cellConfig,
         rowConfigs,
+        cellOverrides,
       );
       if (Object.keys(formulaUpdates).length > 0) {
         return { ...currentValue, ...formulaUpdates };
@@ -767,7 +773,7 @@ function GridTablePreview({
   };
 
   const renderCellInput = (rowIndex: number, colIndex: number) => {
-    const effectiveConfig = getEffectiveConfig(colIndex);
+    const effectiveConfig = getEffectiveConfig(colIndex, rowIndex);
     const cellKey = `${rowIndex}-${colIndex}`;
     const cellValue = value[cellKey];
 
@@ -1102,7 +1108,11 @@ function GridTablePreview({
           <DatePicker
             value={cellValue ? new Date(cellValue) : undefined}
             onChange={(date) =>
-              handleCellChange(rowIndex, colIndex, date ? dateToUTC8String(date) : null)
+              handleCellChange(
+                rowIndex,
+                colIndex,
+                date ? dateToUTC8String(date) : null,
+              )
             }
             placeholder="Pick a date"
           />
@@ -1121,9 +1131,7 @@ function GridTablePreview({
         return (
           <DateTimePicker
             value={cellValue || undefined}
-            onChange={(dt) =>
-              handleCellChange(rowIndex, colIndex, dt || null)
-            }
+            onChange={(dt) => handleCellChange(rowIndex, colIndex, dt || null)}
             placeholder="Pick date & time"
           />
         );
@@ -1164,11 +1172,14 @@ function GridTablePreview({
         style={{ maxHeight: "70vh" }}
       >
         <table className="w-full border-collapse">
-          <thead className="sticky top-0 z-20">
-            {/* Column group header row */}
-            {columnGroups.length > 0 && (
+          {/* Column group header row - not sticky, scrolls away */}
+          {columnGroups.length > 0 && (
+            <thead>
               <tr>
-                <th className="border-border bg-muted/50 sticky left-0 z-30 border p-2"></th>
+                {rowGroups.length > 0 && (
+                  <th className="border-border bg-muted/50 border p-2"></th>
+                )}
+                <th className="border-border bg-muted/50 border p-2"></th>
                 {(() => {
                   const cells: React.ReactNode[] = [];
                   let ci = 0;
@@ -1201,8 +1212,13 @@ function GridTablePreview({
                   return cells;
                 })()}
               </tr>
-            )}
+            </thead>
+          )}
+          <thead className="sticky top-0 z-20">
             <tr>
+              {rowGroups.length > 0 && (
+                <th className="border-border bg-muted/50 sticky left-0 z-30 border p-2"></th>
+              )}
               <th className="border-border bg-muted/50 sticky left-0 z-30 border p-2"></th>
               {columns.map((col, colIndex) => {
                 const cc = columnConfigs[colIndex];
@@ -1250,7 +1266,7 @@ function GridTablePreview({
                     {rowGroup && (
                       <td
                         rowSpan={rowGroupSpan}
-                        className="sticky left-0 z-10 border bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                        className="border bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
                         style={{
                           writingMode:
                             rowGroupSpan > 2 ? "vertical-rl" : undefined,
@@ -1262,7 +1278,7 @@ function GridTablePreview({
                     )}
                     <td
                       colSpan={columns.length + 1}
-                      className="border-border sticky left-0 z-10 border p-2 font-bold text-gray-800"
+                      className="border-border border p-2 font-bold text-gray-800"
                     >
                       {row}
                     </td>
@@ -1277,7 +1293,7 @@ function GridTablePreview({
                     {rowGroup && (
                       <td
                         rowSpan={rowGroupSpan}
-                        className="sticky left-0 z-10 border bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                        className="border bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
                         style={{
                           writingMode:
                             rowGroupSpan > 2 ? "vertical-rl" : undefined,
@@ -1287,10 +1303,12 @@ function GridTablePreview({
                         {rowGroup.label}
                       </td>
                     )}
-                    <td className={cn(
-                      "border-border sticky left-0 z-10 border bg-emerald-50 p-2 font-semibold text-emerald-800",
-                      isInRowGroup && "border-l-0",
-                    )}>
+                    <td
+                      className={cn(
+                        "border-border sticky left-0 z-10 border bg-emerald-50 p-2 font-semibold text-emerald-800",
+                        isInRowGroup && "border-l-0",
+                      )}
+                    >
                       {row}
                     </td>
                     {columns.map((_, colIndex) => {
@@ -1301,8 +1319,57 @@ function GridTablePreview({
                           key={colIndex}
                           className="border-border border bg-emerald-50/30 p-1 text-right"
                         >
-                          <span className="font-semibold tabular-nums text-emerald-800">
-                            {cellVal !== undefined && cellVal !== null && cellVal !== ""
+                          <span className="font-semibold text-emerald-800 tabular-nums">
+                            {cellVal !== undefined &&
+                            cellVal !== null &&
+                            cellVal !== ""
+                              ? String(cellVal)
+                              : "—"}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              }
+
+              // Display row — read-only label/value row (e.g., subtotals, info)
+              if (rowType === "display") {
+                return (
+                  <tr key={rowIndex} className="bg-amber-50/70">
+                    {rowGroup && (
+                      <td
+                        rowSpan={rowGroupSpan}
+                        className="border bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                        style={{
+                          writingMode:
+                            rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                          textOrientation: "mixed",
+                        }}
+                      >
+                        {rowGroup.label}
+                      </td>
+                    )}
+                    <td
+                      className={cn(
+                        "border-border sticky left-0 z-10 border bg-amber-50 p-2 font-semibold text-amber-800",
+                        isInRowGroup && "border-l-0",
+                      )}
+                    >
+                      {row}
+                    </td>
+                    {columns.map((_, colIndex) => {
+                      const cellKey = `${rowIndex}-${colIndex}`;
+                      const cellVal = value[cellKey];
+                      return (
+                        <td
+                          key={colIndex}
+                          className="border-border border bg-amber-50/30 p-1 text-right"
+                        >
+                          <span className="font-medium text-amber-800 tabular-nums">
+                            {cellVal !== undefined &&
+                            cellVal !== null &&
+                            cellVal !== ""
                               ? String(cellVal)
                               : "—"}
                           </span>
@@ -1322,7 +1389,7 @@ function GridTablePreview({
                   {rowGroup && (
                     <td
                       rowSpan={rowGroupSpan}
-                      className="sticky left-0 z-10 border bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
+                      className="border bg-indigo-50 px-2 py-2 text-center text-xs font-bold tracking-wider text-indigo-700 uppercase"
                       style={{
                         writingMode:
                           rowGroupSpan > 2 ? "vertical-rl" : undefined,
@@ -1336,8 +1403,8 @@ function GridTablePreview({
                     {row}
                   </td>
                   {columns.map((_, colIndex) => {
-                    const cc = columnConfigs[colIndex];
-                    const isFormula = cc?.type === "formula";
+                    const ec = getEffectiveConfig(colIndex, rowIndex);
+                    const isFormula = ec?.type === "formula";
                     return (
                       <td
                         key={colIndex}
