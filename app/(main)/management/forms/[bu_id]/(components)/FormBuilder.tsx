@@ -11,6 +11,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { cn } from "@/lib/utils";
 import {
   GripVertical,
   Plus,
@@ -24,9 +25,11 @@ import {
   CalendarClock,
   ChevronsUpDown,
   Search,
-  ChevronUp,
-  ChevronDown,
   Layers,
+  ChevronDown,
+  ChevronRight,
+  FolderPlus,
+  Calculator,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -111,6 +114,21 @@ export interface GridCellOverride {
   formula?: string;
 }
 
+// Section-based builder structure (generates rows/rowConfigs/rowGroups automatically)
+export interface GridSection {
+  id: string; // Unique ID for drag/collapse
+  name: string; // Section header label (e.g., "Meals")
+  dataRows: string[]; // Data row labels within section (e.g., ["Breakfast", "Lunch", "Dinner"])
+  includeSubtotal: boolean; // Auto-generate a Sub-Total formula row
+  collapsed?: boolean; // UI-only: collapsed in builder
+}
+
+// Top-level row item: either a standalone row, a section, or a total row
+export type GridRowItem =
+  | { type: "row"; label: string } // Standalone data row
+  | { type: "section"; section: GridSection } // Section with header + data rows + optional subtotal
+  | { type: "total"; label: string; subtotalRefs?: string[] }; // Grand total row (sums subtotal rows)
+
 export interface GridTableConfig {
   rows: string[]; // Row labels (e.g., ["9:00 AM", "10:00 AM"])
   columnConfigs?: GridColumnConfig[]; // Per-column config (overrides cellConfig when present)
@@ -121,6 +139,7 @@ export interface GridTableConfig {
   columnGroups?: ColumnGroup[]; // Visual column grouping headers
   rowGroups?: RowGroup[]; // Visual row grouping headers
   cellOverrides?: Record<string, GridCellOverride>; // Per-cell config overrides, keyed by "rowIndex-colIndex"
+  rowItems?: GridRowItem[]; // Section-based builder structure (source of truth when present)
 }
 
 export interface NumberFieldConfig {
@@ -348,6 +367,120 @@ function FieldPalette({
   );
 }
 
+// --- SORTABLE GRID ITEM (for drag-and-drop row/column labels) ---
+
+function SortableGridItem({
+  id,
+  index,
+  value,
+  onChange,
+  onRemove,
+  placeholder,
+}: {
+  id: string;
+  index: number;
+  value: string;
+  onChange: (val: string) => void;
+  onRemove: () => void;
+  placeholder: string;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-1"
+    >
+      <button
+        type="button"
+        className="text-muted-foreground hover:text-foreground cursor-grab touch-none active:cursor-grabbing"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <span className="text-muted-foreground w-5 text-center text-xs">
+        {index + 1}
+      </span>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="flex-grow bg-white"
+      />
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onRemove}
+      >
+        <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
+      </Button>
+    </div>
+  );
+}
+
+// --- SORTABLE ROW ITEM (for top-level row items: standalone rows, sections, totals) ---
+
+function SortableRowItem({
+  id,
+  children,
+  isSection,
+}: {
+  id: string;
+  children: React.ReactNode;
+  isSection?: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-start gap-1 rounded-md border bg-white p-1.5",
+        isSection ? "border-indigo-200 bg-indigo-50/30" : "border-gray-200",
+      )}
+    >
+      <button
+        type="button"
+        className="text-muted-foreground hover:text-foreground mt-1 cursor-grab touch-none active:cursor-grabbing"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      {children}
+    </div>
+  );
+}
+
 // --- GRID TABLE BUILDER (Tabbed UI) ---
 
 function GridTableBuilder({
@@ -392,49 +525,6 @@ function GridTableBuilder({
     newConfigs[colIndex] = config as any;
     onUpdate(field.id, {
       gridConfig: { ...gridConfig, columnConfigs: newConfigs },
-    });
-  };
-
-  const updateGridRow = (index: number, value: string) => {
-    const newRows = [...gridConfig.rows];
-    newRows[index] = value;
-    onUpdate(field.id, { gridConfig: { ...gridConfig, rows: newRows } });
-  };
-
-  const addGridRow = () => {
-    const newRows = [...gridConfig.rows, `Row ${gridConfig.rows.length + 1}`];
-    const newRowConfigs = [...rowConfigs, { type: "data" as GridRowType }];
-    onUpdate(field.id, {
-      gridConfig: { ...gridConfig, rows: newRows, rowConfigs: newRowConfigs },
-    });
-  };
-
-  const removeGridRow = (index: number) => {
-    const newRows = [...gridConfig.rows];
-    newRows.splice(index, 1);
-    const newRowConfigs = [...rowConfigs];
-    newRowConfigs.splice(index, 1);
-    // Adjust row groups when removing a row
-    const newRowGroups = rowGroups
-      .map((g) => {
-        if (index < g.startIndex)
-          return {
-            ...g,
-            startIndex: g.startIndex - 1,
-            endIndex: g.endIndex - 1,
-          };
-        if (index > g.endIndex) return g;
-        if (g.startIndex === g.endIndex && index === g.startIndex) return null;
-        return { ...g, endIndex: g.endIndex - 1 };
-      })
-      .filter((g): g is RowGroup => g !== null && g.startIndex <= g.endIndex);
-    onUpdate(field.id, {
-      gridConfig: {
-        ...gridConfig,
-        rows: newRows,
-        rowConfigs: newRowConfigs,
-        rowGroups: newRowGroups,
-      },
     });
   };
 
@@ -489,19 +579,6 @@ function GridTableBuilder({
     });
   };
 
-  const moveGridRow = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= gridConfig.rows.length) return;
-    const newRows = [...gridConfig.rows];
-    const [moved] = newRows.splice(fromIndex, 1);
-    newRows.splice(toIndex, 0, moved);
-    const newRowConfigs = [...rowConfigs];
-    const [movedConfig] = newRowConfigs.splice(fromIndex, 1);
-    newRowConfigs.splice(toIndex, 0, movedConfig);
-    onUpdate(field.id, {
-      gridConfig: { ...gridConfig, rows: newRows, rowConfigs: newRowConfigs },
-    });
-  };
-
   const moveGridColumn = (fromIndex: number, toIndex: number) => {
     if (toIndex < 0 || toIndex >= gridConfig.columns.length) return;
     const newColumns = [...gridConfig.columns];
@@ -529,8 +606,210 @@ function GridTableBuilder({
         rowConfigs: undefined,
         columnGroups: undefined,
         rowGroups: undefined,
+        rowItems: undefined,
       },
     });
+  };
+
+  // ---- Section-based row builder ----
+
+  // Initialize rowItems from existing rows/rowConfigs (backward compat)
+  const getRowItems = (): GridRowItem[] => {
+    if (gridConfig.rowItems && gridConfig.rowItems.length > 0) {
+      return gridConfig.rowItems;
+    }
+    // Migrate existing flat rows into rowItems
+    if (gridConfig.rows.length > 0) {
+      return gridConfig.rows.map((label) => ({ type: "row" as const, label }));
+    }
+    return [];
+  };
+
+  const rowItems = getRowItems();
+
+  // Generate a unique section ID
+  const genSectionId = () => `sec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  // Convert rowItems -> flat rows/rowConfigs/rowGroups and persist everything
+  const applyRowItems = (items: GridRowItem[]) => {
+    const newRows: string[] = [];
+    const newRowConfigs: GridRowConfig[] = [];
+    const newRowGroups: RowGroup[] = [];
+
+    // Collect subtotal row labels + indices for total rows to reference
+    const subtotalRowLabels: string[] = [];
+
+    items.forEach((item) => {
+      if (item.type === "row") {
+        newRows.push(item.label);
+        newRowConfigs.push({ type: "data" });
+      } else if (item.type === "section") {
+        const sec = item.section;
+        const sectionStart = newRows.length;
+
+        // Header row
+        newRows.push(sec.name);
+        newRowConfigs.push({ type: "header" });
+
+        // Data rows
+        sec.dataRows.forEach((dr) => {
+          newRows.push(dr);
+          newRowConfigs.push({ type: "data" });
+        });
+
+        // Sub-Total row
+        if (sec.includeSubtotal) {
+          const subtotalLabel = `Sub-Total`;
+          newRows.push(subtotalLabel);
+          // Formula sums the data rows in this section by name
+          const dataRowFormulas = sec.dataRows.map((r) => `{${r}}`).join(" + ");
+          newRowConfigs.push({
+            type: "formula",
+            formula: dataRowFormulas ? `=${dataRowFormulas}` : "=0",
+          });
+          subtotalRowLabels.push(subtotalLabel);
+        }
+
+        const sectionEnd = newRows.length - 1;
+        if (sectionEnd > sectionStart) {
+          newRowGroups.push({
+            label: sec.name,
+            startIndex: sectionStart,
+            endIndex: sectionEnd,
+          });
+        }
+      } else if (item.type === "total") {
+        newRows.push(item.label);
+        // Sum all subtotal rows or specific ones
+        if (item.subtotalRefs && item.subtotalRefs.length > 0) {
+          const refs = item.subtotalRefs.map((r) => `{${r}}`).join(" + ");
+          newRowConfigs.push({ type: "formula", formula: `=${refs}` });
+        } else {
+          // Sum all Sub-Total rows by label
+          const refs = subtotalRowLabels.map((r) => `{${r}}`).join(" + ");
+          newRowConfigs.push({
+            type: "formula",
+            formula: refs ? `=${refs}` : "=0",
+          });
+        }
+      }
+    });
+
+    onUpdate(field.id, {
+      gridConfig: {
+        ...gridConfig,
+        rows: newRows,
+        rowConfigs: newRowConfigs,
+        rowGroups: newRowGroups,
+        rowItems: items,
+      },
+    });
+  };
+
+  const addStandaloneRow = () => {
+    const newItems: GridRowItem[] = [...rowItems, { type: "row", label: `Row ${rowItems.length + 1}` }];
+    applyRowItems(newItems);
+  };
+
+  const addSection = () => {
+    const newSection: GridSection = {
+      id: genSectionId(),
+      name: `Section ${rowItems.filter((i) => i.type === "section").length + 1}`,
+      dataRows: ["Row 1"],
+      includeSubtotal: true,
+    };
+    const newItems: GridRowItem[] = [...rowItems, { type: "section", section: newSection }];
+    applyRowItems(newItems);
+  };
+
+  const addTotalRow = () => {
+    const newItems: GridRowItem[] = [...rowItems, { type: "total", label: "Grand Total" }];
+    applyRowItems(newItems);
+  };
+
+  const removeRowItem = (index: number) => {
+    const newItems = [...rowItems];
+    newItems.splice(index, 1);
+    applyRowItems(newItems);
+  };
+
+  const updateRowItemLabel = (index: number, label: string) => {
+    const newItems = [...rowItems];
+    const item = newItems[index];
+    if (item.type === "row") {
+      newItems[index] = { ...item, label };
+    } else if (item.type === "total") {
+      newItems[index] = { ...item, label };
+    }
+    applyRowItems(newItems);
+  };
+
+  const updateSection = (index: number, section: GridSection) => {
+    const newItems = [...rowItems];
+    newItems[index] = { type: "section", section };
+    applyRowItems(newItems);
+  };
+
+  const toggleSectionCollapse = (index: number) => {
+    const item = rowItems[index];
+    if (item.type !== "section") return;
+    const newItems = [...rowItems];
+    newItems[index] = {
+      type: "section",
+      section: { ...item.section, collapsed: !item.section.collapsed },
+    };
+    // Just update rowItems without regenerating (UI-only toggle)
+    onUpdate(field.id, {
+      gridConfig: { ...gridConfig, rowItems: newItems },
+    });
+  };
+
+  const moveRowItem = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= rowItems.length) return;
+    const newItems = [...rowItems];
+    const [moved] = newItems.splice(fromIndex, 1);
+    newItems.splice(toIndex, 0, moved);
+    applyRowItems(newItems);
+  };
+
+  // Section data row management
+  const addSectionDataRow = (itemIndex: number) => {
+    const item = rowItems[itemIndex];
+    if (item.type !== "section") return;
+    const sec = item.section;
+    updateSection(itemIndex, {
+      ...sec,
+      dataRows: [...sec.dataRows, `Row ${sec.dataRows.length + 1}`],
+    });
+  };
+
+  const removeSectionDataRow = (itemIndex: number, rowIdx: number) => {
+    const item = rowItems[itemIndex];
+    if (item.type !== "section") return;
+    const sec = item.section;
+    const newDataRows = [...sec.dataRows];
+    newDataRows.splice(rowIdx, 1);
+    updateSection(itemIndex, { ...sec, dataRows: newDataRows });
+  };
+
+  const updateSectionDataRow = (itemIndex: number, rowIdx: number, label: string) => {
+    const item = rowItems[itemIndex];
+    if (item.type !== "section") return;
+    const sec = item.section;
+    const newDataRows = [...sec.dataRows];
+    newDataRows[rowIdx] = label;
+    updateSection(itemIndex, { ...sec, dataRows: newDataRows });
+  };
+
+  const moveSectionDataRow = (itemIndex: number, fromIdx: number, toIdx: number) => {
+    const item = rowItems[itemIndex];
+    if (item.type !== "section") return;
+    const sec = item.section;
+    if (toIdx < 0 || toIdx >= sec.dataRows.length) return;
+    const newDataRows = [...sec.dataRows];
+    const [moved] = newDataRows.splice(fromIdx, 1);
+    newDataRows.splice(toIdx, 0, moved);
+    updateSection(itemIndex, { ...sec, dataRows: newDataRows });
   };
 
   // Cell override management
@@ -677,62 +956,180 @@ function GridTableBuilder({
             />
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Row labels */}
+          <div className="space-y-4">
+            {/* Rows (section-based builder) */}
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-gray-700">
-                Row Labels
-              </h4>
-              <div className="max-h-[400px] space-y-1 overflow-y-auto">
-                {gridConfig.rows.map((row, index) => (
-                  <div key={index} className="flex items-center gap-1">
-                    <div className="flex flex-col">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-4 w-6"
-                        onClick={() => moveGridRow(index, index - 1)}
-                        disabled={index === 0}
-                      >
-                        <ChevronUp className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-4 w-6"
-                        onClick={() => moveGridRow(index, index + 1)}
-                        disabled={index === gridConfig.rows.length - 1}
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <span className="text-muted-foreground w-5 text-center text-xs">
-                      {index + 1}
-                    </span>
-                    <Input
-                      value={row}
-                      onChange={(e) => updateGridRow(index, e.target.value)}
-                      placeholder={`Row ${index + 1}`}
-                      className="flex-grow bg-white"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeGridRow(index)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
-                    </Button>
-                  </div>
-                ))}
+              <h4 className="text-sm font-semibold text-gray-700">Rows</h4>
+              <div className="max-h-[500px] space-y-1 overflow-y-auto pr-1">
+                <DndContext
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event: DragEndEvent) => {
+                    const { active, over } = event;
+                    if (over && active.id !== over.id) {
+                      const oldIndex = rowItems.findIndex((_, i) => `row-item-${i}` === active.id);
+                      const newIndex = rowItems.findIndex((_, i) => `row-item-${i}` === over.id);
+                      if (oldIndex !== -1 && newIndex !== -1) {
+                        moveRowItem(oldIndex, newIndex);
+                      }
+                    }
+                  }}
+                >
+                  <SortableContext
+                    items={rowItems.map((_, i) => `row-item-${i}`)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {rowItems.map((item, index) => {
+                      if (item.type === "row") {
+                        return (
+                          <SortableRowItem
+                            key={`row-item-${index}`}
+                            id={`row-item-${index}`}
+                          >
+                            <Input
+                              value={item.label}
+                              onChange={(e) => updateRowItemLabel(index, e.target.value)}
+                              placeholder="Row label"
+                              className="flex-grow bg-white text-sm"
+                            />
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeRowItem(index)}>
+                              <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                            </Button>
+                          </SortableRowItem>
+                        );
+                      }
+
+                      if (item.type === "total") {
+                        return (
+                          <SortableRowItem
+                            key={`row-item-${index}`}
+                            id={`row-item-${index}`}
+                          >
+                            <Calculator className="h-4 w-4 shrink-0 text-amber-600" />
+                            <Input
+                              value={item.label}
+                              onChange={(e) => updateRowItemLabel(index, e.target.value)}
+                              placeholder="Total label"
+                              className="flex-grow border-amber-200 bg-amber-50 text-sm font-semibold"
+                            />
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeRowItem(index)}>
+                              <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                            </Button>
+                          </SortableRowItem>
+                        );
+                      }
+
+                      // Section
+                      const sec = item.section;
+                      return (
+                        <SortableRowItem
+                          key={`row-item-${index}`}
+                          id={`row-item-${index}`}
+                          isSection
+                        >
+                          <div className="w-full space-y-1">
+                            {/* Section header */}
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground p-0.5"
+                                onClick={() => toggleSectionCollapse(index)}
+                              >
+                                {sec.collapsed ? (
+                                  <ChevronRight className="h-4 w-4" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4" />
+                                )}
+                              </button>
+                              <Input
+                                value={sec.name}
+                                onChange={(e) => updateSection(index, { ...sec, name: e.target.value })}
+                                placeholder="Section name"
+                                className="flex-grow border-indigo-200 bg-indigo-50 text-sm font-semibold"
+                              />
+                              <label className="flex items-center gap-1 text-[11px] text-gray-500 whitespace-nowrap">
+                                <input
+                                  type="checkbox"
+                                  checked={sec.includeSubtotal}
+                                  onChange={(e) => updateSection(index, { ...sec, includeSubtotal: e.target.checked })}
+                                  className="h-3 w-3 rounded"
+                                />
+                                Sub-Total
+                              </label>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeRowItem(index)}>
+                                <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                              </Button>
+                            </div>
+
+                            {/* Section data rows (collapsible) */}
+                            {!sec.collapsed && (
+                              <div className="ml-5 space-y-1 border-l-2 border-indigo-200 pl-2">
+                                <DndContext
+                                  collisionDetection={closestCenter}
+                                  onDragEnd={(event: DragEndEvent) => {
+                                    const { active, over } = event;
+                                    if (over && active.id !== over.id) {
+                                      const fromIdx = sec.dataRows.findIndex((_, i) => `sec-${sec.id}-row-${i}` === active.id);
+                                      const toIdx = sec.dataRows.findIndex((_, i) => `sec-${sec.id}-row-${i}` === over.id);
+                                      if (fromIdx !== -1 && toIdx !== -1) {
+                                        moveSectionDataRow(index, fromIdx, toIdx);
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <SortableContext
+                                    items={sec.dataRows.map((_, i) => `sec-${sec.id}-row-${i}`)}
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    {sec.dataRows.map((dr, drIdx) => (
+                                      <SortableGridItem
+                                        key={`sec-${sec.id}-row-${drIdx}`}
+                                        id={`sec-${sec.id}-row-${drIdx}`}
+                                        index={drIdx}
+                                        value={dr}
+                                        onChange={(val) => updateSectionDataRow(index, drIdx, val)}
+                                        onRemove={() => removeSectionDataRow(index, drIdx)}
+                                        placeholder={`Row ${drIdx + 1}`}
+                                      />
+                                    ))}
+                                  </SortableContext>
+                                </DndContext>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => addSectionDataRow(index)}
+                                  className="h-7 text-xs text-indigo-600 hover:text-indigo-700"
+                                >
+                                  <Plus className="mr-1 h-3 w-3" /> Add Row
+                                </Button>
+                                {sec.includeSubtotal && (
+                                  <div className="flex items-center gap-2 rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
+                                    <Calculator className="h-3 w-3" />
+                                    <span className="font-medium">Sub-Total</span>
+                                    <span className="text-emerald-500">(auto-sum)</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </SortableRowItem>
+                      );
+                    })}
+                  </SortableContext>
+                </DndContext>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addGridRow}
-                className="bg-white"
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Row
-              </Button>
+
+              {/* Action buttons */}
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={addStandaloneRow} className="bg-white">
+                  <Plus className="mr-1 h-4 w-4" /> Add Row
+                </Button>
+                <Button variant="outline" size="sm" onClick={addSection} className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+                  <FolderPlus className="mr-1 h-4 w-4" /> Add Section
+                </Button>
+                <Button variant="outline" size="sm" onClick={addTotalRow} className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">
+                  <Calculator className="mr-1 h-4 w-4" /> Add Total Row
+                </Button>
+              </div>
             </div>
 
             {/* Column labels */}
@@ -741,46 +1138,36 @@ function GridTableBuilder({
                 Column Labels
               </h4>
               <div className="max-h-[300px] space-y-1 overflow-y-auto">
-                {gridConfig.columns.map((column, index) => (
-                  <div key={index} className="flex items-center gap-1">
-                    <div className="flex flex-col">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-4 w-6"
-                        onClick={() => moveGridColumn(index, index - 1)}
-                        disabled={index === 0}
-                      >
-                        <ChevronUp className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-4 w-6"
-                        onClick={() => moveGridColumn(index, index + 1)}
-                        disabled={index === gridConfig.columns.length - 1}
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <span className="text-muted-foreground w-5 text-center text-xs">
-                      {index + 1}
-                    </span>
-                    <Input
-                      value={column}
-                      onChange={(e) => updateGridColumn(index, e.target.value)}
-                      placeholder={`Column ${index + 1}`}
-                      className="flex-grow bg-white"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeGridColumn(index)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
-                    </Button>
-                  </div>
-                ))}
+                <DndContext
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event: DragEndEvent) => {
+                    const { active, over } = event;
+                    if (over && active.id !== over.id) {
+                      const oldIndex = gridConfig.columns.findIndex((_, i) => `grid-col-${i}` === active.id);
+                      const newIndex = gridConfig.columns.findIndex((_, i) => `grid-col-${i}` === over.id);
+                      if (oldIndex !== -1 && newIndex !== -1) {
+                        moveGridColumn(oldIndex, newIndex);
+                      }
+                    }
+                  }}
+                >
+                  <SortableContext
+                    items={gridConfig.columns.map((_, i) => `grid-col-${i}`)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {gridConfig.columns.map((column, index) => (
+                      <SortableGridItem
+                        key={`grid-col-${index}`}
+                        id={`grid-col-${index}`}
+                        index={index}
+                        value={column}
+                        onChange={(val) => updateGridColumn(index, val)}
+                        onRemove={() => removeGridColumn(index)}
+                        placeholder={`Column ${index + 1}`}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </div>
               <Button
                 variant="outline"
@@ -1347,89 +1734,7 @@ function GridTableBuilder({
             displayed as spanning header cells in the rendered table.
           </p>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Column Groups */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Layers className="text-muted-foreground h-4 w-4" />
-                <h4 className="text-sm font-semibold text-gray-700">
-                  Column Groups
-                </h4>
-              </div>
-              {columnGroups.map((group, index) => (
-                <div
-                  key={index}
-                  className="space-y-2 rounded-md border bg-white p-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={group.label}
-                      onChange={(e) =>
-                        updateColumnGroup(index, {
-                          ...group,
-                          label: e.target.value,
-                        })
-                      }
-                      placeholder="Group label"
-                      className="flex-1 bg-white text-sm"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeColumnGroup(index)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-400" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <Label className="text-muted-foreground w-12">From:</Label>
-                    <select
-                      value={group.startIndex}
-                      onChange={(e) =>
-                        updateColumnGroup(index, {
-                          ...group,
-                          startIndex: parseInt(e.target.value),
-                        })
-                      }
-                      className="flex-1 rounded border px-2 py-1 text-xs"
-                    >
-                      {gridConfig.columns.map((col, i) => (
-                        <option key={i} value={i}>
-                          {i + 1}. {col}
-                        </option>
-                      ))}
-                    </select>
-                    <Label className="text-muted-foreground w-8">To:</Label>
-                    <select
-                      value={group.endIndex}
-                      onChange={(e) =>
-                        updateColumnGroup(index, {
-                          ...group,
-                          endIndex: parseInt(e.target.value),
-                        })
-                      }
-                      className="flex-1 rounded border px-2 py-1 text-xs"
-                    >
-                      {gridConfig.columns.map((col, i) => (
-                        <option key={i} value={i}>
-                          {i + 1}. {col}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addColumnGroup}
-                className="w-full bg-white"
-                disabled={gridConfig.columns.length < 2}
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Column Group
-              </Button>
-            </div>
-
+          <div className="space-y-4">
             {/* Row Groups */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -1509,6 +1814,88 @@ function GridTableBuilder({
                 disabled={gridConfig.rows.length < 2}
               >
                 <Plus className="mr-2 h-4 w-4" /> Add Row Group
+              </Button>
+            </div>
+
+            {/* Column Groups */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Layers className="text-muted-foreground h-4 w-4" />
+                <h4 className="text-sm font-semibold text-gray-700">
+                  Column Groups
+                </h4>
+              </div>
+              {columnGroups.map((group, index) => (
+                <div
+                  key={index}
+                  className="space-y-2 rounded-md border bg-white p-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={group.label}
+                      onChange={(e) =>
+                        updateColumnGroup(index, {
+                          ...group,
+                          label: e.target.value,
+                        })
+                      }
+                      placeholder="Group label"
+                      className="flex-1 bg-white text-sm"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeColumnGroup(index)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-400" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <Label className="text-muted-foreground w-12">From:</Label>
+                    <select
+                      value={group.startIndex}
+                      onChange={(e) =>
+                        updateColumnGroup(index, {
+                          ...group,
+                          startIndex: parseInt(e.target.value),
+                        })
+                      }
+                      className="flex-1 rounded border px-2 py-1 text-xs"
+                    >
+                      {gridConfig.columns.map((col, i) => (
+                        <option key={i} value={i}>
+                          {i + 1}. {col}
+                        </option>
+                      ))}
+                    </select>
+                    <Label className="text-muted-foreground w-8">To:</Label>
+                    <select
+                      value={group.endIndex}
+                      onChange={(e) =>
+                        updateColumnGroup(index, {
+                          ...group,
+                          endIndex: parseInt(e.target.value),
+                        })
+                      }
+                      className="flex-1 rounded border px-2 py-1 text-xs"
+                    >
+                      {gridConfig.columns.map((col, i) => (
+                        <option key={i} value={i}>
+                          {i + 1}. {col}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={addColumnGroup}
+                className="w-full bg-white"
+                disabled={gridConfig.columns.length < 2}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Add Column Group
               </Button>
             </div>
           </div>
