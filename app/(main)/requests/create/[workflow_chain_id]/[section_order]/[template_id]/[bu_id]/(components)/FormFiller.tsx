@@ -1730,7 +1730,7 @@ function GridTablePreview({
   }, [cellConfig]);
 
   return (
-    <div className="mb-6">
+    <div className="mb-6 min-w-0 max-w-full overflow-hidden">
       {/* Header */}
       <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-gray-700">
         <Table className="h-5 w-5" />
@@ -1756,7 +1756,7 @@ function GridTablePreview({
         className="overflow-auto rounded-lg border shadow-sm"
         style={{ maxHeight: "70vh" }}
       >
-        <table className="w-full border-collapse">
+        <table className="border-collapse" style={{ minWidth: "100%" }}>
           {/* Column group header row - not sticky, scrolls away */}
           {columnGroups.length > 0 && (
             <thead>
@@ -1812,7 +1812,7 @@ function GridTablePreview({
                   <th
                     key={colIndex}
                     className={cn(
-                      "border-b px-3 py-2.5 text-center text-sm font-semibold",
+                      "border-b px-3 py-2.5 text-center text-sm font-semibold min-w-[120px]",
                       isFormula
                         ? "bg-blue-50/70 text-blue-700"
                         : "bg-muted/70 text-gray-700",
