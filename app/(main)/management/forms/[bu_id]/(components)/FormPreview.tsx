@@ -1171,7 +1171,7 @@ function GridTablePreview({
         className="overflow-auto rounded-md border bg-white shadow-sm"
         style={{ maxHeight: "70vh" }}
       >
-        <table className="w-full border-collapse">
+        <table className="w-full table-fixed border-collapse">
           {/* Column group header row - not sticky, scrolls away */}
           {columnGroups.length > 0 && (
             <thead>
@@ -1409,7 +1409,7 @@ function GridTablePreview({
                       <td
                         key={colIndex}
                         className={cn(
-                          "border-border border",
+                          "border-border border break-words",
                           isFormula ? "bg-blue-50/30 p-1" : "p-1",
                         )}
                       >

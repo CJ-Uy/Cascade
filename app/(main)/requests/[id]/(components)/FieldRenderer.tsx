@@ -200,7 +200,7 @@ export function FieldRenderer({
         <Card className="mt-2">
           <CardContent className="p-0">
             <div className="overflow-auto" style={{ maxHeight: "70vh" }}>
-              <Table>
+              <Table className="table-fixed">
                 {/* Column group header row - not sticky, scrolls away */}
                 {columnGroups.length > 0 && (
                   <TableHeader>
@@ -421,12 +421,13 @@ export function FieldRenderer({
                           const cellValue = value[cellKey];
                           const co = cellOverrides[cellKey];
                           const cc = columnConfigs[colIndex];
-                          const effectiveConfig = co || cc || gridConfig?.cellConfig;
+                          const effectiveConfig =
+                            co || cc || gridConfig?.cellConfig;
                           const isFormula = effectiveConfig?.type === "formula";
                           return (
                             <TableCell
                               key={colIndex}
-                              className={isFormula ? "bg-blue-50/30" : ""}
+                              className={`break-words ${isFormula ? "bg-blue-50/30" : ""}`}
                             >
                               {isFormula ? (
                                 <span className="font-medium tabular-nums">
@@ -837,7 +838,11 @@ function GridCellRenderer({
     case "short-text":
     case "long-text":
     case "number":
-      return <span className="text-sm">{String(value)}</span>;
+      return (
+        <span className="text-sm break-words whitespace-normal">
+          {String(value)}
+        </span>
+      );
 
     case "radio": {
       const option = cellConfig?.options?.find(

@@ -1067,7 +1067,8 @@ function GridTablePreview({
   const cellDirections = field.gridConfig?.cellDirections;
   const columnGroups = field.gridConfig?.columnGroups || [];
   const rowGroups = field.gridConfig?.rowGroups || [];
-  const cellOverrides: Record<string, any> = (field.gridConfig as any)?.cellOverrides || {};
+  const cellOverrides: Record<string, any> =
+    (field.gridConfig as any)?.cellOverrides || {};
 
   const getEffectiveConfig = (colIndex: number, rowIndex?: number) => {
     // Individual cell override takes highest priority
@@ -1108,6 +1109,8 @@ function GridTablePreview({
             columns,
             columnConfigs,
             cellConfig,
+            rowConfigs,
+            cellOverrides,
           );
         });
       }
@@ -1119,8 +1122,14 @@ function GridTablePreview({
       if ((rc?.type === "formula" || rc?.type === "display") && rc.formula) {
         columns.forEach((_, fColIdx) => {
           const fCellKey = `${fRowIdx}-${fColIdx}`;
+          // Check for per-cell override formula
+          const cellOvr = cellOverrides[`${fRowIdx}-${fColIdx}`];
+          const formula =
+            cellOvr?.type === "formula" && cellOvr.formula
+              ? cellOvr.formula
+              : rc.formula!;
           formulaUpdates[fCellKey] = evaluateRowFormula(
-            rc.formula!,
+            formula,
             fRowIdx,
             fColIdx,
             { ...newValue, ...formulaUpdates },
@@ -1147,6 +1156,8 @@ function GridTablePreview({
           columns,
           columnConfigs,
           cellConfig,
+          rowConfigs,
+          cellOverrides,
         );
       }
     });
@@ -1176,6 +1187,8 @@ function GridTablePreview({
             columns,
             columnConfigs,
             cellConfig,
+            rowConfigs,
+            cellOverrides,
           );
           if (value[fCellKey] !== computed) {
             formulaUpdates[fCellKey] = computed;
@@ -1191,8 +1204,13 @@ function GridTablePreview({
       if ((rc?.type === "formula" || rc?.type === "display") && rc.formula) {
         columns.forEach((_, fColIdx) => {
           const fCellKey = `${fRowIdx}-${fColIdx}`;
+          const cellOvr = cellOverrides[`${fRowIdx}-${fColIdx}`];
+          const formula =
+            cellOvr?.type === "formula" && cellOvr.formula
+              ? cellOvr.formula
+              : rc.formula!;
           const computed = evaluateRowFormula(
-            rc.formula!,
+            formula,
             fRowIdx,
             fColIdx,
             { ...value, ...formulaUpdates },
@@ -1223,6 +1241,8 @@ function GridTablePreview({
           columns,
           columnConfigs,
           cellConfig,
+          rowConfigs,
+          cellOverrides,
         );
         if (value[key] !== computed) {
           formulaUpdates[key] = computed;
@@ -1305,6 +1325,8 @@ function GridTablePreview({
         columns,
         columnConfigs,
         cellConfig,
+        rowConfigs,
+        cellOverrides,
       );
       return (
         <div className="flex items-center gap-1.5 px-2 py-1.5">
@@ -1330,7 +1352,7 @@ function GridTablePreview({
             onChange={(e) =>
               handleCellChange(rowIndex, colIndex, e.target.value)
             }
-            className="border-0 focus-visible:ring-1"
+            className="w-full border-0 focus-visible:ring-1"
             placeholder=""
           />
         );
@@ -1355,7 +1377,7 @@ function GridTablePreview({
             onChange={(e) =>
               handleCellChange(rowIndex, colIndex, e.target.value)
             }
-            className="border-0 focus-visible:ring-1"
+            className="w-full border-0 focus-visible:ring-1"
             placeholder=""
             min={
               numberConfig?.validationType === "min" ||
@@ -1414,7 +1436,7 @@ function GridTablePreview({
         const isImage = fileData?.filetype?.startsWith("image/");
 
         return (
-          <div className="min-w-[140px] space-y-1.5 p-1">
+          <div className="w-full max-w-full space-y-1.5 overflow-hidden p-1">
             {/* File preview when uploaded */}
             {fileData && (
               <div className="border-border bg-muted/30 flex items-center gap-2 rounded-md border p-1.5">
@@ -1477,7 +1499,7 @@ function GridTablePreview({
       case "repeater": {
         const repeaterRows = cellValue || [];
         return (
-          <div className="min-w-[280px] space-y-2 p-1">
+          <div className="w-full max-w-full space-y-2 overflow-hidden p-1">
             {repeaterRows.map((row: any, rowIdx: number) => (
               <div
                 key={rowIdx}
@@ -1649,7 +1671,7 @@ function GridTablePreview({
       case "multi-field": {
         const multiData = cellValue || {};
         return (
-          <div className="min-w-[220px] space-y-2 p-1">
+          <div className="w-full max-w-full space-y-2 overflow-hidden p-1">
             {configColumns.map((col: any) => {
               const colType = col.type || col.field_type || "short-text";
               return (
@@ -1863,7 +1885,7 @@ function GridTablePreview({
         className="overflow-auto rounded-lg border shadow-sm"
         style={{ maxHeight: "70vh" }}
       >
-        <table className="w-full border-collapse">
+        <table className="w-full table-fixed border-collapse">
           {/* Column group header row - not sticky, scrolls away */}
           {columnGroups.length > 0 && (
             <thead>
@@ -2112,7 +2134,7 @@ function GridTablePreview({
                       <td
                         key={colIndex}
                         className={cn(
-                          "border-b px-1 py-0.5",
+                          "overflow-hidden border-b px-1 py-0.5 break-words",
                           isFormula ? "bg-blue-50/30" : "",
                         )}
                       >

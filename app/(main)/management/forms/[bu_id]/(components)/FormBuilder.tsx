@@ -44,6 +44,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { GridTableSpreadsheet } from "./GridTableSpreadsheet";
+
 // --- TYPES AND CONSTANTS ---
 export type FieldType =
   | "short-text"
@@ -68,9 +70,18 @@ export type GridCellType =
   | "file-upload"
   | "repeater"
   | "multi-field"
+  | "display"
   | "date"
   | "time"
   | "datetime";
+
+export interface GridCellStyle {
+  bgColor?: string; // CSS color (e.g., "#e0f0ff")
+  textColor?: string; // CSS color
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+}
 
 export interface GridColumnConfig {
   type: GridCellType | "formula";
@@ -78,6 +89,7 @@ export interface GridColumnConfig {
   columns?: FormField[];
   numberConfig?: NumberFieldConfig;
   formula?: string; // e.g., "={Col1} + {Col2}" or "=CONCAT({Col1}, {Col2})"
+  style?: GridCellStyle;
 }
 
 export interface GridCellConfig {
@@ -104,6 +116,7 @@ export type GridRowType = "data" | "header" | "formula" | "display";
 export interface GridRowConfig {
   type: GridRowType; // Row type: data (default), header (section label), formula (computed)
   formula?: string; // Formula for formula rows, e.g., "=SUM(ROWS[0:2])" or "={Row0} + {Row1}"
+  style?: GridCellStyle; // Visual styling for the row
 }
 
 export interface GridCellOverride {
@@ -112,6 +125,7 @@ export interface GridCellOverride {
   columns?: FormField[];
   numberConfig?: NumberFieldConfig;
   formula?: string;
+  style?: GridCellStyle;
 }
 
 // Section-based builder structure (generates rows/rowConfigs/rowGroups automatically)
@@ -400,11 +414,7 @@ function SortableGridItem({
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex items-center gap-1"
-    >
+    <div ref={setNodeRef} style={style} className="flex items-center gap-1">
       <button
         type="button"
         className="text-muted-foreground hover:text-foreground cursor-grab touch-none active:cursor-grabbing"
@@ -422,11 +432,7 @@ function SortableGridItem({
         placeholder={placeholder}
         className="flex-grow bg-white"
       />
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onRemove}
-      >
+      <Button variant="ghost" size="icon" onClick={onRemove}>
         <Trash2 className="h-4 w-4 text-red-400 hover:text-red-500" />
       </Button>
     </div>
@@ -490,7 +496,7 @@ function GridTableBuilder({
   field: FormField;
   onUpdate: Function;
 }) {
-  const [activeTab, setActiveTab] = useState("structure");
+  const [activeTab, setActiveTab] = useState("builder");
   const gridConfig = field.gridConfig || {
     rows: [],
     columns: [],
@@ -628,7 +634,8 @@ function GridTableBuilder({
   const rowItems = getRowItems();
 
   // Generate a unique section ID
-  const genSectionId = () => `sec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const genSectionId = () =>
+    `sec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   // Convert rowItems -> flat rows/rowConfigs/rowGroups and persist everything
   const applyRowItems = (items: GridRowItem[]) => {
@@ -707,7 +714,10 @@ function GridTableBuilder({
   };
 
   const addStandaloneRow = () => {
-    const newItems: GridRowItem[] = [...rowItems, { type: "row", label: `Row ${rowItems.length + 1}` }];
+    const newItems: GridRowItem[] = [
+      ...rowItems,
+      { type: "row", label: `Row ${rowItems.length + 1}` },
+    ];
     applyRowItems(newItems);
   };
 
@@ -718,12 +728,18 @@ function GridTableBuilder({
       dataRows: ["Row 1"],
       includeSubtotal: true,
     };
-    const newItems: GridRowItem[] = [...rowItems, { type: "section", section: newSection }];
+    const newItems: GridRowItem[] = [
+      ...rowItems,
+      { type: "section", section: newSection },
+    ];
     applyRowItems(newItems);
   };
 
   const addTotalRow = () => {
-    const newItems: GridRowItem[] = [...rowItems, { type: "total", label: "Grand Total" }];
+    const newItems: GridRowItem[] = [
+      ...rowItems,
+      { type: "total", label: "Grand Total" },
+    ];
     applyRowItems(newItems);
   };
 
@@ -792,7 +808,11 @@ function GridTableBuilder({
     updateSection(itemIndex, { ...sec, dataRows: newDataRows });
   };
 
-  const updateSectionDataRow = (itemIndex: number, rowIdx: number, label: string) => {
+  const updateSectionDataRow = (
+    itemIndex: number,
+    rowIdx: number,
+    label: string,
+  ) => {
     const item = rowItems[itemIndex];
     if (item.type !== "section") return;
     const sec = item.section;
@@ -801,7 +821,11 @@ function GridTableBuilder({
     updateSection(itemIndex, { ...sec, dataRows: newDataRows });
   };
 
-  const moveSectionDataRow = (itemIndex: number, fromIdx: number, toIdx: number) => {
+  const moveSectionDataRow = (
+    itemIndex: number,
+    fromIdx: number,
+    toIdx: number,
+  ) => {
     const item = rowItems[itemIndex];
     if (item.type !== "section") return;
     const sec = item.section;
@@ -815,11 +839,18 @@ function GridTableBuilder({
   // Cell override management
   const cellOverrides = gridConfig.cellOverrides || {};
 
-  const getCellOverride = (rowIndex: number, colIndex: number): GridCellOverride | null => {
+  const getCellOverride = (
+    rowIndex: number,
+    colIndex: number,
+  ): GridCellOverride | null => {
     return cellOverrides[`${rowIndex}-${colIndex}`] || null;
   };
 
-  const updateCellOverride = (rowIndex: number, colIndex: number, override: GridCellOverride | null) => {
+  const updateCellOverride = (
+    rowIndex: number,
+    colIndex: number,
+    override: GridCellOverride | null,
+  ) => {
     const newOverrides = { ...cellOverrides };
     const key = `${rowIndex}-${colIndex}`;
     if (override === null) {
@@ -832,59 +863,8 @@ function GridTableBuilder({
     });
   };
 
-  // Group management
-  const addColumnGroup = () => {
-    const newGroup: ColumnGroup = {
-      label: `Group ${columnGroups.length + 1}`,
-      startIndex: 0,
-      endIndex: Math.min(1, gridConfig.columns.length - 1),
-    };
-    onUpdate(field.id, {
-      gridConfig: { ...gridConfig, columnGroups: [...columnGroups, newGroup] },
-    });
-  };
-
-  const updateColumnGroup = (index: number, group: ColumnGroup) => {
-    const newGroups = [...columnGroups];
-    newGroups[index] = group;
-    onUpdate(field.id, {
-      gridConfig: { ...gridConfig, columnGroups: newGroups },
-    });
-  };
-
-  const removeColumnGroup = (index: number) => {
-    const newGroups = [...columnGroups];
-    newGroups.splice(index, 1);
-    onUpdate(field.id, {
-      gridConfig: { ...gridConfig, columnGroups: newGroups },
-    });
-  };
-
-  const addRowGroup = () => {
-    const newGroup: RowGroup = {
-      label: `Group ${rowGroups.length + 1}`,
-      startIndex: 0,
-      endIndex: Math.min(1, gridConfig.rows.length - 1),
-    };
-    onUpdate(field.id, {
-      gridConfig: { ...gridConfig, rowGroups: [...rowGroups, newGroup] },
-    });
-  };
-
-  const updateRowGroup = (index: number, group: RowGroup) => {
-    const newGroups = [...rowGroups];
-    newGroups[index] = group;
-    onUpdate(field.id, { gridConfig: { ...gridConfig, rowGroups: newGroups } });
-  };
-
-  const removeRowGroup = (index: number) => {
-    const newGroups = [...rowGroups];
-    newGroups.splice(index, 1);
-    onUpdate(field.id, { gridConfig: { ...gridConfig, rowGroups: newGroups } });
-  };
-
   return (
-    <div className="mt-4 rounded-lg border border-gray-300 bg-gray-50/50 shadow-sm">
+    <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-gray-300 bg-gray-50/50 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between border-b p-4">
         <div className="flex items-center gap-2 text-gray-700">
@@ -911,22 +891,10 @@ function GridTableBuilder({
         <div className="border-b px-4 pt-2">
           <TabsList className="h-9 bg-transparent p-0">
             <TabsTrigger
-              value="structure"
+              value="builder"
               className="data-[state=active]:border-primary rounded-b-none border-b-2 border-transparent px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:shadow-none"
             >
-              Rows & Columns
-            </TabsTrigger>
-            <TabsTrigger
-              value="cell-config"
-              className="data-[state=active]:border-primary rounded-b-none border-b-2 border-transparent px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-            >
-              Cell Config
-            </TabsTrigger>
-            <TabsTrigger
-              value="grouping"
-              className="data-[state=active]:border-primary rounded-b-none border-b-2 border-transparent px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-            >
-              Grouping
+              Builder
             </TabsTrigger>
             <TabsTrigger
               value="preview"
@@ -934,971 +902,25 @@ function GridTableBuilder({
             >
               Preview
             </TabsTrigger>
+            <TabsTrigger
+              value="formulas"
+              className="data-[state=active]:border-primary rounded-b-none border-b-2 border-transparent px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              Formula Reference
+            </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* Tab: Rows & Columns */}
-        <TabsContent value="structure" className="mt-0 space-y-4 p-4">
-          {/* Cell Directions */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold text-gray-700">
-              Cell Directions (shown above grid)
-            </Label>
-            <Input
-              value={gridConfig.cellDirections || ""}
-              onChange={(e) =>
-                onUpdate(field.id, {
-                  gridConfig: { ...gridConfig, cellDirections: e.target.value },
-                })
-              }
-              placeholder="e.g., Enter positive whole numbers only"
-              className="bg-white"
-            />
-          </div>
-
-          <div className="space-y-4">
-            {/* Rows (section-based builder) */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-gray-700">Rows</h4>
-              <div className="max-h-[500px] space-y-1 overflow-y-auto pr-1">
-                <DndContext
-                  collisionDetection={closestCenter}
-                  onDragEnd={(event: DragEndEvent) => {
-                    const { active, over } = event;
-                    if (over && active.id !== over.id) {
-                      const oldIndex = rowItems.findIndex((_, i) => `row-item-${i}` === active.id);
-                      const newIndex = rowItems.findIndex((_, i) => `row-item-${i}` === over.id);
-                      if (oldIndex !== -1 && newIndex !== -1) {
-                        moveRowItem(oldIndex, newIndex);
-                      }
-                    }
-                  }}
-                >
-                  <SortableContext
-                    items={rowItems.map((_, i) => `row-item-${i}`)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {rowItems.map((item, index) => {
-                      if (item.type === "row") {
-                        return (
-                          <SortableRowItem
-                            key={`row-item-${index}`}
-                            id={`row-item-${index}`}
-                          >
-                            <Input
-                              value={item.label}
-                              onChange={(e) => updateRowItemLabel(index, e.target.value)}
-                              placeholder="Row label"
-                              className="flex-grow bg-white text-sm"
-                            />
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeRowItem(index)}>
-                              <Trash2 className="h-3.5 w-3.5 text-red-400" />
-                            </Button>
-                          </SortableRowItem>
-                        );
-                      }
-
-                      if (item.type === "total") {
-                        return (
-                          <SortableRowItem
-                            key={`row-item-${index}`}
-                            id={`row-item-${index}`}
-                          >
-                            <Calculator className="h-4 w-4 shrink-0 text-amber-600" />
-                            <Input
-                              value={item.label}
-                              onChange={(e) => updateRowItemLabel(index, e.target.value)}
-                              placeholder="Total label"
-                              className="flex-grow border-amber-200 bg-amber-50 text-sm font-semibold"
-                            />
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeRowItem(index)}>
-                              <Trash2 className="h-3.5 w-3.5 text-red-400" />
-                            </Button>
-                          </SortableRowItem>
-                        );
-                      }
-
-                      // Section
-                      const sec = item.section;
-                      return (
-                        <SortableRowItem
-                          key={`row-item-${index}`}
-                          id={`row-item-${index}`}
-                          isSection
-                        >
-                          <div className="w-full space-y-1">
-                            {/* Section header */}
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                className="text-muted-foreground hover:text-foreground p-0.5"
-                                onClick={() => toggleSectionCollapse(index)}
-                              >
-                                {sec.collapsed ? (
-                                  <ChevronRight className="h-4 w-4" />
-                                ) : (
-                                  <ChevronDown className="h-4 w-4" />
-                                )}
-                              </button>
-                              <Input
-                                value={sec.name}
-                                onChange={(e) => updateSection(index, { ...sec, name: e.target.value })}
-                                placeholder="Section name"
-                                className="flex-grow border-indigo-200 bg-indigo-50 text-sm font-semibold"
-                              />
-                              <label className="flex items-center gap-1 text-[11px] text-gray-500 whitespace-nowrap">
-                                <input
-                                  type="checkbox"
-                                  checked={sec.includeSubtotal}
-                                  onChange={(e) => updateSection(index, { ...sec, includeSubtotal: e.target.checked })}
-                                  className="h-3 w-3 rounded"
-                                />
-                                Sub-Total
-                              </label>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeRowItem(index)}>
-                                <Trash2 className="h-3.5 w-3.5 text-red-400" />
-                              </Button>
-                            </div>
-
-                            {/* Section data rows (collapsible) */}
-                            {!sec.collapsed && (
-                              <div className="ml-5 space-y-1 border-l-2 border-indigo-200 pl-2">
-                                <DndContext
-                                  collisionDetection={closestCenter}
-                                  onDragEnd={(event: DragEndEvent) => {
-                                    const { active, over } = event;
-                                    if (over && active.id !== over.id) {
-                                      const fromIdx = sec.dataRows.findIndex((_, i) => `sec-${sec.id}-row-${i}` === active.id);
-                                      const toIdx = sec.dataRows.findIndex((_, i) => `sec-${sec.id}-row-${i}` === over.id);
-                                      if (fromIdx !== -1 && toIdx !== -1) {
-                                        moveSectionDataRow(index, fromIdx, toIdx);
-                                      }
-                                    }
-                                  }}
-                                >
-                                  <SortableContext
-                                    items={sec.dataRows.map((_, i) => `sec-${sec.id}-row-${i}`)}
-                                    strategy={verticalListSortingStrategy}
-                                  >
-                                    {sec.dataRows.map((dr, drIdx) => (
-                                      <SortableGridItem
-                                        key={`sec-${sec.id}-row-${drIdx}`}
-                                        id={`sec-${sec.id}-row-${drIdx}`}
-                                        index={drIdx}
-                                        value={dr}
-                                        onChange={(val) => updateSectionDataRow(index, drIdx, val)}
-                                        onRemove={() => removeSectionDataRow(index, drIdx)}
-                                        placeholder={`Row ${drIdx + 1}`}
-                                      />
-                                    ))}
-                                  </SortableContext>
-                                </DndContext>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => addSectionDataRow(index)}
-                                  className="h-7 text-xs text-indigo-600 hover:text-indigo-700"
-                                >
-                                  <Plus className="mr-1 h-3 w-3" /> Add Row
-                                </Button>
-                                {sec.includeSubtotal && (
-                                  <div className="flex items-center gap-2 rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
-                                    <Calculator className="h-3 w-3" />
-                                    <span className="font-medium">Sub-Total</span>
-                                    <span className="text-emerald-500">(auto-sum)</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </SortableRowItem>
-                      );
-                    })}
-                  </SortableContext>
-                </DndContext>
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={addStandaloneRow} className="bg-white">
-                  <Plus className="mr-1 h-4 w-4" /> Add Row
-                </Button>
-                <Button variant="outline" size="sm" onClick={addSection} className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
-                  <FolderPlus className="mr-1 h-4 w-4" /> Add Section
-                </Button>
-                <Button variant="outline" size="sm" onClick={addTotalRow} className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">
-                  <Calculator className="mr-1 h-4 w-4" /> Add Total Row
-                </Button>
-              </div>
-            </div>
-
-            {/* Column labels */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-gray-700">
-                Column Labels
-              </h4>
-              <div className="max-h-[300px] space-y-1 overflow-y-auto">
-                <DndContext
-                  collisionDetection={closestCenter}
-                  onDragEnd={(event: DragEndEvent) => {
-                    const { active, over } = event;
-                    if (over && active.id !== over.id) {
-                      const oldIndex = gridConfig.columns.findIndex((_, i) => `grid-col-${i}` === active.id);
-                      const newIndex = gridConfig.columns.findIndex((_, i) => `grid-col-${i}` === over.id);
-                      if (oldIndex !== -1 && newIndex !== -1) {
-                        moveGridColumn(oldIndex, newIndex);
-                      }
-                    }
-                  }}
-                >
-                  <SortableContext
-                    items={gridConfig.columns.map((_, i) => `grid-col-${i}`)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {gridConfig.columns.map((column, index) => (
-                      <SortableGridItem
-                        key={`grid-col-${index}`}
-                        id={`grid-col-${index}`}
-                        index={index}
-                        value={column}
-                        onChange={(val) => updateGridColumn(index, val)}
-                        onRemove={() => removeGridColumn(index)}
-                        placeholder={`Column ${index + 1}`}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addGridColumn}
-                className="bg-white"
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Column
-              </Button>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* Tab: Cell Configuration */}
-        <TabsContent value="cell-config" className="mt-0 space-y-4 p-4">
-          {/* Default cell type */}
-          <div className="space-y-3 rounded-md border border-gray-300 bg-white p-4">
-            <Label className="text-sm font-semibold text-gray-700">
-              Default Cell Input Type
-            </Label>
-            <p className="text-muted-foreground -mt-1 text-xs">
-              Applies to columns without a specific override
-            </p>
-            <select
-              value={gridConfig.cellConfig.type}
-              onChange={(e) => {
-                const newType = e.target.value as GridCellType;
-                const newCellConfig: GridCellConfig = { type: newType };
-                if (newType === "radio" || newType === "checkbox")
-                  newCellConfig.options = ["Option 1"];
-                if (newType === "repeater" || newType === "multi-field")
-                  newCellConfig.columns = [];
-                onUpdate(field.id, {
-                  gridConfig: { ...gridConfig, cellConfig: newCellConfig },
-                });
-              }}
-              className="border-input w-full rounded-md border bg-white px-3 py-2 text-sm"
-            >
-              <option value="short-text">Short Text</option>
-              <option value="long-text">Long Text (Textarea)</option>
-              <option value="number">Number</option>
-              <option value="date">Date</option>
-              <option value="time">Time</option>
-              <option value="datetime">Date & Time</option>
-              <option value="radio">Radio Buttons</option>
-              <option value="checkbox">Checkboxes</option>
-              <option value="file-upload">File Upload</option>
-              <option value="multi-field">Multi-Field (Fixed inputs)</option>
-              <option value="repeater">Repeater (Multi-row)</option>
-            </select>
-
-            {(gridConfig.cellConfig.type === "radio" ||
-              gridConfig.cellConfig.type === "checkbox") && (
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-gray-700">
-                  Options (one per line)
-                </Label>
-                <Textarea
-                  value={(gridConfig.cellConfig.options || []).join("\n")}
-                  onChange={(e) =>
-                    onUpdate(field.id, {
-                      gridConfig: {
-                        ...gridConfig,
-                        cellConfig: {
-                          ...gridConfig.cellConfig,
-                          options: e.target.value.split("\n"),
-                        },
-                      },
-                    })
-                  }
-                  placeholder={"Option 1\nOption 2\nOption 3"}
-                  className="min-h-[80px] bg-white font-mono text-sm"
-                />
-              </div>
-            )}
-
-            {gridConfig.cellConfig.type === "number" && (
-              <GridNumberConfigEditor
-                fieldId={field.id}
-                numberConfig={gridConfig.cellConfig.numberConfig}
-                onUpdate={(numConfig) =>
-                  onUpdate(field.id, {
-                    gridConfig: {
-                      ...gridConfig,
-                      cellConfig: {
-                        ...gridConfig.cellConfig,
-                        numberConfig: numConfig,
-                      },
-                    },
-                  })
-                }
-              />
-            )}
-
-            {(gridConfig.cellConfig.type === "repeater" ||
-              gridConfig.cellConfig.type === "multi-field") && (
-              <GridRepeaterColumnsEditor
-                fieldId={field.id}
-                columns={gridConfig.cellConfig.columns || []}
-                onUpdate={(newCols) =>
-                  onUpdate(field.id, {
-                    gridConfig: {
-                      ...gridConfig,
-                      cellConfig: {
-                        ...gridConfig.cellConfig,
-                        columns: newCols,
-                      },
-                    },
-                  })
-                }
-                label={
-                  gridConfig.cellConfig.type === "multi-field"
-                    ? "Cell Fields"
-                    : "Repeater Columns"
-                }
-                description={
-                  gridConfig.cellConfig.type === "multi-field"
-                    ? "Define the fixed set of inputs for each cell"
-                    : "Define the columns for each repeater row"
-                }
-              />
-            )}
-          </div>
-
-          {/* Per-column overrides */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-gray-700">
-              Column Type Overrides
-            </h4>
-            <p className="text-muted-foreground text-xs">
-              Override the default cell type per column. Set to
-              &quot;Formula&quot; for auto-calculated display-only columns.
-            </p>
-            {gridConfig.columns.length === 0 ? (
-              <p className="text-muted-foreground rounded border border-dashed p-3 text-center text-xs">
-                Add columns in the &quot;Rows & Columns&quot; tab first
-              </p>
-            ) : (
-              <div className="max-h-[400px] space-y-2 overflow-y-auto">
-                {gridConfig.columns.map((column, index) => {
-                  const colConfig = getColConfig(index);
-                  const hasOverride =
-                    colConfig !== null && colConfig !== undefined;
-                  const isFormula = colConfig?.type === "formula";
-
-                  return (
-                    <div
-                      key={index}
-                      className="space-y-2 rounded-md border bg-white p-3"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground w-5 text-center text-xs">
-                          {index + 1}
-                        </span>
-                        <span className="flex-1 truncate text-sm font-medium">
-                          {column}
-                        </span>
-                        <select
-                          value={
-                            hasOverride
-                              ? colConfig?.type || "short-text"
-                              : "default"
-                          }
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === "default") {
-                              updateColumnConfig(index, null);
-                            } else if (val === "formula") {
-                              updateColumnConfig(index, {
-                                type: "formula",
-                                formula: "",
-                              });
-                            } else {
-                              const newConfig: GridColumnConfig = {
-                                type: val as GridCellType,
-                              };
-                              if (val === "radio" || val === "checkbox")
-                                newConfig.options = ["Option 1"];
-                              if (val === "repeater" || val === "multi-field")
-                                newConfig.columns = [];
-                              updateColumnConfig(index, newConfig);
-                            }
-                          }}
-                          className="rounded border px-2 py-1.5 text-xs"
-                        >
-                          <option value="default">Default</option>
-                          <option value="short-text">Short Text</option>
-                          <option value="long-text">Long Text</option>
-                          <option value="number">Number</option>
-                          <option value="date">Date</option>
-                          <option value="time">Time</option>
-                          <option value="datetime">Date & Time</option>
-                          <option value="radio">Radio</option>
-                          <option value="checkbox">Checkbox</option>
-                          <option value="file-upload">File Upload</option>
-                          <option value="multi-field">Multi-Field</option>
-                          <option value="repeater">Repeater</option>
-                          <option value="formula">
-                            Formula (Display Only)
-                          </option>
-                        </select>
-                      </div>
-
-                      {isFormula && (
-                        <div className="space-y-2 rounded border border-blue-200 bg-blue-50/50 p-3">
-                          <Label className="text-xs font-semibold text-blue-800">
-                            Formula
-                          </Label>
-                          <Input
-                            value={colConfig?.formula || ""}
-                            onChange={(e) =>
-                              updateColumnConfig(index, {
-                                ...colConfig!,
-                                formula: e.target.value,
-                              })
-                            }
-                            placeholder="e.g., ={Column 1} + {Column 2}"
-                            className="bg-white font-mono text-sm"
-                          />
-                          <p className="text-[11px] leading-relaxed text-blue-700">
-                            <strong>Column refs:</strong>{" "}
-                            <code className="rounded bg-blue-100 px-1">
-                              {"{Column Name}"}
-                            </code>{" "}
-                            <code className="rounded bg-blue-100 px-1">
-                              {"{Column Name}.FieldLabel"}
-                            </code>
-                            <br />
-                            <strong>Aggregations:</strong>{" "}
-                            <code className="rounded bg-blue-100 px-1">
-                              {"=SUM(ROW.{Cost})"}
-                            </code>{" "}
-                            <code className="rounded bg-blue-100 px-1">
-                              {"=SUM(ROW[1:3].{Cost})"}
-                            </code>{" "}
-                            <code className="rounded bg-blue-100 px-1">
-                              {"=SUM(COLUMN.{Cost})"}
-                            </code>
-                            <br />
-                            <strong>Operators:</strong> + - * / &nbsp;
-                            <strong>Functions:</strong> SUM() CONCAT()
-                            <br />
-                            <strong>Tip:</strong> Use{" "}
-                            <code className="rounded bg-blue-100 px-1">
-                              {"{Cost}"}
-                            </code>{" "}
-                            to reference sub-field labels in multi-field cells.
-                          </p>
-                        </div>
-                      )}
-
-                      {hasOverride &&
-                        (colConfig?.type === "radio" ||
-                          colConfig?.type === "checkbox") && (
-                          <div className="space-y-2">
-                            <Label className="text-xs font-semibold text-gray-700">
-                              Options (one per line)
-                            </Label>
-                            <Textarea
-                              value={(colConfig?.options || []).join("\n")}
-                              onChange={(e) =>
-                                updateColumnConfig(index, {
-                                  ...colConfig!,
-                                  options: e.target.value.split("\n"),
-                                })
-                              }
-                              placeholder={"Option 1\nOption 2"}
-                              className="min-h-[60px] bg-white font-mono text-xs"
-                            />
-                          </div>
-                        )}
-
-                      {hasOverride && colConfig?.type === "number" && (
-                        <GridNumberConfigEditor
-                          fieldId={`${field.id}-col-${index}`}
-                          numberConfig={colConfig?.numberConfig}
-                          onUpdate={(numConfig) =>
-                            updateColumnConfig(index, {
-                              ...colConfig!,
-                              numberConfig: numConfig,
-                            })
-                          }
-                        />
-                      )}
-
-                      {hasOverride &&
-                        (colConfig?.type === "repeater" ||
-                          colConfig?.type === "multi-field") && (
-                          <GridRepeaterColumnsEditor
-                            fieldId={`${field.id}-col-${index}`}
-                            columns={(colConfig?.columns || []) as FormField[]}
-                            onUpdate={(newCols) =>
-                              updateColumnConfig(index, {
-                                ...colConfig!,
-                                columns: newCols,
-                              })
-                            }
-                            label={
-                              colConfig?.type === "multi-field"
-                                ? "Cell Fields"
-                                : "Repeater Columns"
-                            }
-                            description={
-                              colConfig?.type === "multi-field"
-                                ? "Define the fixed set of inputs for each cell"
-                                : "Define the columns for each repeater row"
-                            }
-                          />
-                        )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Per-row overrides */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-gray-700">
-              Row Type Overrides
-            </h4>
-            <p className="text-muted-foreground text-xs">
-              Override the default row type. Set to &quot;Header&quot; for section labels,
-              &quot;Formula&quot; for computed rows, or &quot;Display&quot; for read-only info rows (subtotals, etc.).
-            </p>
-            {gridConfig.rows.length === 0 ? (
-              <p className="text-muted-foreground rounded border border-dashed p-3 text-center text-xs">
-                Add rows in the &quot;Rows & Columns&quot; tab first
-              </p>
-            ) : (
-              <div className="max-h-[400px] space-y-2 overflow-y-auto">
-                {gridConfig.rows.map((row, index) => {
-                  const rc = getRowConfig(index);
-                  const isFormulaOrDisplay = rc.type === "formula" || rc.type === "display";
-
-                  return (
-                    <div
-                      key={index}
-                      className="space-y-2 rounded-md border bg-white p-3"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground w-5 text-center text-xs">
-                          {index + 1}
-                        </span>
-                        <span className="flex-1 truncate text-sm font-medium">
-                          {row}
-                        </span>
-                        <select
-                          value={rc.type}
-                          onChange={(e) => {
-                            const newType = e.target.value as GridRowType;
-                            updateRowConfig(index, {
-                              ...rc,
-                              type: newType,
-                              formula:
-                                newType === "formula" || newType === "display"
-                                  ? rc.formula || ""
-                                  : undefined,
-                            });
-                          }}
-                          className="rounded border px-2 py-1.5 text-xs"
-                        >
-                          <option value="data">Data (default)</option>
-                          <option value="header">Header (section label)</option>
-                          <option value="formula">Formula (computed)</option>
-                          <option value="display">Display (read-only)</option>
-                        </select>
-                      </div>
-
-                      {isFormulaOrDisplay && (
-                        <div className="space-y-2 rounded border border-emerald-200 bg-emerald-50/50 p-3">
-                          <Label className="text-xs font-semibold text-emerald-800">
-                            {rc.type === "display" ? "Display Formula" : "Row Formula"}
-                          </Label>
-                          <Input
-                            value={rc.formula || ""}
-                            onChange={(e) =>
-                              updateRowConfig(index, {
-                                ...rc,
-                                formula: e.target.value,
-                              })
-                            }
-                            placeholder={
-                              rc.type === "display"
-                                ? "e.g., ={Subtotal A}.{Amount} or ={Row1}.{Col1}.{field}"
-                                : "e.g., =SUM(ROWS) or ={Breakfast} + {Lunch}"
-                            }
-                            className="bg-white font-mono text-sm"
-                          />
-                          <p className="text-[11px] leading-relaxed text-emerald-700">
-                            <strong>Row refs:</strong>{" "}
-                            <code className="rounded bg-emerald-100 px-1">
-                              {"{Row Name}"}
-                            </code>{" "}
-                            (same column)
-                            <br />
-                            <strong>Cross-refs:</strong>{" "}
-                            <code className="rounded bg-emerald-100 px-1">
-                              {"{Row}.{Column}"}
-                            </code>{" "}
-                            <code className="rounded bg-emerald-100 px-1">
-                              {"{Row}.{Column}.Property"}
-                            </code>
-                            <br />
-                            <strong>Aggregations:</strong>{" "}
-                            <code className="rounded bg-emerald-100 px-1">
-                              =SUM(ROWS)
-                            </code>{" "}
-                            <code className="rounded bg-emerald-100 px-1">
-                              {"=SUM(ROWS[1:3])"}
-                            </code>{" "}
-                            <code className="rounded bg-emerald-100 px-1">
-                              {"=SUM({Row1}, {Row2})"}
-                            </code>
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Individual cell overrides */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-gray-700">
-              Individual Cell Overrides
-            </h4>
-            <p className="text-muted-foreground text-xs">
-              Override the type of a specific cell. Takes priority over column and row overrides.
-            </p>
-            {gridConfig.rows.length === 0 || gridConfig.columns.length === 0 ? (
-              <p className="text-muted-foreground rounded border border-dashed p-3 text-center text-xs">
-                Add rows and columns in the &quot;Rows & Columns&quot; tab first
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {/* Existing overrides */}
-                {Object.entries(cellOverrides).map(([key, override]) => {
-                  const [ri, ci] = key.split("-").map(Number);
-                  const rowLabel = gridConfig.rows[ri];
-                  const colLabel = gridConfig.columns[ci];
-                  if (!rowLabel || !colLabel) return null;
-                  const isFormula = override.type === "formula";
-
-                  return (
-                    <div key={key} className="space-y-2 rounded-md border bg-white p-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-gray-600">
-                          [{rowLabel}] × [{colLabel}]
-                        </span>
-                        <select
-                          value={override.type}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === "formula") {
-                              updateCellOverride(ri, ci, { type: "formula", formula: "" });
-                            } else {
-                              const newOverride: GridCellOverride = { type: val as GridCellType };
-                              if (val === "radio" || val === "checkbox") newOverride.options = ["Option 1"];
-                              updateCellOverride(ri, ci, newOverride);
-                            }
-                          }}
-                          className="rounded border px-2 py-1 text-xs"
-                        >
-                          <option value="short-text">Short Text</option>
-                          <option value="long-text">Long Text</option>
-                          <option value="number">Number</option>
-                          <option value="date">Date</option>
-                          <option value="time">Time</option>
-                          <option value="datetime">Date & Time</option>
-                          <option value="radio">Radio</option>
-                          <option value="checkbox">Checkbox</option>
-                          <option value="file-upload">File Upload</option>
-                          <option value="formula">Formula</option>
-                        </select>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="ml-auto h-7 w-7"
-                          onClick={() => updateCellOverride(ri, ci, null)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-red-400" />
-                        </Button>
-                      </div>
-                      {isFormula && (
-                        <Input
-                          value={override.formula || ""}
-                          onChange={(e) =>
-                            updateCellOverride(ri, ci, { ...override, formula: e.target.value })
-                          }
-                          placeholder="e.g., ={Row}.{Column} + 10"
-                          className="bg-white font-mono text-xs"
-                        />
-                      )}
-                      {(override.type === "radio" || override.type === "checkbox") && (
-                        <Textarea
-                          value={(override.options || []).join("\n")}
-                          onChange={(e) =>
-                            updateCellOverride(ri, ci, {
-                              ...override,
-                              options: e.target.value.split("\n"),
-                            })
-                          }
-                          placeholder={"Option 1\nOption 2"}
-                          className="min-h-[50px] bg-white font-mono text-xs"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-                {/* Add new override */}
-                <div className="flex items-center gap-2">
-                  <select
-                    id="cell-override-row"
-                    className="flex-1 rounded border px-2 py-1.5 text-xs"
-                    defaultValue=""
-                  >
-                    <option value="" disabled>Row...</option>
-                    {gridConfig.rows.map((row, i) => (
-                      <option key={i} value={i}>{i + 1}. {row}</option>
-                    ))}
-                  </select>
-                  <span className="text-muted-foreground text-xs">×</span>
-                  <select
-                    id="cell-override-col"
-                    className="flex-1 rounded border px-2 py-1.5 text-xs"
-                    defaultValue=""
-                  >
-                    <option value="" disabled>Column...</option>
-                    {gridConfig.columns.map((col, i) => (
-                      <option key={i} value={i}>{i + 1}. {col}</option>
-                    ))}
-                  </select>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-white text-xs"
-                    onClick={() => {
-                      const rowSel = document.getElementById("cell-override-row") as HTMLSelectElement;
-                      const colSel = document.getElementById("cell-override-col") as HTMLSelectElement;
-                      if (rowSel.value === "" || colSel.value === "") return;
-                      const ri = parseInt(rowSel.value);
-                      const ci = parseInt(colSel.value);
-                      if (getCellOverride(ri, ci)) return; // already exists
-                      updateCellOverride(ri, ci, { type: "short-text" });
-                      rowSel.value = "";
-                      colSel.value = "";
-                    }}
-                  >
-                    <Plus className="mr-1 h-3 w-3" /> Add
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Tab: Grouping */}
-        <TabsContent value="grouping" className="mt-0 space-y-4 p-4">
-          <p className="text-muted-foreground text-xs">
-            Group columns or rows under visual category headers. Groups are
-            displayed as spanning header cells in the rendered table.
-          </p>
-
-          <div className="space-y-4">
-            {/* Row Groups */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Layers className="text-muted-foreground h-4 w-4 rotate-90" />
-                <h4 className="text-sm font-semibold text-gray-700">
-                  Row Groups
-                </h4>
-              </div>
-              {rowGroups.map((group, index) => (
-                <div
-                  key={index}
-                  className="space-y-2 rounded-md border bg-white p-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={group.label}
-                      onChange={(e) =>
-                        updateRowGroup(index, {
-                          ...group,
-                          label: e.target.value,
-                        })
-                      }
-                      placeholder="Group label"
-                      className="flex-1 bg-white text-sm"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeRowGroup(index)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-400" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <Label className="text-muted-foreground w-12">From:</Label>
-                    <select
-                      value={group.startIndex}
-                      onChange={(e) =>
-                        updateRowGroup(index, {
-                          ...group,
-                          startIndex: parseInt(e.target.value),
-                        })
-                      }
-                      className="flex-1 rounded border px-2 py-1 text-xs"
-                    >
-                      {gridConfig.rows.map((row, i) => (
-                        <option key={i} value={i}>
-                          {i + 1}. {row}
-                        </option>
-                      ))}
-                    </select>
-                    <Label className="text-muted-foreground w-8">To:</Label>
-                    <select
-                      value={group.endIndex}
-                      onChange={(e) =>
-                        updateRowGroup(index, {
-                          ...group,
-                          endIndex: parseInt(e.target.value),
-                        })
-                      }
-                      className="flex-1 rounded border px-2 py-1 text-xs"
-                    >
-                      {gridConfig.rows.map((row, i) => (
-                        <option key={i} value={i}>
-                          {i + 1}. {row}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addRowGroup}
-                className="w-full bg-white"
-                disabled={gridConfig.rows.length < 2}
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Row Group
-              </Button>
-            </div>
-
-            {/* Column Groups */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Layers className="text-muted-foreground h-4 w-4" />
-                <h4 className="text-sm font-semibold text-gray-700">
-                  Column Groups
-                </h4>
-              </div>
-              {columnGroups.map((group, index) => (
-                <div
-                  key={index}
-                  className="space-y-2 rounded-md border bg-white p-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={group.label}
-                      onChange={(e) =>
-                        updateColumnGroup(index, {
-                          ...group,
-                          label: e.target.value,
-                        })
-                      }
-                      placeholder="Group label"
-                      className="flex-1 bg-white text-sm"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeColumnGroup(index)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-400" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <Label className="text-muted-foreground w-12">From:</Label>
-                    <select
-                      value={group.startIndex}
-                      onChange={(e) =>
-                        updateColumnGroup(index, {
-                          ...group,
-                          startIndex: parseInt(e.target.value),
-                        })
-                      }
-                      className="flex-1 rounded border px-2 py-1 text-xs"
-                    >
-                      {gridConfig.columns.map((col, i) => (
-                        <option key={i} value={i}>
-                          {i + 1}. {col}
-                        </option>
-                      ))}
-                    </select>
-                    <Label className="text-muted-foreground w-8">To:</Label>
-                    <select
-                      value={group.endIndex}
-                      onChange={(e) =>
-                        updateColumnGroup(index, {
-                          ...group,
-                          endIndex: parseInt(e.target.value),
-                        })
-                      }
-                      className="flex-1 rounded border px-2 py-1 text-xs"
-                    >
-                      {gridConfig.columns.map((col, i) => (
-                        <option key={i} value={i}>
-                          {i + 1}. {col}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addColumnGroup}
-                className="w-full bg-white"
-                disabled={gridConfig.columns.length < 2}
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Column Group
-              </Button>
-            </div>
-          </div>
+        {/* Tab: Builder (Spreadsheet) */}
+        <TabsContent
+          value="builder"
+          className="mt-0 min-w-0 overflow-hidden p-4"
+        >
+          <GridTableSpreadsheet
+            fieldId={field.id}
+            gridConfig={gridConfig}
+            onUpdate={onUpdate}
+          />
         </TabsContent>
 
         {/* Tab: Preview */}
@@ -1912,7 +934,7 @@ function GridTableBuilder({
                 </div>
               )}
               <div className="overflow-x-auto rounded border bg-white">
-                <table className="min-w-full text-sm">
+                <table className="min-w-full table-fixed text-sm">
                   <thead>
                     {/* Column group header row */}
                     {columnGroups.length > 0 && (
@@ -2175,6 +1197,674 @@ function GridTableBuilder({
               a preview.
             </p>
           )}
+        </TabsContent>
+
+        {/* Tab: Formula Reference */}
+        <TabsContent value="formulas" className="mt-0 p-4">
+          <div className="space-y-4 text-sm">
+            <div>
+              <h3 className="mb-2 text-base font-semibold">
+                Formula Reference
+              </h3>
+              <p className="text-muted-foreground text-xs">
+                Formulas start with{" "}
+                <code className="rounded bg-gray-100 px-1">=</code> and work
+                similarly to Excel/Sheets.
+              </p>
+            </div>
+
+            {/* Cell References */}
+            <div className="rounded-md border p-3">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                Cell References (A1 Notation)
+              </h4>
+              <p className="text-muted-foreground mb-2 text-xs">
+                Reference cells using column letters and row numbers. Column A
+                is the first data column.
+              </p>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b">
+                    <th className="py-1 pr-4 text-left font-medium">Formula</th>
+                    <th className="py-1 text-left font-medium">Description</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono">
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =A1
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Value of column A, row 1
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =A1 + B1
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Add values from two cells
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =A1 * B2 - C3
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Arithmetic with multiple cells
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =A1 / B1 * 100
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">Calculate percentage</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Row References */}
+            <div className="rounded-md border p-3">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                Row References ($n Notation)
+              </h4>
+              <p className="text-muted-foreground mb-2 text-xs">
+                Used in <strong>row formulas</strong> to reference other rows in
+                the same column.{" "}
+                <code className="rounded bg-gray-100 px-1">$n</code> refers to
+                row n.
+              </p>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b">
+                    <th className="py-1 pr-4 text-left font-medium">Formula</th>
+                    <th className="py-1 text-left font-medium">Description</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono">
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =$1 + $2
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Sum of row 1 and row 2 in the current column
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =$1 + $2 + $3
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Sum of rows 1, 2, and 3
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =$1 * $2 / 100
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Arithmetic with row references
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* SUM Function */}
+            <div className="rounded-md border p-3">
+              <h4 className="mb-1.5 text-sm font-semibold">SUM Function</h4>
+              <p className="text-muted-foreground mb-2 text-xs">
+                SUM supports three range shapes: <strong>vertical</strong>{" "}
+                (A1:A5), <strong>horizontal</strong> (A1:G1), and{" "}
+                <strong>rectangular</strong> (A1:G5).
+              </p>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b">
+                    <th className="py-1 pr-4 text-left font-medium">Formula</th>
+                    <th className="py-1 text-left font-medium">Description</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono">
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =SUM(A1:A5)
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Sum column A, rows 1-5 (vertical range)
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =SUM(A1:G1)
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Sum columns A-G in row 1 (horizontal range)
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =SUM(A1:G5)
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Sum all cells in rectangle A1 to G5 (rectangular range)
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =SUM($1:$3)
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Sum rows 1-3 in current column (row formula)
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =SUM($1, $3, $5)
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Sum specific rows (row formula)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =SUM(ROW)
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Sum all numeric values in the current row
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Column Formulas */}
+            <div className="rounded-md border p-3">
+              <h4 className="mb-1.5 text-sm font-semibold">Column Formulas</h4>
+              <p className="text-muted-foreground mb-2 text-xs">
+                Set a column type to &quot;Formula&quot; to compute values based
+                on other columns in the same row. Use{" "}
+                <code className="rounded bg-gray-100 px-1">
+                  {"{Column Name}"}
+                </code>{" "}
+                syntax.
+              </p>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b">
+                    <th className="py-1 pr-4 text-left font-medium">Formula</th>
+                    <th className="py-1 text-left font-medium">Description</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono">
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        ={"{Price}"} * {"{Quantity}"}
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Multiply Price by Quantity columns
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                        =CONCAT({"{First}"}, &quot; &quot;, {"{Last}"})
+                      </code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Concatenate text from two columns
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Operators */}
+            <div className="rounded-md border p-3">
+              <h4 className="mb-1.5 text-sm font-semibold">Operators</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <code className="rounded bg-gray-100 px-1.5">+</code> Addition
+                </div>
+                <div>
+                  <code className="rounded bg-gray-100 px-1.5">-</code>{" "}
+                  Subtraction
+                </div>
+                <div>
+                  <code className="rounded bg-gray-100 px-1.5">*</code>{" "}
+                  Multiplication
+                </div>
+                <div>
+                  <code className="rounded bg-gray-100 px-1.5">/</code> Division
+                </div>
+                <div>
+                  <code className="rounded bg-gray-100 px-1.5">( )</code>{" "}
+                  Grouping
+                </div>
+              </div>
+            </div>
+
+            {/* Multi-Field / Repeater Sub-Field References */}
+            <div className="rounded-md border p-3">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                Multi-Field &amp; Repeater Sub-Field References
+              </h4>
+              <p className="text-muted-foreground mb-2 text-xs">
+                When a cell contains a <strong>multi-field</strong> or{" "}
+                <strong>repeater</strong> input, access individual sub-fields
+                using dot notation with the sub-field label in curly braces.
+              </p>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b">
+                    <th className="py-1 pr-4 text-left font-medium">Formula</th>
+                    <th className="py-1 text-left font-medium">Description</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono">
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=A1.{Cost}`}</code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Get the &quot;Cost&quot; sub-field value from cell A1
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=A1.{Cost} + A1.{Tax}`}</code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Add two sub-fields from the same cell
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=A1.{Qty} * B1.{Price}`}</code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Multiply sub-fields from different cells
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=SUM(A1.{Cost}:A5.{Cost})`}</code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Sum &quot;Cost&quot; sub-field down column A (vertical)
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=SUM(A1.{Cost}:G1.{Cost})`}</code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Sum &quot;Cost&quot; sub-field across row 1 (horizontal)
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=SUM(A1.{Cost}:G5.{Cost})`}</code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Sum &quot;Cost&quot; sub-field in rectangular range (all
+                      cells)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 pr-4">
+                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=SUM({Items}.Cost)`}</code>
+                    </td>
+                    <td className="py-1.5 font-sans">
+                      Sum &quot;Cost&quot; across repeater entries in column
+                      &quot;Items&quot;
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="text-muted-foreground mt-2 text-[11px]">
+                For <strong>repeater</strong> cells, the sub-field value is the
+                sum of that field across all repeater entries. For{" "}
+                <strong>multi-field</strong> cells, it returns the single value
+                directly.
+              </p>
+            </div>
+
+            {/* Keyboard Shortcuts & Cell Operations */}
+            <div className="rounded-md border p-3">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                Keyboard Shortcuts &amp; Cell Operations
+              </h4>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b">
+                    <th className="py-1 pr-4 text-left font-medium">
+                      Shortcut
+                    </th>
+                    <th className="py-1 text-left font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                        Ctrl+C
+                      </kbd>
+                    </td>
+                    <td className="py-1.5">
+                      Copy selected cell, row, or column
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                        Ctrl+X
+                      </kbd>
+                    </td>
+                    <td className="py-1.5">
+                      Cut selected cell, row, or column
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                        Ctrl+V
+                      </kbd>
+                    </td>
+                    <td className="py-1.5">
+                      Paste to selected cell, row, or column
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                        Delete
+                      </kbd>
+                    </td>
+                    <td className="py-1.5">
+                      Clear cell override (reset to default)
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                        F2
+                      </kbd>
+                    </td>
+                    <td className="py-1.5">Edit formula in selected cell</td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                        Arrow keys
+                      </kbd>
+                    </td>
+                    <td className="py-1.5">Navigate between cells</td>
+                  </tr>
+                  <tr className="border-b border-dashed">
+                    <td className="py-1.5 pr-4">
+                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                        Tab
+                      </kbd>{" "}
+                      /{" "}
+                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                        Shift+Tab
+                      </kbd>
+                    </td>
+                    <td className="py-1.5">Move to next / previous cell</td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 pr-4">
+                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                        Enter
+                      </kbd>
+                    </td>
+                    <td className="py-1.5">Move to cell below</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Fill Handle */}
+            <div className="rounded-md border p-3">
+              <h4 className="mb-1.5 text-sm font-semibold">Fill Handle</h4>
+              <p className="text-muted-foreground text-xs">
+                When a cell is selected, a small <strong>blue square</strong>{" "}
+                appears at the bottom-right corner. Drag it vertically or
+                horizontally to fill adjacent cells with the same type or
+                formula.
+              </p>
+              <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
+                <li>
+                  For <strong>formula cells</strong>, cell references are
+                  automatically adjusted (e.g., A1 becomes A2 when dragged down)
+                </li>
+                <li>
+                  For <strong>type overrides</strong> (number, radio, etc.), the
+                  same type and settings are copied
+                </li>
+                <li>
+                  Drag down or right to extend, drag up or left to fill
+                  backwards
+                </li>
+              </ul>
+            </div>
+
+            {/* Cell Styling */}
+            <div className="rounded-md border p-3">
+              <h4 className="mb-1.5 text-sm font-semibold">Cell Styling</h4>
+              <p className="text-muted-foreground mb-2 text-xs">
+                When a cell, row, or column is selected, the toolbar shows style
+                controls:
+              </p>
+              <ul className="text-muted-foreground list-inside list-disc space-y-1 text-xs">
+                <li>
+                  <strong>BG</strong> — Set background color (click the color
+                  swatch)
+                </li>
+                <li>
+                  <strong>A</strong> — Set text color
+                </li>
+                <li>
+                  <strong>B</strong> — Toggle bold
+                </li>
+                <li>
+                  <strong>I</strong> — Toggle italic
+                </li>
+                <li>
+                  <strong>U</strong> — Toggle underline
+                </li>
+              </ul>
+              <p className="text-muted-foreground mt-2 text-[11px]">
+                Styles cascade: cell overrides &gt; row styles &gt; column
+                styles. Click the <strong>✕</strong> button next to a color to
+                clear it.
+              </p>
+            </div>
+
+            {/* Inline Toolbar */}
+            <div className="rounded-md border p-3">
+              <h4 className="mb-1.5 text-sm font-semibold">Inline Toolbar</h4>
+              <p className="text-muted-foreground text-xs">
+                When a cell, row, or column is selected, the toolbar above the
+                grid shows quick-access buttons for all operations — no
+                right-click needed:
+              </p>
+              <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
+                <li>
+                  <strong>Clipboard</strong> — Copy, Cut, Paste buttons
+                </li>
+                <li>
+                  <strong>Row operations</strong> — Insert above/below, move
+                  up/down, delete
+                </li>
+                <li>
+                  <strong>Column operations</strong> — Insert left/right, move
+                  left/right, delete
+                </li>
+                <li>
+                  <strong>Style controls</strong> — Background color, text
+                  color, bold, italic, underline
+                </li>
+              </ul>
+            </div>
+
+            {/* Per-Cell Formulas in Formula Rows */}
+            <div className="rounded-md border p-3">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                Per-Cell Formulas in Formula Rows
+              </h4>
+              <p className="text-muted-foreground text-xs">
+                Formula rows apply the same formula to every cell by default.
+                However, you can override individual cells with different
+                formulas:
+              </p>
+              <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
+                <li>Select a cell within a formula row</li>
+                <li>
+                  Type a different formula in the formula bar (e.g.,{" "}
+                  <code className="rounded bg-gray-100 px-1">=A1 * 2</code>)
+                </li>
+                <li>
+                  That cell will use the per-cell formula instead of the row
+                  formula
+                </li>
+                <li>
+                  Clear the formula bar to revert to the row&apos;s default
+                  formula
+                </li>
+              </ul>
+            </div>
+
+            {/* Right-Click Context Menu */}
+            <div className="rounded-md border p-3">
+              <h4 className="mb-1.5 text-sm font-semibold">
+                Right-Click Context Menu
+              </h4>
+              <p className="text-muted-foreground text-xs">
+                Right-click on any cell, row number, or column letter to access:
+              </p>
+              <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
+                <li>
+                  <strong>Copy / Cut / Paste</strong> — clipboard operations
+                </li>
+                <li>
+                  <strong>Insert Row Above / Below</strong> — add rows at
+                  specific positions
+                </li>
+                <li>
+                  <strong>Insert Column Left / Right</strong> — add columns at
+                  specific positions
+                </li>
+                <li>
+                  <strong>Move Row / Column</strong> — reorder rows or columns
+                </li>
+                <li>
+                  <strong>Delete Row / Column</strong> — remove rows or columns
+                </li>
+              </ul>
+              <p className="text-muted-foreground mt-2 text-[11px]">
+                The context menu automatically opens upwards if it would go off
+                the bottom of the screen.
+              </p>
+            </div>
+
+            {/* Tips */}
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+              <h4 className="mb-1.5 text-sm font-semibold text-amber-800">
+                Tips
+              </h4>
+              <ul className="list-inside list-disc space-y-1 text-xs text-amber-900">
+                <li>
+                  All formulas must start with{" "}
+                  <code className="rounded bg-amber-100 px-1">=</code>
+                </li>
+                <li>
+                  Row numbers start at 1 (matching the spreadsheet display)
+                </li>
+                <li>
+                  Column letters start at A (matching the spreadsheet display)
+                </li>
+                <li>
+                  SUM ranges work in all directions:{" "}
+                  <code className="rounded bg-amber-100 px-1">A1:A5</code>{" "}
+                  (vertical),{" "}
+                  <code className="rounded bg-amber-100 px-1">A1:G1</code>{" "}
+                  (horizontal),{" "}
+                  <code className="rounded bg-amber-100 px-1">A1:G5</code>{" "}
+                  (rectangular)
+                </li>
+                <li>
+                  Use <strong>row formulas</strong> (set row type to
+                  &quot;Formula&quot;) for subtotals and grand totals
+                </li>
+                <li>
+                  Use <strong>column formulas</strong> (set column type to
+                  &quot;Formula&quot;) for computed columns
+                </li>
+                <li>
+                  Use <strong>cell formulas</strong> (set individual cell to
+                  &quot;Formula&quot;) for one-off calculations
+                </li>
+                <li>
+                  Override individual cells in formula rows by selecting the
+                  cell and entering a different formula
+                </li>
+                <li>
+                  Header and formula rows are not editable by form fillers
+                </li>
+                <li>
+                  Display rows show static content (not editable by form
+                  fillers)
+                </li>
+                <li>
+                  Use{" "}
+                  <code className="rounded bg-amber-100 px-1">
+                    A1.{"{SubField}"}
+                  </code>{" "}
+                  to reference sub-fields in multi-field or repeater cells
+                </li>
+                <li>Double-click a cell label or column header to rename it</li>
+                <li>
+                  Use the toolbar style controls (BG color, text color, B/I/U)
+                  to customize row and cell appearance
+                </li>
+                <li>
+                  The spreadsheet scrolls horizontally within its container — it
+                  won&apos;t make your form wider
+                </li>
+              </ul>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
@@ -2583,7 +2273,7 @@ function SortableFieldCard({
 
   return (
     <div ref={setNodeRef} style={style} className="group">
-      <div className="focus-within:border-primary hover:border-primary/30 relative rounded-lg border-2 border-white bg-white p-6 shadow-sm transition-all focus-within:shadow-lg hover:shadow-lg">
+      <div className="focus-within:border-primary hover:border-primary/30 relative min-w-0 overflow-hidden rounded-lg border-2 border-white bg-white p-6 shadow-sm transition-all focus-within:shadow-lg hover:shadow-lg">
         <div className="absolute top-4 right-4 z-10 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
           <div className="bg-muted/80 flex items-center gap-2 rounded-full p-1 backdrop-blur-sm">
             <Label

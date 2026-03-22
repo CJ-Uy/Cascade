@@ -108,6 +108,203 @@ export function resolveRef(
   return ref;
 }
 
+/**
+ * Convert a 0-based column index to a column letter (A, B, ..., Z, AA, AB, ...).
+ */
+function indexToColLetter(index: number): string {
+  let result = "";
+  let n = index;
+  while (n >= 0) {
+    result = String.fromCharCode(65 + (n % 26)) + result;
+    n = Math.floor(n / 26) - 1;
+  }
+  return result;
+}
+
+/**
+ * Convert a column letter (A, B, ..., Z, AA, AB, ...) to a 0-based index.
+ */
+function colLetterToIndex(letter: string): number {
+  let index = 0;
+  for (let i = 0; i < letter.length; i++) {
+    index = index * 26 + (letter.toUpperCase().charCodeAt(i) - 64);
+  }
+  return index - 1;
+}
+
+/** Context for resolving formula cells recursively */
+interface FormulaContext {
+  rows?: string[];
+  columns?: string[];
+  columnConfigs?: any[];
+  cellConfig?: any;
+  cellOverrides?: Record<string, any>;
+  rowConfigs?: any[];
+  depth?: number; // Prevent infinite recursion
+}
+
+/**
+ * Get the formula for a cell if it is a formula cell.
+ * Checks: cell override > column config > row config.
+ */
+function getCellFormula(
+  ri: number,
+  ci: number,
+  ctx: FormulaContext,
+): string | null {
+  const cellKey = `${ri}-${ci}`;
+  const co = ctx.cellOverrides?.[cellKey];
+  if (co?.type === "formula" && co.formula) return co.formula;
+  const cc = ctx.columnConfigs?.[ci];
+  if (cc?.type === "formula" && cc.formula) return cc.formula;
+  const rc = ctx.rowConfigs?.[ri];
+  if ((rc?.type === "formula" || rc?.type === "display") && rc.formula)
+    return rc.formula;
+  return null;
+}
+
+/**
+ * Resolve a cell value, recursively evaluating formula cells.
+ */
+function resolveCellValue(
+  ri: number,
+  ci: number,
+  value: Record<string, any>,
+  ctx: FormulaContext,
+): string {
+  const depth = ctx.depth || 0;
+  if (depth > 10) return "0"; // Prevent infinite recursion
+
+  const formula = getCellFormula(ri, ci, ctx);
+  if (formula) {
+    const result = evaluateFormula(
+      formula,
+      ri,
+      ci,
+      value,
+      ctx.rows || [],
+      ctx.columns || [],
+      ctx.columnConfigs || [],
+      ctx.cellConfig || {},
+      ctx.rowConfigs,
+      ctx.cellOverrides,
+      depth + 1,
+    );
+    return String(result);
+  }
+
+  const cellKey = `${ri}-${ci}`;
+  const cellVal = value[cellKey];
+  if (cellVal === undefined || cellVal === null || cellVal === "") return "0";
+  if (typeof cellVal === "object") return "0";
+  return String(cellVal);
+}
+
+/**
+ * Resolve an A1-style cell reference to a numeric value from the grid data.
+ * Supports A1.{SubField} notation for multi-field/repeater cells.
+ * Recursively evaluates formula cells when ctx is provided.
+ */
+function resolveA1Ref(
+  ref: string,
+  value: Record<string, any>,
+  columnConfigs?: any[],
+  cellConfig?: any,
+  cellOverrides?: Record<string, any>,
+  ctx?: FormulaContext,
+): string {
+  // A1.{SubField} — sub-field access on a multi-field/repeater cell
+  const dotMatch = ref.match(/^([A-Z]+)(\d+)\.\{(.+?)\}$/i);
+  if (dotMatch) {
+    const ci = colLetterToIndex(dotMatch[1]);
+    const ri = parseInt(dotMatch[2], 10) - 1;
+    if (ri < 0 || ci < 0) return "0";
+    const cellKey = `${ri}-${ci}`;
+    const cellVal = value[cellKey];
+    if (cellVal === null || cellVal === undefined) return "0";
+    const fieldLabel = dotMatch[3];
+    // Resolve sub-field ID from cell override, column config, or default
+    const co = cellOverrides?.[cellKey];
+    const cc = columnConfigs?.[ci];
+    const config = co || cc || cellConfig;
+    const subFields = config?.columns || [];
+    const match = subFields.find(
+      (f: any) => f.label?.toLowerCase() === fieldLabel.toLowerCase(),
+    );
+    const resolvedField = match?.id || fieldLabel;
+    if (typeof cellVal === "object" && !Array.isArray(cellVal)) {
+      return String(parseFloat(cellVal[resolvedField] || 0) || 0);
+    }
+    if (Array.isArray(cellVal)) {
+      const total = cellVal.reduce(
+        (sum: number, entry: any) =>
+          sum + (parseFloat(entry[resolvedField] || 0) || 0),
+        0,
+      );
+      return String(total);
+    }
+    return "0";
+  }
+
+  const match = ref.match(/^([A-Z]+)(\d+)$/i);
+  if (!match) return ref;
+  const ci = colLetterToIndex(match[1]);
+  const ri = parseInt(match[2], 10) - 1;
+  if (ri < 0 || ci < 0) return "0";
+
+  // If we have formula context, resolve recursively (handles formula cells)
+  if (ctx) {
+    return resolveCellValue(ri, ci, value, ctx);
+  }
+
+  const cellKey = `${ri}-${ci}`;
+  const cellVal = value[cellKey];
+  if (cellVal === undefined || cellVal === null || cellVal === "") return "0";
+  if (typeof cellVal === "object") return "0";
+  return String(cellVal);
+}
+
+/**
+ * Sum an A1-style cell range (e.g., A1:A5 or A1:C3).
+ * When ctx is provided, recursively evaluates formula cells.
+ */
+function sumA1Range(
+  col1Letter: string,
+  row1Num: string,
+  col2Letter: string,
+  row2Num: string,
+  value: Record<string, any>,
+  ctx?: FormulaContext,
+): number {
+  const c1 = colLetterToIndex(col1Letter);
+  const r1 = parseInt(row1Num, 10) - 1;
+  const c2 = colLetterToIndex(col2Letter);
+  const r2 = parseInt(row2Num, 10) - 1;
+  let total = 0;
+  for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) {
+    for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) {
+      if (r < 0 || c < 0) continue;
+      if (ctx) {
+        // Resolve through formula cells recursively
+        const resolved = resolveCellValue(r, c, value, ctx);
+        total += parseFloat(resolved) || 0;
+      } else {
+        const cellKey = `${r}-${c}`;
+        const cellVal = value[cellKey];
+        if (
+          cellVal !== undefined &&
+          cellVal !== null &&
+          cellVal !== "" &&
+          typeof cellVal !== "object"
+        ) {
+          total += parseFloat(cellVal) || 0;
+        }
+      }
+    }
+  }
+  return Math.round(total * 100) / 100;
+}
+
 export function evaluateFormula(
   formula: string,
   rowIndex: number,
@@ -117,8 +314,23 @@ export function evaluateFormula(
   columns: string[],
   columnConfigs: any[],
   cellConfig: any,
+  rowConfigs?: any[],
+  cellOverrides?: Record<string, any>,
+  _depth?: number,
 ): string | number {
   if (!formula || !formula.startsWith("=")) return "";
+  const depth = _depth || 0;
+  if (depth > 10) return "ERR:LOOP";
+
+  const ctx: FormulaContext = {
+    rows,
+    columns,
+    columnConfigs,
+    cellConfig,
+    cellOverrides,
+    rowConfigs,
+    depth,
+  };
 
   const expr = formula.slice(1).trim();
 
@@ -293,6 +505,48 @@ export function evaluateFormula(
       return 0;
     }
 
+    // =SUM(A1.{Field}:G5.{Field}) — sum a sub-field across a range of cells
+    const a1SubRangeMatch = inner.match(
+      /^([A-Z]+)(\d+)\.\{(.+?)\}:([A-Z]+)(\d+)\.\{(.+?)\}$/i,
+    );
+    if (a1SubRangeMatch) {
+      const c1 = colLetterToIndex(a1SubRangeMatch[1]);
+      const r1 = parseInt(a1SubRangeMatch[2], 10) - 1;
+      const fieldLabel = a1SubRangeMatch[3];
+      const c2 = colLetterToIndex(a1SubRangeMatch[4]);
+      const r2 = parseInt(a1SubRangeMatch[5], 10) - 1;
+      let total = 0;
+      for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) {
+        for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) {
+          if (r < 0 || c < 0) continue;
+          const colLetter = indexToColLetter(c);
+          const resolved = resolveA1Ref(
+            `${colLetter}${r + 1}.{${fieldLabel}}`,
+            value,
+            columnConfigs,
+            cellConfig,
+            cellOverrides,
+            ctx,
+          );
+          total += parseFloat(resolved) || 0;
+        }
+      }
+      return Math.round(total * 100) / 100;
+    }
+
+    // =SUM(A1:A5) — sum A1-style cell range
+    const a1RangeMatch = inner.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i);
+    if (a1RangeMatch) {
+      return sumA1Range(
+        a1RangeMatch[1],
+        a1RangeMatch[2],
+        a1RangeMatch[3],
+        a1RangeMatch[4],
+        value,
+        ctx,
+      );
+    }
+
     return "ERR";
   }
 
@@ -340,6 +594,45 @@ export function evaluateFormula(
       if (typeof cellVal === "object") return "0";
       return String(cellVal);
     });
+
+    // Replace A1-style cell references (e.g., A1, B3, AA12)
+    // Process SUM(A1:A5) ranges first, then A1.{SubField}, then individual refs
+    resolved = resolved.replace(
+      /SUM\(([A-Z]+)(\d+):([A-Z]+)(\d+)\)/gi,
+      (_match, c1, r1, c2, r2) =>
+        String(sumA1Range(c1, r1, c2, r2, value, ctx)),
+    );
+    // Replace A1.{SubField} references first (most specific)
+    resolved = resolved.replace(
+      /\b([A-Z]+)(\d+)\.\{(.+?)\}/gi,
+      (_match, colLetter, rowNum, subField) => {
+        if (/^(SUM|ROW|ROWS|COLUMN|CONCAT)$/i.test(colLetter)) return _match;
+        return resolveA1Ref(
+          `${colLetter}${rowNum}.{${subField}}`,
+          value,
+          columnConfigs,
+          cellConfig,
+          cellOverrides,
+          ctx,
+        );
+      },
+    );
+    resolved = resolved.replace(
+      /\b([A-Z]+)(\d+)\b/gi,
+      (_match, colLetter, rowNum) => {
+        // Avoid matching things like SUM, ROW, COLUMN function names
+        if (/^(SUM|ROW|ROWS|COLUMN|CONCAT)$/i.test(colLetter)) return _match;
+        return resolveA1Ref(
+          `${colLetter}${rowNum}`,
+          value,
+          columnConfigs,
+          cellConfig,
+          cellOverrides,
+          ctx,
+        );
+      },
+    );
+
     // Safely evaluate arithmetic (only numbers and operators)
     if (/^[\d\s+\-*/().]+$/.test(resolved)) {
       const result = Function(`"use strict"; return (${resolved})`)();
@@ -524,6 +817,49 @@ export function evaluateRowFormula(
       return Math.round(total * 100) / 100;
     }
 
+    // =SUM($n:$m) — sum row range by number (1-based) in current column
+    const dollarRangeMatch = inner.match(/^\$(\d+):\$(\d+)$/);
+    if (dollarRangeMatch) {
+      const start = parseInt(dollarRangeMatch[1], 10) - 1;
+      const end = parseInt(dollarRangeMatch[2], 10) - 1;
+      let total = 0;
+      for (let ri = start; ri <= end && ri < rows.length; ri++) {
+        if (ri < 0) continue;
+        const cellKey = `${ri}-${colIndex}`;
+        const cellVal = value[cellKey];
+        if (
+          cellVal !== undefined &&
+          cellVal !== null &&
+          cellVal !== "" &&
+          typeof cellVal !== "object"
+        ) {
+          total += parseFloat(cellVal) || 0;
+        }
+      }
+      return Math.round(total * 100) / 100;
+    }
+
+    // =SUM($n, $m, ...) — sum specific row numbers in current column
+    const dollarRefs = inner.match(/\$\d+/g);
+    if (dollarRefs && !inner.match(/[{A-Z]/i)) {
+      let total = 0;
+      for (const ref of dollarRefs) {
+        const ri = parseInt(ref.slice(1), 10) - 1;
+        if (ri < 0 || ri >= rows.length) continue;
+        const cellKey = `${ri}-${colIndex}`;
+        const cellVal = value[cellKey];
+        if (
+          cellVal !== undefined &&
+          cellVal !== null &&
+          cellVal !== "" &&
+          typeof cellVal !== "object"
+        ) {
+          total += parseFloat(cellVal) || 0;
+        }
+      }
+      return Math.round(total * 100) / 100;
+    }
+
     // =SUM({Row1}, {Row2}, ...) — sum specific named rows (supports cross-refs)
     const refs = inner.match(/\{.+?\}(?:\.\{.+?\}(?:\.\w+)?)?/g);
     if (refs) {
@@ -558,6 +894,18 @@ export function evaluateRowFormula(
         }
       }
       return Math.round(total * 100) / 100;
+    }
+
+    // =SUM(A1:A5) — A1-style cell range in row formula context
+    const a1RangeMatch = inner.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i);
+    if (a1RangeMatch) {
+      return sumA1Range(
+        a1RangeMatch[1],
+        a1RangeMatch[2],
+        a1RangeMatch[3],
+        a1RangeMatch[4],
+        value,
+      );
     }
 
     return "ERR";
@@ -633,6 +981,19 @@ export function evaluateRowFormula(
       if (typeof cellVal === "object") return "0";
       return String(cellVal);
     });
+
+    // Replace $n references (row number in current column, 1-based)
+    resolved = resolved.replace(/\$(\d+)/g, (_match, numStr) => {
+      const ri = parseInt(numStr, 10) - 1;
+      if (ri < 0 || ri >= rows.length) return "0";
+      const cellKey = `${ri}-${colIndex}`;
+      const cellVal = value[cellKey];
+      if (cellVal === undefined || cellVal === null || cellVal === "")
+        return "0";
+      if (typeof cellVal === "object") return "0";
+      return String(cellVal);
+    });
+
     if (/^[\d\s+\-*/().]+$/.test(resolved)) {
       const result = Function(`"use strict"; return (${resolved})`)();
       if (typeof result === "number" && !isNaN(result)) {
@@ -679,6 +1040,8 @@ export function computeAllFormulas(
           columns,
           columnConfigs,
           cellConfig,
+          rc,
+          cellOverrides,
         );
       });
     }
@@ -693,8 +1056,14 @@ export function computeAllFormulas(
     ) {
       columns.forEach((_, fColIdx) => {
         const fCellKey = `${fRowIdx}-${fColIdx}`;
+        // Check for per-cell override formula
+        const cellOvr = cellOverrides?.[fCellKey];
+        const formula =
+          cellOvr?.type === "formula" && cellOvr.formula
+            ? cellOvr.formula
+            : rowCfg.formula!;
         formulaUpdates[fCellKey] = evaluateRowFormula(
-          rowCfg.formula!,
+          formula,
           fRowIdx,
           fColIdx,
           { ...value, ...formulaUpdates },
@@ -722,6 +1091,8 @@ export function computeAllFormulas(
           columns,
           columnConfigs,
           cellConfig,
+          rc,
+          cellOverrides,
         );
       }
     });
