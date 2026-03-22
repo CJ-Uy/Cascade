@@ -864,7 +864,7 @@ function GridTableBuilder({
   };
 
   return (
-    <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-gray-300 bg-gray-50/50 shadow-sm">
+    <div className="mt-4 min-w-0 w-full max-w-full overflow-hidden rounded-lg border border-gray-300 bg-gray-50/50 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between border-b p-4">
         <div className="flex items-center gap-2 text-gray-700">

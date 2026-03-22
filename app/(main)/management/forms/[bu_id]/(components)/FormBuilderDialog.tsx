@@ -10,6 +10,16 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,6 +75,7 @@ export function FormBuilderDialog({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [initialState, setInitialState] = useState<string>("");
   const [hasChanges, setHasChanges] = useState(false);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -122,6 +133,14 @@ export function FormBuilderDialog({
     setIsIconPickerOpen(false);
   };
 
+  const handleCloseAttempt = () => {
+    if (hasChanges) {
+      setShowUnsavedDialog(true);
+    } else {
+      onClose();
+    }
+  };
+
   const handleSave = () => {
     if (validationError) return;
     const formToSave = {
@@ -153,11 +172,14 @@ export function FormBuilderDialog({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleCloseAttempt(); }}>
         <DialogContent
           onOpenAutoFocus={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => { e.preventDefault(); handleCloseAttempt(); }}
+          onEscapeKeyDown={(e) => { e.preventDefault(); handleCloseAttempt(); }}
+          onCloseClick={handleCloseAttempt}
           style={{ width: "95vw", maxWidth: "1152px" }}
-          className="flex max-h-[90vh] flex-col"
+          className="flex max-h-[90vh] flex-col overflow-hidden"
         >
           <DialogHeader>
             <DialogTitle>{form ? "Edit Form" : "Create New Form"}</DialogTitle>
@@ -165,14 +187,14 @@ export function FormBuilderDialog({
 
           <Tabs
             defaultValue="builder"
-            className="flex flex-grow flex-col overflow-y-auto pt-4"
+            className="flex min-w-0 flex-grow flex-col overflow-y-auto overflow-x-hidden pt-4"
           >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="builder">Builder</TabsTrigger>
               <TabsTrigger value="preview">Preview</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="builder" className="min-h-[60vh] pt-4">
+            <TabsContent value="builder" className="min-h-[60vh] min-w-0 max-w-full overflow-x-hidden pt-4">
               <div className="flex flex-col items-center gap-4 py-4">
                 <div className="flex w-full max-w-lg items-center justify-center gap-3">
                   <Popover
@@ -239,7 +261,7 @@ export function FormBuilderDialog({
               {validationError && (
                 <p className="mr-4 text-sm text-red-500">{validationError}</p>
               )}
-              <Button variant="outline" onClick={onClose}>
+              <Button variant="outline" onClick={handleCloseAttempt}>
                 Cancel
               </Button>
               <Button
@@ -273,6 +295,41 @@ export function FormBuilderDialog({
         dialogDescription="This will hide the form from the active list. Existing requisitions using this form will not be affected."
         confirmButtonText="Yes, archive form"
       />
+
+      <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. What would you like to do?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowUnsavedDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowUnsavedDialog(false);
+                onClose();
+              }}
+            >
+              Discard Changes
+            </Button>
+            <AlertDialogAction
+              onClick={() => {
+                setShowUnsavedDialog(false);
+                handleSave();
+              }}
+              disabled={!!validationError}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

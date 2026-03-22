@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -161,6 +161,7 @@ export function GridTableSpreadsheet({
   const [fullscreenDirty, setFullscreenDirty] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
   const fullscreenSnapshotRef = useRef<GridTableConfig | null>(null);
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const formulaInputRef = useRef<HTMLInputElement>(null);
@@ -188,12 +189,25 @@ export function GridTableSpreadsheet({
     fullscreenSnapshotRef.current = JSON.parse(JSON.stringify(gridConfig));
     setFullscreenDirty(false);
     setIsFullscreen(true);
+    // Request browser fullscreen after state update triggers render
+    setTimeout(() => {
+      fullscreenContainerRef.current?.requestFullscreen?.().catch(() => {
+        // Fullscreen API not available — still works as overlay
+      });
+    }, 50);
+  };
+
+  const exitFullscreenBrowser = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
   };
 
   const requestCloseFullscreen = () => {
     if (fullscreenDirty) {
       setShowCloseWarning(true);
     } else {
+      exitFullscreenBrowser();
       setIsFullscreen(false);
     }
   };
@@ -201,6 +215,7 @@ export function GridTableSpreadsheet({
   const closeFullscreenSave = () => {
     setShowCloseWarning(false);
     setFullscreenDirty(false);
+    exitFullscreenBrowser();
     setIsFullscreen(false);
   };
 
@@ -210,8 +225,20 @@ export function GridTableSpreadsheet({
     }
     setShowCloseWarning(false);
     setFullscreenDirty(false);
+    exitFullscreenBrowser();
     setIsFullscreen(false);
   };
+
+  // Listen for browser fullscreen exit (e.g. user presses Escape via browser)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && isFullscreen) {
+        requestCloseFullscreen();
+      }
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, [isFullscreen, fullscreenDirty]);
 
   const getRowConfig = (rowIndex: number): GridRowConfig => {
     return rowConfigs[rowIndex] || { type: "data" as GridRowType };
@@ -999,6 +1026,7 @@ export function GridTableSpreadsheet({
     // Escape exits fullscreen
     if (e.key === "Escape" && isFullscreen) {
       e.preventDefault();
+      e.stopPropagation();
       requestCloseFullscreen();
       return;
     }
@@ -1351,7 +1379,7 @@ export function GridTableSpreadsheet({
   // ── Spreadsheet content (shared between inline & fullscreen) ──
   const spreadsheetContent = (isFS: boolean) => (
     <div
-      className={cn("min-w-0 space-y-3", isFS && "flex h-full flex-col")}
+      className={cn("w-full space-y-3", isFS && "flex h-full flex-col")}
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
@@ -2454,31 +2482,35 @@ export function GridTableSpreadsheet({
 
   return (
     <>
-      {/* Inline view — contained to prevent stretching the form builder */}
-      <div className="min-w-0 overflow-hidden">{spreadsheetContent(false)}</div>
+      {/* Inline view — use w-0 min-w-full to break intrinsic sizing chain */}
+      <div className="w-0 min-w-full">{spreadsheetContent(false)}</div>
 
-      {/* Fullscreen overlay via portal */}
-      {isFullscreen &&
-        createPortal(
-          <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white p-4 dark:bg-gray-950">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-700">
-                Grid Table Editor
-              </h3>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => requestCloseFullscreen()}
-                title="Close fullscreen (Esc)"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            {spreadsheetContent(true)}
-          </div>,
-          document.body,
-        )}
+      {/* Fullscreen overlay — uses browser Fullscreen API for true fullscreen */}
+      {isFullscreen && (
+        <div
+          ref={fullscreenContainerRef}
+          className="absolute inset-0 z-50 flex flex-col overflow-hidden bg-white p-4 dark:bg-gray-950"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700">
+              Grid Table Editor
+            </h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                requestCloseFullscreen();
+              }}
+              title="Close fullscreen (Esc)"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          {spreadsheetContent(true)}
+        </div>
+      )}
 
       {/* Unsaved changes warning dialog */}
       <AlertDialog open={showCloseWarning} onOpenChange={setShowCloseWarning}>

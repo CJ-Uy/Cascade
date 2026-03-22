@@ -1091,165 +1091,36 @@ function GridTablePreview({
     const cellKey = `${rowIndex}-${colIndex}`;
     const newValue = { ...value, [cellKey]: cellValue };
 
-    // Compute formula column values
-    const formulaUpdates: Record<string, any> = {};
-    columns.forEach((_, fColIdx) => {
-      const cc = columnConfigs[fColIdx];
-      if (cc?.type === "formula" && cc.formula) {
-        rows.forEach((_, fRowIdx) => {
-          const rt = rowConfigs[fRowIdx]?.type;
-          if (rt === "formula" || rt === "header" || rt === "display") return;
-          const fCellKey = `${fRowIdx}-${fColIdx}`;
-          formulaUpdates[fCellKey] = evaluateFormula(
-            cc.formula!,
-            fRowIdx,
-            fColIdx,
-            { ...newValue, ...formulaUpdates },
-            rows,
-            columns,
-            columnConfigs,
-            cellConfig,
-            rowConfigs,
-            cellOverrides,
-          );
-        });
-      }
-    });
-
-    // Compute formula and display row values
-    rows.forEach((_, fRowIdx) => {
-      const rc = rowConfigs[fRowIdx];
-      if ((rc?.type === "formula" || rc?.type === "display") && rc.formula) {
-        columns.forEach((_, fColIdx) => {
-          const fCellKey = `${fRowIdx}-${fColIdx}`;
-          // Check for per-cell override formula
-          const cellOvr = cellOverrides[`${fRowIdx}-${fColIdx}`];
-          const formula =
-            cellOvr?.type === "formula" && cellOvr.formula
-              ? cellOvr.formula
-              : rc.formula!;
-          formulaUpdates[fCellKey] = evaluateRowFormula(
-            formula,
-            fRowIdx,
-            fColIdx,
-            { ...newValue, ...formulaUpdates },
-            rows,
-            columns,
-            columnConfigs,
-            rowConfigs,
-            cellConfig,
-          );
-        });
-      }
-    });
-
-    // Compute individual cell formula overrides
-    Object.entries(cellOverrides).forEach(([key, co]: [string, any]) => {
-      if (co.type === "formula" && co.formula) {
-        const [ri, ci] = key.split("-").map(Number);
-        formulaUpdates[key] = evaluateFormula(
-          co.formula,
-          ri,
-          ci,
-          { ...newValue, ...formulaUpdates },
-          rows,
-          columns,
-          columnConfigs,
-          cellConfig,
-          rowConfigs,
-          cellOverrides,
-        );
-      }
-    });
+    // Use computeAllFormulas for proper cascade — formulas referencing other
+    // formula cells will be resolved correctly across multiple passes.
+    const formulaUpdates = computeAllFormulas(
+      newValue,
+      rows,
+      columns,
+      columnConfigs,
+      cellConfig,
+      rowConfigs,
+      cellOverrides,
+    );
 
     onChange({ ...newValue, ...formulaUpdates });
   };
 
   // Compute formula values on initial load
   useEffect(() => {
-    const formulaUpdates: Record<string, any> = {};
-    let hasUpdates = false;
+    const formulaUpdates = computeAllFormulas(
+      value,
+      rows,
+      columns,
+      columnConfigs,
+      cellConfig,
+      rowConfigs,
+      cellOverrides,
+    );
 
-    // Formula columns
-    columns.forEach((_, fColIdx) => {
-      const cc = columnConfigs[fColIdx];
-      if (cc?.type === "formula" && cc.formula) {
-        rows.forEach((_, fRowIdx) => {
-          const rt = rowConfigs[fRowIdx]?.type;
-          if (rt === "formula" || rt === "header" || rt === "display") return;
-          const fCellKey = `${fRowIdx}-${fColIdx}`;
-          const computed = evaluateFormula(
-            cc.formula!,
-            fRowIdx,
-            fColIdx,
-            { ...value, ...formulaUpdates },
-            rows,
-            columns,
-            columnConfigs,
-            cellConfig,
-            rowConfigs,
-            cellOverrides,
-          );
-          if (value[fCellKey] !== computed) {
-            formulaUpdates[fCellKey] = computed;
-            hasUpdates = true;
-          }
-        });
-      }
-    });
-
-    // Formula and display rows
-    rows.forEach((_, fRowIdx) => {
-      const rc = rowConfigs[fRowIdx];
-      if ((rc?.type === "formula" || rc?.type === "display") && rc.formula) {
-        columns.forEach((_, fColIdx) => {
-          const fCellKey = `${fRowIdx}-${fColIdx}`;
-          const cellOvr = cellOverrides[`${fRowIdx}-${fColIdx}`];
-          const formula =
-            cellOvr?.type === "formula" && cellOvr.formula
-              ? cellOvr.formula
-              : rc.formula!;
-          const computed = evaluateRowFormula(
-            formula,
-            fRowIdx,
-            fColIdx,
-            { ...value, ...formulaUpdates },
-            rows,
-            columns,
-            columnConfigs,
-            rowConfigs,
-            cellConfig,
-          );
-          if (value[fCellKey] !== computed) {
-            formulaUpdates[fCellKey] = computed;
-            hasUpdates = true;
-          }
-        });
-      }
-    });
-
-    // Individual cell formula overrides
-    Object.entries(cellOverrides).forEach(([key, co]) => {
-      if (co.type === "formula" && co.formula) {
-        const [ri, ci] = key.split("-").map(Number);
-        const computed = evaluateFormula(
-          co.formula,
-          ri,
-          ci,
-          { ...value, ...formulaUpdates },
-          rows,
-          columns,
-          columnConfigs,
-          cellConfig,
-          rowConfigs,
-          cellOverrides,
-        );
-        if (value[key] !== computed) {
-          formulaUpdates[key] = computed;
-          hasUpdates = true;
-        }
-      }
-    });
+    const hasUpdates = Object.keys(formulaUpdates).some(
+      (key) => value[key] !== formulaUpdates[key],
+    );
 
     if (hasUpdates) {
       onChange({ ...value, ...formulaUpdates });
@@ -1436,7 +1307,7 @@ function GridTablePreview({
         const isImage = fileData?.filetype?.startsWith("image/");
 
         return (
-          <div className="w-full max-w-full space-y-1.5 overflow-hidden p-1">
+          <div className="min-w-0 w-full max-w-full space-y-1.5 overflow-hidden p-1">
             {/* File preview when uploaded */}
             {fileData && (
               <div className="border-border bg-muted/30 flex items-center gap-2 rounded-md border p-1.5">
@@ -1885,7 +1756,7 @@ function GridTablePreview({
         className="overflow-auto rounded-lg border shadow-sm"
         style={{ maxHeight: "70vh" }}
       >
-        <table className="w-full table-fixed border-collapse">
+        <table className="w-full border-collapse">
           {/* Column group header row - not sticky, scrolls away */}
           {columnGroups.length > 0 && (
             <thead>
@@ -2138,7 +2009,9 @@ function GridTablePreview({
                           isFormula ? "bg-blue-50/30" : "",
                         )}
                       >
-                        {renderCellInput(rowIndex, colIndex)}
+                        <div className="min-w-0 max-w-full">
+                          {renderCellInput(rowIndex, colIndex)}
+                        </div>
                       </td>
                     );
                   })}

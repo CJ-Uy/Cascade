@@ -1019,83 +1019,92 @@ export function computeAllFormulas(
   rowConfigs?: any[],
   cellOverrides?: Record<string, any>,
 ): Record<string, any> {
-  const formulaUpdates: Record<string, any> = {};
+  let formulaUpdates: Record<string, any> = {};
   const rc = rowConfigs || [];
+  const MAX_ITERATIONS = 3;
 
-  // First pass: compute formula columns (existing behavior)
-  columns.forEach((_, fColIdx) => {
-    const cc = columnConfigs[fColIdx];
-    if (cc?.type === "formula" && cc.formula) {
-      rows.forEach((_, fRowIdx) => {
-        // Skip formula/header/display rows — they'll be computed in the second pass or are non-data
-        const rt = rc[fRowIdx]?.type;
-        if (rt === "formula" || rt === "header" || rt === "display") return;
-        const fCellKey = `${fRowIdx}-${fColIdx}`;
-        formulaUpdates[fCellKey] = evaluateFormula(
-          cc.formula!,
-          fRowIdx,
-          fColIdx,
-          { ...value, ...formulaUpdates },
-          rows,
-          columns,
-          columnConfigs,
-          cellConfig,
-          rc,
-          cellOverrides,
-        );
-      });
-    }
-  });
+  // Iterate multiple times to handle formulas that reference other formula
+  // cells (e.g., Grand Total referencing Sub-Total rows). Each iteration
+  // picks up values computed in the previous iteration.
+  for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+    const prevSnapshot = JSON.stringify(formulaUpdates);
 
-  // Second pass: compute formula and display rows
-  rows.forEach((_, fRowIdx) => {
-    const rowCfg = rc[fRowIdx];
-    if (
-      (rowCfg?.type === "formula" || rowCfg?.type === "display") &&
-      rowCfg.formula
-    ) {
-      columns.forEach((_, fColIdx) => {
-        const fCellKey = `${fRowIdx}-${fColIdx}`;
-        // Check for per-cell override formula
-        const cellOvr = cellOverrides?.[fCellKey];
-        const formula =
-          cellOvr?.type === "formula" && cellOvr.formula
-            ? cellOvr.formula
-            : rowCfg.formula!;
-        formulaUpdates[fCellKey] = evaluateRowFormula(
-          formula,
-          fRowIdx,
-          fColIdx,
-          { ...value, ...formulaUpdates },
-          rows,
-          columns,
-          columnConfigs,
-          rc,
-          cellConfig,
-        );
-      });
-    }
-  });
-
-  // Third pass: compute individual cell formula overrides
-  if (cellOverrides) {
-    Object.entries(cellOverrides).forEach(([key, co]: [string, any]) => {
-      if (co.type === "formula" && co.formula) {
-        const [ri, ci] = key.split("-").map(Number);
-        formulaUpdates[key] = evaluateFormula(
-          co.formula,
-          ri,
-          ci,
-          { ...value, ...formulaUpdates },
-          rows,
-          columns,
-          columnConfigs,
-          cellConfig,
-          rc,
-          cellOverrides,
-        );
+    // Pass 1: compute formula columns
+    columns.forEach((_, fColIdx) => {
+      const cc = columnConfigs[fColIdx];
+      if (cc?.type === "formula" && cc.formula) {
+        rows.forEach((_, fRowIdx) => {
+          const rt = rc[fRowIdx]?.type;
+          if (rt === "formula" || rt === "header" || rt === "display") return;
+          const fCellKey = `${fRowIdx}-${fColIdx}`;
+          formulaUpdates[fCellKey] = evaluateFormula(
+            cc.formula!,
+            fRowIdx,
+            fColIdx,
+            { ...value, ...formulaUpdates },
+            rows,
+            columns,
+            columnConfigs,
+            cellConfig,
+            rc,
+            cellOverrides,
+          );
+        });
       }
     });
+
+    // Pass 2: compute formula and display rows
+    rows.forEach((_, fRowIdx) => {
+      const rowCfg = rc[fRowIdx];
+      if (
+        (rowCfg?.type === "formula" || rowCfg?.type === "display") &&
+        rowCfg.formula
+      ) {
+        columns.forEach((_, fColIdx) => {
+          const fCellKey = `${fRowIdx}-${fColIdx}`;
+          const cellOvr = cellOverrides?.[fCellKey];
+          const formula =
+            cellOvr?.type === "formula" && cellOvr.formula
+              ? cellOvr.formula
+              : rowCfg.formula!;
+          formulaUpdates[fCellKey] = evaluateRowFormula(
+            formula,
+            fRowIdx,
+            fColIdx,
+            { ...value, ...formulaUpdates },
+            rows,
+            columns,
+            columnConfigs,
+            rc,
+            cellConfig,
+          );
+        });
+      }
+    });
+
+    // Pass 3: compute individual cell formula overrides
+    if (cellOverrides) {
+      Object.entries(cellOverrides).forEach(([key, co]: [string, any]) => {
+        if (co.type === "formula" && co.formula) {
+          const [ri, ci] = key.split("-").map(Number);
+          formulaUpdates[key] = evaluateFormula(
+            co.formula,
+            ri,
+            ci,
+            { ...value, ...formulaUpdates },
+            rows,
+            columns,
+            columnConfigs,
+            cellConfig,
+            rc,
+            cellOverrides,
+          );
+        }
+      });
+    }
+
+    // If nothing changed this iteration, we've converged — stop early
+    if (JSON.stringify(formulaUpdates) === prevSnapshot) break;
   }
 
   return formulaUpdates;
