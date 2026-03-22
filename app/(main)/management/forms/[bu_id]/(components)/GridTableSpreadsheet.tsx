@@ -204,12 +204,8 @@ export function GridTableSpreadsheet({
   };
 
   const requestCloseFullscreen = () => {
-    if (fullscreenDirty) {
-      setShowCloseWarning(true);
-    } else {
-      exitFullscreenBrowser();
-      setIsFullscreen(false);
-    }
+    exitFullscreenBrowser();
+    setIsFullscreen(false);
   };
 
   const closeFullscreenSave = () => {
