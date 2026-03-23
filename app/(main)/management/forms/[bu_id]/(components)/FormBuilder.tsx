@@ -863,8 +863,20 @@ function GridTableBuilder({
     });
   };
 
+  // ── Preview & Formula nodes (shared between inline tabs and fullscreen) ──
+  const previewNode = (
+    <GridTablePreview
+      gridConfig={gridConfig}
+      columnGroups={columnGroups}
+      rowGroups={rowGroups}
+      getColConfig={getColConfig}
+      getRowConfig={getRowConfig}
+    />
+  );
+  const formulaNode = <FormulaReferenceContent />;
+
   return (
-    <div className="mt-4 min-w-0 w-full max-w-full overflow-hidden rounded-lg border border-gray-300 bg-gray-50/50 shadow-sm">
+    <div className="mt-4 w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-gray-300 bg-gray-50/50 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between border-b p-4">
         <div className="flex items-center gap-2 text-gray-700">
@@ -920,953 +932,880 @@ function GridTableBuilder({
             fieldId={field.id}
             gridConfig={gridConfig}
             onUpdate={onUpdate}
+            previewContent={previewNode}
+            formulaContent={formulaNode}
           />
         </TabsContent>
 
         {/* Tab: Preview */}
         <TabsContent value="preview" className="mt-0 p-4">
-          {gridConfig.rows.length > 0 && gridConfig.columns.length > 0 ? (
-            <div>
-              {gridConfig.cellDirections && (
-                <div className="mb-2 flex items-center gap-2 rounded bg-blue-50 px-3 py-2 text-xs text-blue-700">
-                  <span className="font-medium">Directions:</span>{" "}
-                  {gridConfig.cellDirections}
-                </div>
-              )}
-              <div className="overflow-x-auto rounded border bg-white">
-                <table className="min-w-full table-fixed text-sm">
-                  <thead>
-                    {/* Column group header row */}
-                    {columnGroups.length > 0 && (
-                      <tr>
-                        {rowGroups.length > 0 && (
-                          <th className="bg-muted border px-2 py-1"></th>
-                        )}
-                        <th className="bg-muted border px-2 py-1"></th>
-                        {(() => {
-                          const cells: React.ReactNode[] = [];
-                          let ci = 0;
-                          while (ci < gridConfig.columns.length) {
-                            const group = columnGroups.find(
-                              (g) => ci >= g.startIndex && ci <= g.endIndex,
-                            );
-                            if (group && ci === group.startIndex) {
-                              const span =
-                                group.endIndex - group.startIndex + 1;
-                              cells.push(
-                                <th
-                                  key={`cg-${ci}`}
-                                  colSpan={span}
-                                  className="border bg-indigo-50 px-2 py-1 text-center text-xs font-bold text-indigo-700 uppercase"
-                                >
-                                  {group.label}
-                                </th>,
-                              );
-                              ci = group.endIndex + 1;
-                            } else {
-                              cells.push(
-                                <th
-                                  key={`cg-${ci}`}
-                                  className="bg-muted border px-2 py-1"
-                                ></th>,
-                              );
-                              ci++;
-                            }
-                          }
-                          return cells;
-                        })()}
-                      </tr>
-                    )}
-                    <tr className="bg-muted">
-                      {rowGroups.length > 0 && (
-                        <th className="border px-2 py-1"></th>
-                      )}
-                      <th className="border px-2 py-1"></th>
-                      {gridConfig.columns.map((col, i) => {
-                        const cc = getColConfig(i);
-                        const isFormulaCol = cc?.type === "formula";
-                        return (
-                          <th
-                            key={i}
-                            className={`border px-2 py-1 font-semibold ${isFormulaCol ? "bg-blue-50 text-blue-700" : ""}`}
-                          >
-                            {col}
-                            {isFormulaCol && (
-                              <span className="ml-1 text-[10px] font-normal">
-                                (auto)
-                              </span>
-                            )}
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gridConfig.rows.map((row, i) => {
-                      const rc = getRowConfig(i);
-                      const rowGroup = rowGroups.find(
-                        (g) => g.startIndex === i,
-                      );
-                      const rowGroupSpan = rowGroup
-                        ? rowGroup.endIndex - rowGroup.startIndex + 1
-                        : 0;
-
-                      // Header row
-                      if (rc.type === "header") {
-                        return (
-                          <tr key={i} className="bg-muted/70">
-                            {rowGroup && (
-                              <td
-                                rowSpan={rowGroupSpan}
-                                className="border bg-indigo-50 px-2 py-1 text-center text-xs font-bold text-indigo-700 uppercase"
-                                style={{
-                                  writingMode:
-                                    rowGroupSpan > 2
-                                      ? "vertical-rl"
-                                      : undefined,
-                                  textOrientation: "mixed",
-                                }}
-                              >
-                                {rowGroup.label}
-                              </td>
-                            )}
-                            <td
-                              colSpan={gridConfig.columns.length + 1}
-                              className="border px-2 py-1 font-bold text-gray-800"
-                            >
-                              {row}
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      // Formula row
-                      if (rc.type === "formula") {
-                        return (
-                          <tr key={i} className="bg-emerald-50/70">
-                            {rowGroup && (
-                              <td
-                                rowSpan={rowGroupSpan}
-                                className="border bg-indigo-50 px-2 py-1 text-center text-xs font-bold text-indigo-700 uppercase"
-                                style={{
-                                  writingMode:
-                                    rowGroupSpan > 2
-                                      ? "vertical-rl"
-                                      : undefined,
-                                  textOrientation: "mixed",
-                                }}
-                              >
-                                {rowGroup.label}
-                              </td>
-                            )}
-                            <td className="border bg-emerald-50 px-2 py-1 font-semibold text-emerald-800">
-                              {row}
-                            </td>
-                            {gridConfig.columns.map((_, j) => (
-                              <td
-                                key={j}
-                                className="border bg-emerald-50/30 px-2 py-1"
-                              >
-                                <span className="text-xs text-emerald-600 italic">
-                                  = calculated
-                                </span>
-                              </td>
-                            ))}
-                          </tr>
-                        );
-                      }
-
-                      // Display row
-                      if (rc.type === "display") {
-                        return (
-                          <tr key={i} className="bg-amber-50/70">
-                            {rowGroup && (
-                              <td
-                                rowSpan={rowGroupSpan}
-                                className="border bg-indigo-50 px-2 py-1 text-center text-xs font-bold text-indigo-700 uppercase"
-                                style={{
-                                  writingMode:
-                                    rowGroupSpan > 2
-                                      ? "vertical-rl"
-                                      : undefined,
-                                  textOrientation: "mixed",
-                                }}
-                              >
-                                {rowGroup.label}
-                              </td>
-                            )}
-                            <td className="border bg-amber-50 px-2 py-1 font-semibold text-amber-800">
-                              {row}
-                            </td>
-                            {gridConfig.columns.map((_, j) => (
-                              <td
-                                key={j}
-                                className="border bg-amber-50/30 px-2 py-1"
-                              >
-                                <span className="text-xs text-amber-600 italic">
-                                  {rc.formula ? "= display" : "display only"}
-                                </span>
-                              </td>
-                            ))}
-                          </tr>
-                        );
-                      }
-
-                      // Data row (default)
-                      return (
-                        <tr key={i}>
-                          {rowGroup && (
-                            <td
-                              rowSpan={rowGroupSpan}
-                              className="border bg-indigo-50 px-2 py-1 text-center text-xs font-bold text-indigo-700 uppercase"
-                              style={{
-                                writingMode:
-                                  rowGroupSpan > 2 ? "vertical-rl" : undefined,
-                                textOrientation: "mixed",
-                              }}
-                            >
-                              {rowGroup.label}
-                            </td>
-                          )}
-                          <td className="bg-muted border px-2 py-1 font-semibold">
-                            {row}
-                          </td>
-                          {gridConfig.columns.map((_, j) => {
-                            const cc = getColConfig(j);
-                            const effectiveType =
-                              cc?.type || gridConfig.cellConfig.type;
-                            return (
-                              <td
-                                key={j}
-                                className={`border px-2 py-1 ${effectiveType === "formula" ? "bg-blue-50/50" : ""}`}
-                              >
-                                {effectiveType === "formula" ? (
-                                  <span className="text-xs text-blue-500 italic">
-                                    = calculated
-                                  </span>
-                                ) : effectiveType === "multi-field" ? (
-                                  <div className="rounded border border-dashed border-purple-300 bg-purple-50 p-1">
-                                    <span className="text-xs text-purple-500 italic">
-                                      Multi-field
-                                    </span>
-                                  </div>
-                                ) : effectiveType === "repeater" ? (
-                                  <div className="rounded border border-dashed border-gray-300 bg-gray-50 p-1">
-                                    <span className="text-xs text-gray-500 italic">
-                                      Repeater
-                                    </span>
-                                  </div>
-                                ) : effectiveType === "date" ||
-                                  effectiveType === "time" ||
-                                  effectiveType === "datetime" ? (
-                                  <div className="rounded border border-dashed border-teal-300 bg-teal-50 p-1">
-                                    <span className="text-xs text-teal-600 italic">
-                                      {effectiveType === "date"
-                                        ? "Date"
-                                        : effectiveType === "time"
-                                          ? "Time"
-                                          : "Date & Time"}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <Input
-                                    disabled
-                                    className="h-6 text-xs"
-                                    placeholder={
-                                      effectiveType === "number"
-                                        ? "0"
-                                        : effectiveType === "long-text"
-                                          ? "textarea"
-                                          : "text"
-                                    }
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            <p className="text-muted-foreground rounded border border-dashed p-6 text-center text-sm">
-              Add rows and columns in the &quot;Rows & Columns&quot; tab to see
-              a preview.
-            </p>
-          )}
+          {previewNode}
         </TabsContent>
 
         {/* Tab: Formula Reference */}
         <TabsContent value="formulas" className="mt-0 p-4">
-          <div className="space-y-4 text-sm">
-            <div>
-              <h3 className="mb-2 text-base font-semibold">
-                Formula Reference
-              </h3>
-              <p className="text-muted-foreground text-xs">
-                Formulas start with{" "}
-                <code className="rounded bg-gray-100 px-1">=</code> and work
-                similarly to Excel/Sheets.
-              </p>
-            </div>
-
-            {/* Cell References */}
-            <div className="rounded-md border p-3">
-              <h4 className="mb-1.5 text-sm font-semibold">
-                Cell References (A1 Notation)
-              </h4>
-              <p className="text-muted-foreground mb-2 text-xs">
-                Reference cells using column letters and row numbers. Column A
-                is the first data column.
-              </p>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-1 pr-4 text-left font-medium">Formula</th>
-                    <th className="py-1 text-left font-medium">Description</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono">
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =A1
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Value of column A, row 1
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =A1 + B1
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Add values from two cells
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =A1 * B2 - C3
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Arithmetic with multiple cells
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =A1 / B1 * 100
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">Calculate percentage</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Row References */}
-            <div className="rounded-md border p-3">
-              <h4 className="mb-1.5 text-sm font-semibold">
-                Row References ($n Notation)
-              </h4>
-              <p className="text-muted-foreground mb-2 text-xs">
-                Used in <strong>row formulas</strong> to reference other rows in
-                the same column.{" "}
-                <code className="rounded bg-gray-100 px-1">$n</code> refers to
-                row n.
-              </p>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-1 pr-4 text-left font-medium">Formula</th>
-                    <th className="py-1 text-left font-medium">Description</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono">
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =$1 + $2
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Sum of row 1 and row 2 in the current column
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =$1 + $2 + $3
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Sum of rows 1, 2, and 3
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =$1 * $2 / 100
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Arithmetic with row references
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* SUM Function */}
-            <div className="rounded-md border p-3">
-              <h4 className="mb-1.5 text-sm font-semibold">SUM Function</h4>
-              <p className="text-muted-foreground mb-2 text-xs">
-                SUM supports three range shapes: <strong>vertical</strong>{" "}
-                (A1:A5), <strong>horizontal</strong> (A1:G1), and{" "}
-                <strong>rectangular</strong> (A1:G5).
-              </p>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-1 pr-4 text-left font-medium">Formula</th>
-                    <th className="py-1 text-left font-medium">Description</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono">
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =SUM(A1:A5)
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Sum column A, rows 1-5 (vertical range)
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =SUM(A1:G1)
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Sum columns A-G in row 1 (horizontal range)
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =SUM(A1:G5)
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Sum all cells in rectangle A1 to G5 (rectangular range)
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =SUM($1:$3)
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Sum rows 1-3 in current column (row formula)
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =SUM($1, $3, $5)
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Sum specific rows (row formula)
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =SUM(ROW)
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Sum all numeric values in the current row
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Column Formulas */}
-            <div className="rounded-md border p-3">
-              <h4 className="mb-1.5 text-sm font-semibold">Column Formulas</h4>
-              <p className="text-muted-foreground mb-2 text-xs">
-                Set a column type to &quot;Formula&quot; to compute values based
-                on other columns in the same row. Use{" "}
-                <code className="rounded bg-gray-100 px-1">
-                  {"{Column Name}"}
-                </code>{" "}
-                syntax.
-              </p>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-1 pr-4 text-left font-medium">Formula</th>
-                    <th className="py-1 text-left font-medium">Description</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono">
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        ={"{Price}"} * {"{Quantity}"}
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Multiply Price by Quantity columns
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">
-                        =CONCAT({"{First}"}, &quot; &quot;, {"{Last}"})
-                      </code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Concatenate text from two columns
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Operators */}
-            <div className="rounded-md border p-3">
-              <h4 className="mb-1.5 text-sm font-semibold">Operators</h4>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <code className="rounded bg-gray-100 px-1.5">+</code> Addition
-                </div>
-                <div>
-                  <code className="rounded bg-gray-100 px-1.5">-</code>{" "}
-                  Subtraction
-                </div>
-                <div>
-                  <code className="rounded bg-gray-100 px-1.5">*</code>{" "}
-                  Multiplication
-                </div>
-                <div>
-                  <code className="rounded bg-gray-100 px-1.5">/</code> Division
-                </div>
-                <div>
-                  <code className="rounded bg-gray-100 px-1.5">( )</code>{" "}
-                  Grouping
-                </div>
-              </div>
-            </div>
-
-            {/* Multi-Field / Repeater Sub-Field References */}
-            <div className="rounded-md border p-3">
-              <h4 className="mb-1.5 text-sm font-semibold">
-                Multi-Field &amp; Repeater Sub-Field References
-              </h4>
-              <p className="text-muted-foreground mb-2 text-xs">
-                When a cell contains a <strong>multi-field</strong> or{" "}
-                <strong>repeater</strong> input, access individual sub-fields
-                using dot notation with the sub-field label in curly braces.
-              </p>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-1 pr-4 text-left font-medium">Formula</th>
-                    <th className="py-1 text-left font-medium">Description</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono">
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=A1.{Cost}`}</code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Get the &quot;Cost&quot; sub-field value from cell A1
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=A1.{Cost} + A1.{Tax}`}</code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Add two sub-fields from the same cell
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=A1.{Qty} * B1.{Price}`}</code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Multiply sub-fields from different cells
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=SUM(A1.{Cost}:A5.{Cost})`}</code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Sum &quot;Cost&quot; sub-field down column A (vertical)
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=SUM(A1.{Cost}:G1.{Cost})`}</code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Sum &quot;Cost&quot; sub-field across row 1 (horizontal)
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=SUM(A1.{Cost}:G5.{Cost})`}</code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Sum &quot;Cost&quot; sub-field in rectangular range (all
-                      cells)
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 pr-4">
-                      <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=SUM({Items}.Cost)`}</code>
-                    </td>
-                    <td className="py-1.5 font-sans">
-                      Sum &quot;Cost&quot; across repeater entries in column
-                      &quot;Items&quot;
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <p className="text-muted-foreground mt-2 text-[11px]">
-                For <strong>repeater</strong> cells, the sub-field value is the
-                sum of that field across all repeater entries. For{" "}
-                <strong>multi-field</strong> cells, it returns the single value
-                directly.
-              </p>
-            </div>
-
-            {/* Keyboard Shortcuts & Cell Operations */}
-            <div className="rounded-md border p-3">
-              <h4 className="mb-1.5 text-sm font-semibold">
-                Keyboard Shortcuts &amp; Cell Operations
-              </h4>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-1 pr-4 text-left font-medium">
-                      Shortcut
-                    </th>
-                    <th className="py-1 text-left font-medium">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
-                        Ctrl+C
-                      </kbd>
-                    </td>
-                    <td className="py-1.5">
-                      Copy selected cell, row, or column
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
-                        Ctrl+X
-                      </kbd>
-                    </td>
-                    <td className="py-1.5">
-                      Cut selected cell, row, or column
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
-                        Ctrl+V
-                      </kbd>
-                    </td>
-                    <td className="py-1.5">
-                      Paste to selected cell, row, or column
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
-                        Delete
-                      </kbd>
-                    </td>
-                    <td className="py-1.5">
-                      Clear cell override (reset to default)
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
-                        F2
-                      </kbd>
-                    </td>
-                    <td className="py-1.5">Edit formula in selected cell</td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
-                        Arrow keys
-                      </kbd>
-                    </td>
-                    <td className="py-1.5">Navigate between cells</td>
-                  </tr>
-                  <tr className="border-b border-dashed">
-                    <td className="py-1.5 pr-4">
-                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
-                        Tab
-                      </kbd>{" "}
-                      /{" "}
-                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
-                        Shift+Tab
-                      </kbd>
-                    </td>
-                    <td className="py-1.5">Move to next / previous cell</td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 pr-4">
-                      <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
-                        Enter
-                      </kbd>
-                    </td>
-                    <td className="py-1.5">Move to cell below</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Fill Handle */}
-            <div className="rounded-md border p-3">
-              <h4 className="mb-1.5 text-sm font-semibold">Fill Handle</h4>
-              <p className="text-muted-foreground text-xs">
-                When a cell is selected, a small <strong>blue square</strong>{" "}
-                appears at the bottom-right corner. Drag it vertically or
-                horizontally to fill adjacent cells with the same type or
-                formula.
-              </p>
-              <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
-                <li>
-                  For <strong>formula cells</strong>, cell references are
-                  automatically adjusted (e.g., A1 becomes A2 when dragged down)
-                </li>
-                <li>
-                  For <strong>type overrides</strong> (number, radio, etc.), the
-                  same type and settings are copied
-                </li>
-                <li>
-                  Drag down or right to extend, drag up or left to fill
-                  backwards
-                </li>
-              </ul>
-            </div>
-
-            {/* Cell Styling */}
-            <div className="rounded-md border p-3">
-              <h4 className="mb-1.5 text-sm font-semibold">Cell Styling</h4>
-              <p className="text-muted-foreground mb-2 text-xs">
-                When a cell, row, or column is selected, the toolbar shows style
-                controls:
-              </p>
-              <ul className="text-muted-foreground list-inside list-disc space-y-1 text-xs">
-                <li>
-                  <strong>BG</strong> — Set background color (click the color
-                  swatch)
-                </li>
-                <li>
-                  <strong>A</strong> — Set text color
-                </li>
-                <li>
-                  <strong>B</strong> — Toggle bold
-                </li>
-                <li>
-                  <strong>I</strong> — Toggle italic
-                </li>
-                <li>
-                  <strong>U</strong> — Toggle underline
-                </li>
-              </ul>
-              <p className="text-muted-foreground mt-2 text-[11px]">
-                Styles cascade: cell overrides &gt; row styles &gt; column
-                styles. Click the <strong>✕</strong> button next to a color to
-                clear it.
-              </p>
-            </div>
-
-            {/* Inline Toolbar */}
-            <div className="rounded-md border p-3">
-              <h4 className="mb-1.5 text-sm font-semibold">Inline Toolbar</h4>
-              <p className="text-muted-foreground text-xs">
-                When a cell, row, or column is selected, the toolbar above the
-                grid shows quick-access buttons for all operations — no
-                right-click needed:
-              </p>
-              <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
-                <li>
-                  <strong>Clipboard</strong> — Copy, Cut, Paste buttons
-                </li>
-                <li>
-                  <strong>Row operations</strong> — Insert above/below, move
-                  up/down, delete
-                </li>
-                <li>
-                  <strong>Column operations</strong> — Insert left/right, move
-                  left/right, delete
-                </li>
-                <li>
-                  <strong>Style controls</strong> — Background color, text
-                  color, bold, italic, underline
-                </li>
-              </ul>
-            </div>
-
-            {/* Per-Cell Formulas in Formula Rows */}
-            <div className="rounded-md border p-3">
-              <h4 className="mb-1.5 text-sm font-semibold">
-                Per-Cell Formulas in Formula Rows
-              </h4>
-              <p className="text-muted-foreground text-xs">
-                Formula rows apply the same formula to every cell by default.
-                However, you can override individual cells with different
-                formulas:
-              </p>
-              <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
-                <li>Select a cell within a formula row</li>
-                <li>
-                  Type a different formula in the formula bar (e.g.,{" "}
-                  <code className="rounded bg-gray-100 px-1">=A1 * 2</code>)
-                </li>
-                <li>
-                  That cell will use the per-cell formula instead of the row
-                  formula
-                </li>
-                <li>
-                  Clear the formula bar to revert to the row&apos;s default
-                  formula
-                </li>
-              </ul>
-            </div>
-
-            {/* Right-Click Context Menu */}
-            <div className="rounded-md border p-3">
-              <h4 className="mb-1.5 text-sm font-semibold">
-                Right-Click Context Menu
-              </h4>
-              <p className="text-muted-foreground text-xs">
-                Right-click on any cell, row number, or column letter to access:
-              </p>
-              <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
-                <li>
-                  <strong>Copy / Cut / Paste</strong> — clipboard operations
-                </li>
-                <li>
-                  <strong>Insert Row Above / Below</strong> — add rows at
-                  specific positions
-                </li>
-                <li>
-                  <strong>Insert Column Left / Right</strong> — add columns at
-                  specific positions
-                </li>
-                <li>
-                  <strong>Move Row / Column</strong> — reorder rows or columns
-                </li>
-                <li>
-                  <strong>Delete Row / Column</strong> — remove rows or columns
-                </li>
-              </ul>
-              <p className="text-muted-foreground mt-2 text-[11px]">
-                The context menu automatically opens upwards if it would go off
-                the bottom of the screen.
-              </p>
-            </div>
-
-            {/* Tips */}
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-              <h4 className="mb-1.5 text-sm font-semibold text-amber-800">
-                Tips
-              </h4>
-              <ul className="list-inside list-disc space-y-1 text-xs text-amber-900">
-                <li>
-                  All formulas must start with{" "}
-                  <code className="rounded bg-amber-100 px-1">=</code>
-                </li>
-                <li>
-                  Row numbers start at 1 (matching the spreadsheet display)
-                </li>
-                <li>
-                  Column letters start at A (matching the spreadsheet display)
-                </li>
-                <li>
-                  SUM ranges work in all directions:{" "}
-                  <code className="rounded bg-amber-100 px-1">A1:A5</code>{" "}
-                  (vertical),{" "}
-                  <code className="rounded bg-amber-100 px-1">A1:G1</code>{" "}
-                  (horizontal),{" "}
-                  <code className="rounded bg-amber-100 px-1">A1:G5</code>{" "}
-                  (rectangular)
-                </li>
-                <li>
-                  Use <strong>row formulas</strong> (set row type to
-                  &quot;Formula&quot;) for subtotals and grand totals
-                </li>
-                <li>
-                  Use <strong>column formulas</strong> (set column type to
-                  &quot;Formula&quot;) for computed columns
-                </li>
-                <li>
-                  Use <strong>cell formulas</strong> (set individual cell to
-                  &quot;Formula&quot;) for one-off calculations
-                </li>
-                <li>
-                  Override individual cells in formula rows by selecting the
-                  cell and entering a different formula
-                </li>
-                <li>
-                  Header and formula rows are not editable by form fillers
-                </li>
-                <li>
-                  Display rows show static content (not editable by form
-                  fillers)
-                </li>
-                <li>
-                  Use{" "}
-                  <code className="rounded bg-amber-100 px-1">
-                    A1.{"{SubField}"}
-                  </code>{" "}
-                  to reference sub-fields in multi-field or repeater cells
-                </li>
-                <li>Double-click a cell label or column header to rename it</li>
-                <li>
-                  Use the toolbar style controls (BG color, text color, B/I/U)
-                  to customize row and cell appearance
-                </li>
-                <li>
-                  The spreadsheet scrolls horizontally within its container — it
-                  won&apos;t make your form wider
-                </li>
-              </ul>
-            </div>
-          </div>
+          {formulaNode}
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+/* ────── Formula Reference (extracted for reuse in fullscreen) ────── */
+function FormulaReferenceContent() {
+  return (
+    <div className="space-y-4 text-sm">
+      <div>
+        <h3 className="mb-2 text-base font-semibold">Formula Reference</h3>
+        <p className="text-muted-foreground text-xs">
+          Formulas start with{" "}
+          <code className="rounded bg-gray-100 px-1">=</code> and work similarly
+          to Excel/Sheets.
+        </p>
+      </div>
+
+      {/* Cell References */}
+      <div className="rounded-md border p-3">
+        <h4 className="mb-1.5 text-sm font-semibold">
+          Cell References (A1 Notation)
+        </h4>
+        <p className="text-muted-foreground mb-2 text-xs">
+          Reference cells using column letters and row numbers. Column A is the
+          first data column.
+        </p>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b">
+              <th className="py-1 pr-4 text-left font-medium">Formula</th>
+              <th className="py-1 text-left font-medium">Description</th>
+            </tr>
+          </thead>
+          <tbody className="font-mono">
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =A1
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">Value of column A, row 1</td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =A1 + B1
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">Add values from two cells</td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =A1 * B2 - C3
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Arithmetic with multiple cells
+              </td>
+            </tr>
+            <tr>
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =A1 / B1 * 100
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">Calculate percentage</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Row References */}
+      <div className="rounded-md border p-3">
+        <h4 className="mb-1.5 text-sm font-semibold">
+          Row References ($n Notation)
+        </h4>
+        <p className="text-muted-foreground mb-2 text-xs">
+          Used in <strong>row formulas</strong> to reference other rows in the
+          same column. <code className="rounded bg-gray-100 px-1">$n</code>{" "}
+          refers to row n.
+        </p>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b">
+              <th className="py-1 pr-4 text-left font-medium">Formula</th>
+              <th className="py-1 text-left font-medium">Description</th>
+            </tr>
+          </thead>
+          <tbody className="font-mono">
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =$1 + $2
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Sum of row 1 and row 2 in the current column
+              </td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =$1 + $2 + $3
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">Sum of rows 1, 2, and 3</td>
+            </tr>
+            <tr>
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =$1 * $2 / 100
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Arithmetic with row references
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* SUM Function */}
+      <div className="rounded-md border p-3">
+        <h4 className="mb-1.5 text-sm font-semibold">SUM Function</h4>
+        <p className="text-muted-foreground mb-2 text-xs">
+          SUM supports three range shapes: <strong>vertical</strong> (A1:A5),{" "}
+          <strong>horizontal</strong> (A1:G1), and <strong>rectangular</strong>{" "}
+          (A1:G5).
+        </p>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b">
+              <th className="py-1 pr-4 text-left font-medium">Formula</th>
+              <th className="py-1 text-left font-medium">Description</th>
+            </tr>
+          </thead>
+          <tbody className="font-mono">
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =SUM(A1:A5)
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Sum column A, rows 1-5 (vertical range)
+              </td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =SUM(A1:G1)
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Sum columns A-G in row 1 (horizontal range)
+              </td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =SUM(A1:G5)
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Sum all cells in rectangle A1 to G5 (rectangular range)
+              </td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =SUM($1:$3)
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Sum rows 1-3 in current column (row formula)
+              </td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =SUM($1, $3, $5)
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Sum specific rows (row formula)
+              </td>
+            </tr>
+            <tr>
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =SUM(ROW)
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Sum all numeric values in the current row
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Column Formulas */}
+      <div className="rounded-md border p-3">
+        <h4 className="mb-1.5 text-sm font-semibold">Column Formulas</h4>
+        <p className="text-muted-foreground mb-2 text-xs">
+          Set a column type to &quot;Formula&quot; to compute values based on
+          other columns in the same row. Use{" "}
+          <code className="rounded bg-gray-100 px-1">{"{Column Name}"}</code>{" "}
+          syntax.
+        </p>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b">
+              <th className="py-1 pr-4 text-left font-medium">Formula</th>
+              <th className="py-1 text-left font-medium">Description</th>
+            </tr>
+          </thead>
+          <tbody className="font-mono">
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  ={"{Price}"} * {"{Quantity}"}
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Multiply Price by Quantity columns
+              </td>
+            </tr>
+            <tr>
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">
+                  =CONCAT({"{First}"}, &quot; &quot;, {"{Last}"})
+                </code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Concatenate text from two columns
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Operators */}
+      <div className="rounded-md border p-3">
+        <h4 className="mb-1.5 text-sm font-semibold">Operators</h4>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <code className="rounded bg-gray-100 px-1.5">+</code> Addition
+          </div>
+          <div>
+            <code className="rounded bg-gray-100 px-1.5">-</code> Subtraction
+          </div>
+          <div>
+            <code className="rounded bg-gray-100 px-1.5">*</code> Multiplication
+          </div>
+          <div>
+            <code className="rounded bg-gray-100 px-1.5">/</code> Division
+          </div>
+          <div>
+            <code className="rounded bg-gray-100 px-1.5">( )</code> Grouping
+          </div>
+        </div>
+      </div>
+
+      {/* Multi-Field / Repeater Sub-Field References */}
+      <div className="rounded-md border p-3">
+        <h4 className="mb-1.5 text-sm font-semibold">
+          Multi-Field &amp; Repeater Sub-Field References
+        </h4>
+        <p className="text-muted-foreground mb-2 text-xs">
+          When a cell contains a <strong>multi-field</strong> or{" "}
+          <strong>repeater</strong> input, access individual sub-fields using
+          dot notation with the sub-field label in curly braces.
+        </p>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b">
+              <th className="py-1 pr-4 text-left font-medium">Formula</th>
+              <th className="py-1 text-left font-medium">Description</th>
+            </tr>
+          </thead>
+          <tbody className="font-mono">
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=A1.{Cost}`}</code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Get the &quot;Cost&quot; sub-field value from cell A1
+              </td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=A1.{Cost} + A1.{Tax}`}</code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Add two sub-fields from the same cell
+              </td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=A1.{Qty} * B1.{Price}`}</code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Multiply sub-fields from different cells
+              </td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=SUM(A1.{Cost}:A5.{Cost})`}</code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Sum &quot;Cost&quot; sub-field down column A (vertical)
+              </td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=SUM(A1.{Cost}:G1.{Cost})`}</code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Sum &quot;Cost&quot; sub-field across row 1 (horizontal)
+              </td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=SUM(A1.{Cost}:G5.{Cost})`}</code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Sum &quot;Cost&quot; sub-field in rectangular range (all cells)
+              </td>
+            </tr>
+            <tr>
+              <td className="py-1.5 pr-4">
+                <code className="rounded bg-blue-50 px-1.5 text-blue-700">{`=SUM({Items}.Cost)`}</code>
+              </td>
+              <td className="py-1.5 font-sans">
+                Sum &quot;Cost&quot; across repeater entries in column
+                &quot;Items&quot;
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="text-muted-foreground mt-2 text-[11px]">
+          For <strong>repeater</strong> cells, the sub-field value is the sum of
+          that field across all repeater entries. For{" "}
+          <strong>multi-field</strong> cells, it returns the single value
+          directly.
+        </p>
+      </div>
+
+      {/* Keyboard Shortcuts & Cell Operations */}
+      <div className="rounded-md border p-3">
+        <h4 className="mb-1.5 text-sm font-semibold">
+          Keyboard Shortcuts &amp; Cell Operations
+        </h4>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b">
+              <th className="py-1 pr-4 text-left font-medium">Shortcut</th>
+              <th className="py-1 text-left font-medium">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                  Ctrl+C
+                </kbd>
+              </td>
+              <td className="py-1.5">Copy selected cell, row, or column</td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                  Ctrl+X
+                </kbd>
+              </td>
+              <td className="py-1.5">Cut selected cell, row, or column</td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                  Ctrl+V
+                </kbd>
+              </td>
+              <td className="py-1.5">Paste to selected cell, row, or column</td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                  Delete
+                </kbd>
+              </td>
+              <td className="py-1.5">Clear cell override (reset to default)</td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                  F2
+                </kbd>
+              </td>
+              <td className="py-1.5">Edit formula in selected cell</td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                  Arrow keys
+                </kbd>
+              </td>
+              <td className="py-1.5">Navigate between cells</td>
+            </tr>
+            <tr className="border-b border-dashed">
+              <td className="py-1.5 pr-4">
+                <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                  Tab
+                </kbd>{" "}
+                /{" "}
+                <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                  Shift+Tab
+                </kbd>
+              </td>
+              <td className="py-1.5">Move to next / previous cell</td>
+            </tr>
+            <tr>
+              <td className="py-1.5 pr-4">
+                <kbd className="rounded border bg-gray-100 px-1.5 py-0.5 text-[10px]">
+                  Enter
+                </kbd>
+              </td>
+              <td className="py-1.5">Move to cell below</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Fill Handle */}
+      <div className="rounded-md border p-3">
+        <h4 className="mb-1.5 text-sm font-semibold">Fill Handle</h4>
+        <p className="text-muted-foreground text-xs">
+          When a cell is selected, a small <strong>blue square</strong> appears
+          at the bottom-right corner. Drag it vertically or horizontally to fill
+          adjacent cells with the same type or formula.
+        </p>
+        <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
+          <li>
+            For <strong>formula cells</strong>, cell references are
+            automatically adjusted (e.g., A1 becomes A2 when dragged down)
+          </li>
+          <li>
+            For <strong>type overrides</strong> (number, radio, etc.), the same
+            type and settings are copied
+          </li>
+          <li>
+            Drag down or right to extend, drag up or left to fill backwards
+          </li>
+        </ul>
+      </div>
+
+      {/* Cell Styling */}
+      <div className="rounded-md border p-3">
+        <h4 className="mb-1.5 text-sm font-semibold">Cell Styling</h4>
+        <p className="text-muted-foreground mb-2 text-xs">
+          When a cell, row, or column is selected, the toolbar shows style
+          controls:
+        </p>
+        <ul className="text-muted-foreground list-inside list-disc space-y-1 text-xs">
+          <li>
+            <strong>BG</strong> — Set background color (click the color swatch)
+          </li>
+          <li>
+            <strong>A</strong> — Set text color
+          </li>
+          <li>
+            <strong>B</strong> — Toggle bold
+          </li>
+          <li>
+            <strong>I</strong> — Toggle italic
+          </li>
+          <li>
+            <strong>U</strong> — Toggle underline
+          </li>
+        </ul>
+        <p className="text-muted-foreground mt-2 text-[11px]">
+          Styles cascade: cell overrides &gt; row styles &gt; column styles.
+          Click the <strong>✕</strong> button next to a color to clear it.
+        </p>
+      </div>
+
+      {/* Inline Toolbar */}
+      <div className="rounded-md border p-3">
+        <h4 className="mb-1.5 text-sm font-semibold">Inline Toolbar</h4>
+        <p className="text-muted-foreground text-xs">
+          When a cell, row, or column is selected, the toolbar above the grid
+          shows quick-access buttons for all operations — no right-click needed:
+        </p>
+        <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
+          <li>
+            <strong>Clipboard</strong> — Copy, Cut, Paste buttons
+          </li>
+          <li>
+            <strong>Row operations</strong> — Insert above/below, move up/down,
+            delete
+          </li>
+          <li>
+            <strong>Column operations</strong> — Insert left/right, move
+            left/right, delete
+          </li>
+          <li>
+            <strong>Style controls</strong> — Background color, text color,
+            bold, italic, underline
+          </li>
+        </ul>
+      </div>
+
+      {/* Per-Cell Formulas in Formula Rows */}
+      <div className="rounded-md border p-3">
+        <h4 className="mb-1.5 text-sm font-semibold">
+          Per-Cell Formulas in Formula Rows
+        </h4>
+        <p className="text-muted-foreground text-xs">
+          Formula rows apply the same formula to every cell by default. However,
+          you can override individual cells with different formulas:
+        </p>
+        <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
+          <li>Select a cell within a formula row</li>
+          <li>
+            Type a different formula in the formula bar (e.g.,{" "}
+            <code className="rounded bg-gray-100 px-1">=A1 * 2</code>)
+          </li>
+          <li>
+            That cell will use the per-cell formula instead of the row formula
+          </li>
+          <li>
+            Clear the formula bar to revert to the row&apos;s default formula
+          </li>
+        </ul>
+      </div>
+
+      {/* Right-Click Context Menu */}
+      <div className="rounded-md border p-3">
+        <h4 className="mb-1.5 text-sm font-semibold">
+          Right-Click Context Menu
+        </h4>
+        <p className="text-muted-foreground text-xs">
+          Right-click on any cell, row number, or column letter to access:
+        </p>
+        <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
+          <li>
+            <strong>Copy / Cut / Paste</strong> — clipboard operations
+          </li>
+          <li>
+            <strong>Insert Row Above / Below</strong> — add rows at specific
+            positions
+          </li>
+          <li>
+            <strong>Insert Column Left / Right</strong> — add columns at
+            specific positions
+          </li>
+          <li>
+            <strong>Move Row / Column</strong> — reorder rows or columns
+          </li>
+          <li>
+            <strong>Delete Row / Column</strong> — remove rows or columns
+          </li>
+        </ul>
+        <p className="text-muted-foreground mt-2 text-[11px]">
+          The context menu automatically opens upwards if it would go off the
+          bottom of the screen.
+        </p>
+      </div>
+
+      {/* Tips */}
+      <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+        <h4 className="mb-1.5 text-sm font-semibold text-amber-800">Tips</h4>
+        <ul className="list-inside list-disc space-y-1 text-xs text-amber-900">
+          <li>
+            All formulas must start with{" "}
+            <code className="rounded bg-amber-100 px-1">=</code>
+          </li>
+          <li>Row numbers start at 1 (matching the spreadsheet display)</li>
+          <li>Column letters start at A (matching the spreadsheet display)</li>
+          <li>
+            SUM ranges work in all directions:{" "}
+            <code className="rounded bg-amber-100 px-1">A1:A5</code> (vertical),{" "}
+            <code className="rounded bg-amber-100 px-1">A1:G1</code>{" "}
+            (horizontal),{" "}
+            <code className="rounded bg-amber-100 px-1">A1:G5</code>{" "}
+            (rectangular)
+          </li>
+          <li>
+            Use <strong>row formulas</strong> (set row type to
+            &quot;Formula&quot;) for subtotals and grand totals
+          </li>
+          <li>
+            Use <strong>column formulas</strong> (set column type to
+            &quot;Formula&quot;) for computed columns
+          </li>
+          <li>
+            Use <strong>cell formulas</strong> (set individual cell to
+            &quot;Formula&quot;) for one-off calculations
+          </li>
+          <li>
+            Override individual cells in formula rows by selecting the cell and
+            entering a different formula
+          </li>
+          <li>Header and formula rows are not editable by form fillers</li>
+          <li>
+            Display rows show static content (not editable by form fillers)
+          </li>
+          <li>
+            Use{" "}
+            <code className="rounded bg-amber-100 px-1">A1.{"{SubField}"}</code>{" "}
+            to reference sub-fields in multi-field or repeater cells
+          </li>
+          <li>Double-click a cell label or column header to rename it</li>
+          <li>
+            Use the toolbar style controls (BG color, text color, B/I/U) to
+            customize row and cell appearance
+          </li>
+          <li>
+            The spreadsheet scrolls horizontally within its container — it
+            won&apos;t make your form wider
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+/* ────── Grid Table Preview (extracted for reuse in fullscreen) ────── */
+function GridTablePreview({
+  gridConfig,
+  columnGroups,
+  rowGroups,
+  getColConfig,
+  getRowConfig,
+}: {
+  gridConfig: GridTableConfig;
+  columnGroups: { startIndex: number; endIndex: number; label?: string }[];
+  rowGroups: { startIndex: number; endIndex: number; label?: string }[];
+  getColConfig: (ci: number) => GridColumnConfig | null;
+  getRowConfig: (ri: number) => GridRowConfig;
+}) {
+  if (gridConfig.rows.length === 0 || gridConfig.columns.length === 0) {
+    return (
+      <p className="text-muted-foreground rounded border border-dashed p-6 text-center text-sm">
+        Add rows and columns in the &quot;Builder&quot; tab to see a preview.
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      {gridConfig.cellDirections && (
+        <div className="mb-2 flex items-center gap-2 rounded bg-blue-50 px-3 py-2 text-xs text-blue-700">
+          <span className="font-medium">Directions:</span>{" "}
+          {gridConfig.cellDirections}
+        </div>
+      )}
+      <div className="overflow-x-auto rounded border bg-white">
+        <table className="min-w-full table-fixed text-sm">
+          <thead>
+            {columnGroups.length > 0 && (
+              <tr>
+                {rowGroups.length > 0 && (
+                  <th className="bg-muted border px-2 py-1"></th>
+                )}
+                <th className="bg-muted border px-2 py-1"></th>
+                {(() => {
+                  const cells: React.ReactNode[] = [];
+                  let ci = 0;
+                  while (ci < gridConfig.columns.length) {
+                    const group = columnGroups.find(
+                      (g) => ci >= g.startIndex && ci <= g.endIndex,
+                    );
+                    if (group && ci === group.startIndex) {
+                      const span = group.endIndex - group.startIndex + 1;
+                      cells.push(
+                        <th
+                          key={`cg-${ci}`}
+                          colSpan={span}
+                          className="border bg-indigo-50 px-2 py-1 text-center text-xs font-bold text-indigo-700 uppercase"
+                        >
+                          {group.label}
+                        </th>,
+                      );
+                      ci = group.endIndex + 1;
+                    } else {
+                      cells.push(
+                        <th
+                          key={`cg-${ci}`}
+                          className="bg-muted border px-2 py-1"
+                        ></th>,
+                      );
+                      ci++;
+                    }
+                  }
+                  return cells;
+                })()}
+              </tr>
+            )}
+            <tr className="bg-muted">
+              {rowGroups.length > 0 && <th className="border px-2 py-1"></th>}
+              <th className="border px-2 py-1"></th>
+              {gridConfig.columns.map((col, i) => {
+                const cc = getColConfig(i);
+                const isFormulaCol = cc?.type === "formula";
+                return (
+                  <th
+                    key={i}
+                    className={`border px-2 py-1 font-semibold ${isFormulaCol ? "bg-blue-50 text-blue-700" : ""}`}
+                  >
+                    {col}
+                    {isFormulaCol && (
+                      <span className="ml-1 text-[10px] font-normal">
+                        (auto)
+                      </span>
+                    )}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {gridConfig.rows.map((row, i) => {
+              const rc = getRowConfig(i);
+              const rowGroup = rowGroups.find((g) => g.startIndex === i);
+              const rowGroupSpan = rowGroup
+                ? rowGroup.endIndex - rowGroup.startIndex + 1
+                : 0;
+
+              const rowGroupCell = rowGroup && (
+                <td
+                  rowSpan={rowGroupSpan}
+                  className="border bg-indigo-50 px-2 py-1 text-center text-xs font-bold text-indigo-700 uppercase"
+                  style={{
+                    writingMode: rowGroupSpan > 2 ? "vertical-rl" : undefined,
+                    textOrientation: "mixed",
+                  }}
+                >
+                  {rowGroup.label}
+                </td>
+              );
+
+              if (rc.type === "header") {
+                return (
+                  <tr key={i} className="bg-muted/70">
+                    {rowGroupCell}
+                    <td
+                      colSpan={gridConfig.columns.length + 1}
+                      className="border px-2 py-1 font-bold text-gray-800"
+                    >
+                      {row}
+                    </td>
+                  </tr>
+                );
+              }
+
+              if (rc.type === "formula") {
+                return (
+                  <tr key={i} className="bg-emerald-50/70">
+                    {rowGroupCell}
+                    <td className="border bg-emerald-50 px-2 py-1 font-semibold text-emerald-800">
+                      {row}
+                    </td>
+                    {gridConfig.columns.map((_, j) => (
+                      <td key={j} className="border bg-emerald-50/30 px-2 py-1">
+                        <span className="text-xs text-emerald-600 italic">
+                          = calculated
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              }
+
+              if (rc.type === "display") {
+                return (
+                  <tr key={i} className="bg-amber-50/70">
+                    {rowGroupCell}
+                    <td className="border bg-amber-50 px-2 py-1 font-semibold text-amber-800">
+                      {row}
+                    </td>
+                    {gridConfig.columns.map((_, j) => (
+                      <td key={j} className="border bg-amber-50/30 px-2 py-1">
+                        <span className="text-xs text-amber-600 italic">
+                          {rc.formula ? "= display" : "display only"}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              }
+
+              return (
+                <tr key={i}>
+                  {rowGroupCell}
+                  <td className="bg-muted border px-2 py-1 font-semibold">
+                    {row}
+                  </td>
+                  {gridConfig.columns.map((_, j) => {
+                    const cc = getColConfig(j);
+                    const effectiveType =
+                      cc?.type || gridConfig.cellConfig.type;
+                    return (
+                      <td
+                        key={j}
+                        className={`border px-2 py-1 ${effectiveType === "formula" ? "bg-blue-50/50" : ""}`}
+                      >
+                        {effectiveType === "formula" ? (
+                          <span className="text-xs text-blue-500 italic">
+                            = calculated
+                          </span>
+                        ) : effectiveType === "multi-field" ? (
+                          <div className="rounded border border-dashed border-purple-300 bg-purple-50 p-1">
+                            <span className="text-xs text-purple-500 italic">
+                              Multi-field
+                            </span>
+                          </div>
+                        ) : effectiveType === "repeater" ? (
+                          <div className="rounded border border-dashed border-gray-300 bg-gray-50 p-1">
+                            <span className="text-xs text-gray-500 italic">
+                              Repeater
+                            </span>
+                          </div>
+                        ) : effectiveType === "date" ||
+                          effectiveType === "time" ||
+                          effectiveType === "datetime" ? (
+                          <div className="rounded border border-dashed border-teal-300 bg-teal-50 p-1">
+                            <span className="text-xs text-teal-600 italic">
+                              {effectiveType === "date"
+                                ? "Date"
+                                : effectiveType === "time"
+                                  ? "Time"
+                                  : "Date & Time"}
+                            </span>
+                          </div>
+                        ) : (
+                          <Input
+                            disabled
+                            className="h-6 text-xs"
+                            placeholder={
+                              effectiveType === "number"
+                                ? "0"
+                                : effectiveType === "long-text"
+                                  ? "textarea"
+                                  : "text"
+                            }
+                          />
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

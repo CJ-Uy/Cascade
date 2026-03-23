@@ -122,12 +122,18 @@ interface GridTableSpreadsheetProps {
   fieldId: string;
   gridConfig: GridTableConfig;
   onUpdate: Function;
+  /** Optional content for Preview tab in fullscreen mode */
+  previewContent?: React.ReactNode;
+  /** Optional content for Formula Reference tab in fullscreen mode */
+  formulaContent?: React.ReactNode;
 }
 
 export function GridTableSpreadsheet({
   fieldId,
   gridConfig,
   onUpdate,
+  previewContent,
+  formulaContent,
 }: GridTableSpreadsheetProps) {
   const [selection, setSelection] = useState<Selection>(null);
   const [editingCell, setEditingCell] = useState<{
@@ -160,6 +166,9 @@ export function GridTableSpreadsheet({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenDirty, setFullscreenDirty] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const [fullscreenTab, setFullscreenTab] = useState<
+    "builder" | "preview" | "formulas"
+  >("builder");
   const fullscreenSnapshotRef = useRef<GridTableConfig | null>(null);
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
 
@@ -233,7 +242,8 @@ export function GridTableSpreadsheet({
       }
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, [isFullscreen, fullscreenDirty]);
 
   const getRowConfig = (rowIndex: number): GridRowConfig => {
@@ -1375,7 +1385,7 @@ export function GridTableSpreadsheet({
   // ── Spreadsheet content (shared between inline & fullscreen) ──
   const spreadsheetContent = (isFS: boolean) => (
     <div
-      className={cn("w-full space-y-3", isFS && "flex h-full flex-col")}
+      className={cn("w-full space-y-3", isFS && "flex min-h-0 flex-1 flex-col")}
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
@@ -1893,7 +1903,7 @@ export function GridTableSpreadsheet({
         ref={gridRef}
         className={cn(
           "max-w-full overflow-auto rounded-md border select-none",
-          isFS ? "flex-1" : "max-h-[500px]",
+          isFS ? "min-h-0 flex-1" : "max-h-[500px]",
         )}
         onMouseUp={() => {
           if (
@@ -2485,16 +2495,42 @@ export function GridTableSpreadsheet({
       {isFullscreen && (
         <div
           ref={fullscreenContainerRef}
-          className="absolute inset-0 z-50 flex flex-col overflow-hidden bg-white p-4 dark:bg-gray-950"
+          className="absolute inset-0 z-50 flex flex-col overflow-hidden bg-white dark:bg-gray-950"
         >
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700">
-              Grid Table Editor
-            </h3>
+          {/* Header with tabs and close button */}
+          <div className="flex shrink-0 items-center justify-between border-b px-4 pt-3 pb-0">
+            <div className="flex items-center gap-4">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                Grid Table Editor
+              </h3>
+              {/* Tabs */}
+              <div className="flex">
+                {(
+                  [
+                    { key: "builder", label: "Builder" },
+                    { key: "preview", label: "Preview" },
+                    { key: "formulas", label: "Formula Reference" },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setFullscreenTab(tab.key)}
+                    className={cn(
+                      "border-b-2 px-3 py-2 text-xs font-medium transition-colors",
+                      fullscreenTab === tab.key
+                        ? "border-primary text-primary"
+                        : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200",
+                    )}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="mb-1 h-8 w-8"
               onClick={(e) => {
                 e.stopPropagation();
                 requestCloseFullscreen();
@@ -2504,7 +2540,29 @@ export function GridTableSpreadsheet({
               <X className="h-4 w-4" />
             </Button>
           </div>
-          {spreadsheetContent(true)}
+
+          {/* Tab content */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+            {fullscreenTab === "builder" && spreadsheetContent(true)}
+            {fullscreenTab === "preview" && (
+              <div className="flex-1 overflow-auto">
+                {previewContent || (
+                  <p className="text-muted-foreground p-6 text-center text-sm">
+                    Preview not available
+                  </p>
+                )}
+              </div>
+            )}
+            {fullscreenTab === "formulas" && (
+              <div className="flex-1 overflow-auto">
+                {formulaContent || (
+                  <p className="text-muted-foreground p-6 text-center text-sm">
+                    Formula reference not available
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

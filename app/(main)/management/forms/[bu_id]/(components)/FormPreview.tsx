@@ -1150,7 +1150,7 @@ function GridTablePreview({
   };
 
   return (
-    <div className="mb-6 min-w-0 max-w-full overflow-hidden rounded-lg border border-gray-300 bg-gray-50/50 p-4 shadow-sm">
+    <div className="mb-6 max-w-full min-w-0 overflow-hidden rounded-lg border border-gray-300 bg-gray-50/50 p-4 shadow-sm">
       <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-700">
         <Table className="h-5 w-5" />
         {field.label}
@@ -1227,7 +1227,7 @@ function GridTablePreview({
                   <th
                     key={colIndex}
                     className={cn(
-                      "border-border border p-2 text-center font-semibold min-w-[120px]",
+                      "border-border min-w-[120px] border p-2 text-center font-semibold",
                       isFormula ? "bg-blue-50/70 text-blue-700" : "bg-muted/50",
                     )}
                   >

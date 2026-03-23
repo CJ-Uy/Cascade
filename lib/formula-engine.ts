@@ -583,26 +583,43 @@ export function evaluateFormula(
         return "0";
       },
     );
-    // Replace {ColName} references
-    resolved = resolved.replace(/\{(.+?)\}/g, (_match, colName) => {
-      const idx = colIndexMap[colName];
-      if (idx === undefined) return "0";
-      const cellKey = `${rowIndex}-${idx}`;
-      const cellVal = value[cellKey];
-      if (cellVal === undefined || cellVal === null || cellVal === "")
-        return "0";
-      if (typeof cellVal === "object") return "0";
-      return String(cellVal);
-    });
-
     // Replace A1-style cell references (e.g., A1, B3, AA12)
-    // Process SUM(A1:A5) ranges first, then A1.{SubField}, then individual refs
+    // Process SUM ranges first (most specific to least specific)
+    // SUM(A1.{Field}:A5.{Field}) — sub-field range within compound expressions
+    resolved = resolved.replace(
+      /SUM\(([A-Z]+)(\d+)\.\{(.+?)\}:([A-Z]+)(\d+)\.\{(.+?)\}\)/gi,
+      (_match, c1L, r1, field1, c2L, r2, _field2) => {
+        const c1 = colLetterToIndex(c1L);
+        const r1i = parseInt(r1, 10) - 1;
+        const c2 = colLetterToIndex(c2L);
+        const r2i = parseInt(r2, 10) - 1;
+        let total = 0;
+        for (let r = Math.min(r1i, r2i); r <= Math.max(r1i, r2i); r++) {
+          for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) {
+            if (r < 0 || c < 0) continue;
+            const colLetter = indexToColLetter(c);
+            const ref = resolveA1Ref(
+              `${colLetter}${r + 1}.{${field1}}`,
+              value,
+              columnConfigs,
+              cellConfig,
+              cellOverrides,
+              ctx,
+            );
+            total += parseFloat(ref) || 0;
+          }
+        }
+        return String(Math.round(total * 100) / 100);
+      },
+    );
+    // SUM(A1:A5) — simple A1-style range
     resolved = resolved.replace(
       /SUM\(([A-Z]+)(\d+):([A-Z]+)(\d+)\)/gi,
       (_match, c1, r1, c2, r2) =>
         String(sumA1Range(c1, r1, c2, r2, value, ctx)),
     );
-    // Replace A1.{SubField} references first (most specific)
+    // Replace A1.{SubField} references BEFORE generic {ColName} to prevent
+    // the generic regex from consuming braces in patterns like A6.{Cost}
     resolved = resolved.replace(
       /\b([A-Z]+)(\d+)\.\{(.+?)\}/gi,
       (_match, colLetter, rowNum, subField) => {
@@ -617,6 +634,17 @@ export function evaluateFormula(
         );
       },
     );
+    // Replace {ColName} references (after A1.{SubField} so braces aren't consumed early)
+    resolved = resolved.replace(/\{(.+?)\}/g, (_match, colName) => {
+      const idx = colIndexMap[colName];
+      if (idx === undefined) return "0";
+      const cellKey = `${rowIndex}-${idx}`;
+      const cellVal = value[cellKey];
+      if (cellVal === undefined || cellVal === null || cellVal === "")
+        return "0";
+      if (typeof cellVal === "object") return "0";
+      return String(cellVal);
+    });
     resolved = resolved.replace(
       /\b([A-Z]+)(\d+)\b/gi,
       (_match, colLetter, rowNum) => {

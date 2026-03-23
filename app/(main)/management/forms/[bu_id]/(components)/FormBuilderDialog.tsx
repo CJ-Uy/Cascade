@@ -172,11 +172,22 @@ export function FormBuilderDialog({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleCloseAttempt(); }}>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open) handleCloseAttempt();
+        }}
+      >
         <DialogContent
           onOpenAutoFocus={(e) => e.preventDefault()}
-          onPointerDownOutside={(e) => { e.preventDefault(); handleCloseAttempt(); }}
-          onEscapeKeyDown={(e) => { e.preventDefault(); handleCloseAttempt(); }}
+          onPointerDownOutside={(e) => {
+            e.preventDefault();
+            handleCloseAttempt();
+          }}
+          onEscapeKeyDown={(e) => {
+            e.preventDefault();
+            handleCloseAttempt();
+          }}
           onCloseClick={handleCloseAttempt}
           style={{ width: "95vw", maxWidth: "1152px" }}
           className="flex max-h-[90vh] flex-col overflow-hidden"
@@ -187,14 +198,17 @@ export function FormBuilderDialog({
 
           <Tabs
             defaultValue="builder"
-            className="flex min-w-0 flex-grow flex-col overflow-y-auto overflow-x-hidden pt-4"
+            className="flex min-w-0 flex-grow flex-col overflow-x-hidden overflow-y-auto pt-4"
           >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="builder">Builder</TabsTrigger>
               <TabsTrigger value="preview">Preview</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="builder" className="min-h-[60vh] min-w-0 max-w-full overflow-x-hidden pt-4">
+            <TabsContent
+              value="builder"
+              className="min-h-[60vh] max-w-full min-w-0 overflow-x-hidden pt-4"
+            >
               <div className="flex flex-col items-center gap-4 py-4">
                 <div className="flex w-full max-w-lg items-center justify-center gap-3">
                   <Popover
