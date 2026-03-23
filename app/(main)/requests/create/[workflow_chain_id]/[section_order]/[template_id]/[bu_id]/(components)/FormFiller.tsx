@@ -1307,7 +1307,7 @@ function GridTablePreview({
         const isImage = fileData?.filetype?.startsWith("image/");
 
         return (
-          <div className="min-w-0 w-full max-w-full space-y-1.5 overflow-hidden p-1">
+          <div className="w-full max-w-full min-w-0 space-y-1.5 overflow-hidden p-1">
             {/* File preview when uploaded */}
             {fileData && (
               <div className="border-border bg-muted/30 flex items-center gap-2 rounded-md border p-1.5">
@@ -1730,7 +1730,7 @@ function GridTablePreview({
   }, [cellConfig]);
 
   return (
-    <div className="mb-6 min-w-0 max-w-full overflow-hidden">
+    <div className="mb-6 max-w-full min-w-0 overflow-hidden">
       {/* Header */}
       <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-gray-700">
         <Table className="h-5 w-5" />
@@ -1812,7 +1812,7 @@ function GridTablePreview({
                   <th
                     key={colIndex}
                     className={cn(
-                      "border-b px-3 py-2.5 text-center text-sm font-semibold min-w-[120px]",
+                      "min-w-[120px] border-b px-3 py-2.5 text-center text-sm font-semibold",
                       isFormula
                         ? "bg-blue-50/70 text-blue-700"
                         : "bg-muted/70 text-gray-700",
@@ -2009,7 +2009,7 @@ function GridTablePreview({
                           isFormula ? "bg-blue-50/30" : "",
                         )}
                       >
-                        <div className="min-w-0 max-w-full">
+                        <div className="max-w-full min-w-0">
                           {renderCellInput(rowIndex, colIndex)}
                         </div>
                       </td>
