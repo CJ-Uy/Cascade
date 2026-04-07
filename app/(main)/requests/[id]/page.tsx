@@ -86,6 +86,25 @@ export default async function RequestDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  // Generate control number: <BU_initial>-<YY>-<MM>-<NNNN>
+  // Count requests in the same BU for the same year-month up to and including this one
+  const createdAt = new Date((request as any).created_at);
+  const yearStr = String(createdAt.getFullYear()).slice(-2);
+  const monthStr = String(createdAt.getMonth() + 1).padStart(2, "0");
+  const monthStart = new Date(createdAt.getFullYear(), createdAt.getMonth(), 1).toISOString();
+  const monthEnd = new Date(createdAt.getFullYear(), createdAt.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+  const { count: sequenceCount } = await supabase
+    .from("requests")
+    .select("id", { count: "exact", head: true })
+    .eq("business_unit_id", (request as any).business_unit_id)
+    .gte("created_at", monthStart)
+    .lte("created_at", (request as any).created_at);
+
+  const buName: string = (request as any).business_units?.name || "R";
+  const companyCode = buName.charAt(0).toUpperCase();
+  const controlNumber = `${companyCode}-${yearStr}-${monthStr}-${String(sequenceCount || 1).padStart(4, "0")}`;
+
   // Fetch request history
   const { data: history } = await supabase
     .from("request_history")
@@ -213,6 +232,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
         currentUserId={user.id}
         workflowProgress={workflowProgress || null}
         requestId={requestId}
+        controlNumber={controlNumber}
         onCommentsRefreshed={handleCommentsRefreshed}
         approvalPosition={{
           isMyTurn: myApprovalPosition?.is_my_turn || isMyTurnDirect,

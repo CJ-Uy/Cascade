@@ -42,7 +42,8 @@ interface DocumentViewProps {
   comments: any[];
   currentUserId: string;
   workflowProgress: any;
-  requestId: string; // Add requestId here
+  requestId: string;
+  controlNumber?: string;
   onCommentsRefreshed: () => void;
   approvalPosition?: {
     isMyTurn: boolean;
@@ -59,6 +60,7 @@ export function DocumentView({
   currentUserId,
   workflowProgress,
   requestId,
+  controlNumber,
   onCommentsRefreshed,
   approvalPosition,
 }: DocumentViewProps) {
@@ -144,6 +146,11 @@ export function DocumentView({
                 {document.status}
               </Badge>
             </div>
+            {controlNumber && (
+              <p className="text-muted-foreground mt-1 font-mono text-sm font-semibold tracking-wider">
+                Control No. {controlNumber}
+              </p>
+            )}
             <p className="text-muted-foreground mt-1">{form?.description}</p>
             <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-4 text-sm">
               <span className="flex items-center gap-1">
@@ -184,6 +191,7 @@ export function DocumentView({
             document={document}
             formFields={form?.form_fields || []}
             formData={formData}
+            controlNumber={controlNumber}
           />
         </div>
       </div>

@@ -12,6 +12,7 @@ interface ExportPdfProps {
   document: any;
   formFields: any[];
   formData: Record<string, any>;
+  controlNumber?: string;
 }
 
 // Shared cursor state for PDF rendering
@@ -490,6 +491,7 @@ export function ExportPdfButton({
   document: doc,
   formFields,
   formData,
+  controlNumber,
 }: ExportPdfProps) {
   const [loading, setLoading] = useState(false);
 
@@ -514,6 +516,16 @@ export function ExportPdfButton({
       pdf.setFont("helvetica", "bold");
       pdf.text(form?.name || "Request", margin, cursor.y + 7);
       cursor.y += 12;
+
+      // Control number
+      if (controlNumber) {
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`Control No. ${controlNumber}`, margin, cursor.y);
+        pdf.setTextColor(0, 0, 0);
+        cursor.y += 6;
+      }
 
       // Status badge
       pdf.setFontSize(10);
