@@ -13,6 +13,7 @@ interface ExportPdfProps {
   formFields: any[];
   formData: Record<string, any>;
   controlNumber?: string;
+  organizationName?: string;
 }
 
 // Shared cursor state for PDF rendering
@@ -33,6 +34,87 @@ function checkPageBreak(
   }
 }
 
+async function fetchImageAsDataUrl(
+  publicUrl: string,
+  filetype: string,
+): Promise<{ dataUrl: string; width: number; height: number; format: string } | null> {
+  try {
+    const response = await fetch(publicUrl);
+    const blob = await response.blob();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    const ext = (filetype.split("/")[1] || "png").toUpperCase();
+    const imgFormat = ["JPEG", "JPG", "PNG", "GIF", "WEBP"].includes(ext)
+      ? ext
+      : "PNG";
+
+    const img = new Image();
+    await new Promise<void>((resolve) => {
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+      img.src = dataUrl;
+    });
+
+    return { dataUrl, width: img.width, height: img.height, format: imgFormat };
+  } catch {
+    return null;
+  }
+}
+
+async function addImageToPdf(
+  pdf: any,
+  cursor: PdfCursor,
+  margin: number,
+  contentWidth: number,
+  fileData: { storage_path: string; filename: string; filetype: string },
+  supabase: any,
+  maxH = 80,
+) {
+  const { data: { publicUrl } } = supabase.storage
+    .from("attachments")
+    .getPublicUrl(fileData.storage_path);
+
+  const imgResult = await fetchImageAsDataUrl(publicUrl, fileData.filetype);
+  if (!imgResult || imgResult.width === 0 || imgResult.height === 0) {
+    pdf.setFontSize(9);
+    pdf.text(`[Image: ${fileData.filename}]`, margin, cursor.y);
+    cursor.y += 6;
+    return;
+  }
+
+  const { dataUrl, width, height, format } = imgResult;
+  const maxW = contentWidth;
+  let imgW = width * 0.264583;
+  let imgH = height * 0.264583;
+  if (imgW > maxW) { const s = maxW / imgW; imgW = maxW; imgH *= s; }
+  if (imgH > maxH) { const s = maxH / imgH; imgH = maxH; imgW *= s; }
+
+  checkPageBreak(pdf, cursor, margin, imgH + 10);
+  try {
+    pdf.addImage(dataUrl, format === "JPG" ? "JPEG" : format, margin, cursor.y, imgW, imgH);
+    cursor.y += imgH + 3;
+  } catch {
+    pdf.text(`[Image: ${fileData.filename}]`, margin, cursor.y);
+    cursor.y += 5;
+  }
+  pdf.setFontSize(8);
+  pdf.setTextColor(100, 100, 100);
+  pdf.text(fileData.filename, margin, cursor.y);
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFontSize(10);
+  cursor.y += 6;
+}
+
+interface AppendixFile {
+  label: string;
+  fileData: { storage_path: string; filename: string; filetype: string };
+}
+
 async function renderField(
   pdf: any,
   cursor: PdfCursor,
@@ -42,6 +124,7 @@ async function renderField(
   margin: number,
   contentWidth: number,
   supabase: any,
+  fileAppendix: AppendixFile[],
 ) {
   checkPageBreak(pdf, cursor, margin, 20);
 
@@ -216,88 +299,22 @@ async function renderField(
       ) {
         const isImage = value.filetype?.startsWith("image/");
         if (isImage) {
-          try {
-            const {
-              data: { publicUrl },
-            } = supabase.storage
-              .from("attachments")
-              .getPublicUrl(value.storage_path);
-
-            const response = await fetch(publicUrl);
-            const blob = await response.blob();
-            const dataUrl = await new Promise<string>((resolve) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as string);
-              reader.readAsDataURL(blob);
-            });
-
-            const ext = value.filetype.split("/")[1]?.toUpperCase() || "PNG";
-            const imgFormat = ["JPEG", "JPG", "PNG", "GIF", "WEBP"].includes(
-              ext,
-            )
-              ? ext
-              : "PNG";
-
-            const img = new Image();
-            await new Promise<void>((resolve) => {
-              img.onload = () => resolve();
-              img.onerror = () => resolve();
-              img.src = dataUrl;
-            });
-
-            if (img.width > 0 && img.height > 0) {
-              const maxW = contentWidth;
-              const maxH = 80;
-              let imgW = img.width * 0.264583;
-              let imgH = img.height * 0.264583;
-
-              if (imgW > maxW) {
-                const scale = maxW / imgW;
-                imgW = maxW;
-                imgH *= scale;
-              }
-              if (imgH > maxH) {
-                const scale = maxH / imgH;
-                imgH = maxH;
-                imgW *= scale;
-              }
-
-              checkPageBreak(pdf, cursor, margin, imgH + 12);
-              try {
-                pdf.addImage(
-                  dataUrl,
-                  imgFormat === "JPG" ? "JPEG" : imgFormat,
-                  margin,
-                  cursor.y,
-                  imgW,
-                  imgH,
-                );
-                cursor.y += imgH + 3;
-              } catch {
-                pdf.text(`[Image: ${value.filename}]`, margin, cursor.y);
-                cursor.y += 5;
-              }
-            }
-
-            pdf.setFontSize(8);
-            pdf.setTextColor(100, 100, 100);
-            pdf.text(value.filename, margin, cursor.y);
-            pdf.setTextColor(0, 0, 0);
-            pdf.setFontSize(10);
-            cursor.y += 8;
-          } catch {
-            pdf.text(`[Image: ${value.filename}]`, margin, cursor.y);
-            cursor.y += 8;
-          }
+          await addImageToPdf(pdf, cursor, margin, contentWidth, value, supabase);
         } else {
+          // Defer non-image files to appendix
+          fileAppendix.push({ label: field.label, fileData: value });
           checkPageBreak(pdf, cursor, margin, 8);
           pdf.setFontSize(9);
-          pdf.text(`Attachment: ${value.filename}`, margin, cursor.y);
+          pdf.setTextColor(100, 100, 100);
+          pdf.setFont("helvetica", "italic");
+          pdf.text(`[File: ${value.filename} — see appendix]`, margin, cursor.y);
+          pdf.setFont("helvetica", "normal");
+          pdf.setTextColor(0, 0, 0);
           pdf.setFontSize(10);
           cursor.y += 8;
         }
-      } else if (typeof value === "object" && value.name) {
-        pdf.text(`Attachment: ${value.name}`, margin, cursor.y);
+      } else if (typeof value === "object" && value !== null && (value as any).name) {
+        pdf.text(`Attachment: ${(value as any).name}`, margin, cursor.y);
         cursor.y += 8;
       } else {
         pdf.text("File uploaded", margin, cursor.y);
@@ -402,6 +419,7 @@ async function renderField(
       const gridConfig = field.gridConfig || field.field_config;
       const rows = gridConfig?.rows || [];
       const columns = gridConfig?.columns || [];
+      const columnConfigs = gridConfig?.columnConfigs || [];
 
       if (rows.length === 0 || columns.length === 0) {
         cursor.y += 5;
@@ -426,6 +444,20 @@ async function renderField(
       pdf.setFont("helvetica", "normal");
       cursor.y += gridRowH;
 
+      // Collect multi-field images/files to render after the table
+      const pendingImages: {
+        rowLabel: string;
+        colLabel: string;
+        subLabel: string;
+        fileData: { storage_path: string; filename: string; filetype: string };
+      }[] = [];
+      const pendingFiles: {
+        rowLabel: string;
+        colLabel: string;
+        subLabel: string;
+        fileData: { storage_path: string; filename: string; filetype: string };
+      }[] = [];
+
       // Data rows
       rows.forEach((row: string, rowIndex: number) => {
         checkPageBreak(pdf, cursor, margin, gridRowH);
@@ -443,23 +475,48 @@ async function renderField(
           const x = margin + rowHeaderW + colIndex * gridColW;
           const cellKey = `${rowIndex}-${colIndex}`;
           const cellValue = value[cellKey];
+          const cc = columnConfigs[colIndex];
           let displayVal = "—";
-          if (
-            cellValue !== null &&
-            cellValue !== undefined &&
-            cellValue !== ""
-          ) {
-            if (typeof cellValue === "object" && cellValue.filename) {
-              displayVal = cellValue.filename;
+
+          if (cellValue !== null && cellValue !== undefined && cellValue !== "") {
+            if (cc?.type === "multi-field" && typeof cellValue === "object") {
+              // Build a short text summary; collect images for after
+              const parts: string[] = [];
+              (cc.columns || []).forEach((subCol: any) => {
+                const fv = cellValue[subCol.field_key] || cellValue[subCol.id];
+                if (fv?.storage_path && fv?.filetype?.startsWith("image/")) {
+                  parts.push(`${subCol.label}: [img]`);
+                  pendingImages.push({
+                    rowLabel: row,
+                    colLabel: columns[colIndex],
+                    subLabel: subCol.label,
+                    fileData: fv,
+                  });
+                } else if (fv?.storage_path) {
+                  parts.push(`${subCol.label}: ${fv.filename}`);
+                  pendingFiles.push({
+                    rowLabel: row,
+                    colLabel: columns[colIndex],
+                    subLabel: subCol.label,
+                    fileData: fv,
+                  });
+                } else if (fv && typeof fv !== "object") {
+                  parts.push(`${subCol.label}: ${fv}`);
+                }
+              });
+              displayVal = parts.join(" | ") || "—";
+            } else if (typeof cellValue === "object" && (cellValue as any).filename) {
+              displayVal = (cellValue as any).filename;
             } else if (typeof cellValue === "object") {
               const sel = Object.entries(cellValue)
-                .filter(([_, v]) => v)
-                .map(([k]) => k);
+                .filter(([_, v]) => v && typeof v !== "object")
+                .map(([k, v]) => String(v));
               displayVal = sel.join(", ") || "—";
             } else {
               displayVal = String(cellValue);
             }
           }
+
           const truncated =
             displayVal.length > 20
               ? displayVal.substring(0, 17) + "..."
@@ -470,6 +527,40 @@ async function renderField(
       });
       cursor.y += 5;
       pdf.setFontSize(10);
+
+      // Render collected images below the table
+      if (pendingImages.length > 0) {
+        checkPageBreak(pdf, cursor, margin, 12);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Attached Images:", margin, cursor.y);
+        cursor.y += 6;
+        pdf.setFont("helvetica", "normal");
+
+        for (const item of pendingImages) {
+          checkPageBreak(pdf, cursor, margin, 10);
+          pdf.setFontSize(8);
+          pdf.setTextColor(80, 80, 80);
+          pdf.text(
+            `${item.rowLabel} › ${item.colLabel} › ${item.subLabel}`,
+            margin,
+            cursor.y,
+          );
+          pdf.setTextColor(0, 0, 0);
+          cursor.y += 5;
+          await addImageToPdf(pdf, cursor, margin, contentWidth, item.fileData, supabase);
+        }
+        pdf.setFontSize(10);
+      }
+
+      // Defer non-image file attachments to appendix
+      for (const item of pendingFiles) {
+        fileAppendix.push({
+          label: `${field.label} › ${item.rowLabel} › ${item.colLabel} › ${item.subLabel}`,
+          fileData: item.fileData,
+        });
+      }
+
       break;
     }
 
@@ -492,6 +583,7 @@ export function ExportPdfButton({
   formFields,
   formData,
   controlNumber,
+  organizationName,
 }: ExportPdfProps) {
   const [loading, setLoading] = useState(false);
 
@@ -512,24 +604,36 @@ export function ExportPdfButton({
       const cursor: PdfCursor = { y: margin };
 
       // --- Header ---
+      // Company / Organization name
+      const companyName = organizationName || doc.business_units?.name || "";
+      if (companyName) {
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(80, 80, 80);
+        pdf.text(companyName.toUpperCase(), margin, cursor.y);
+        pdf.setTextColor(0, 0, 0);
+        cursor.y += 7;
+      }
+
+      // Request name
       pdf.setFontSize(20);
       pdf.setFont("helvetica", "bold");
-      pdf.text(form?.name || "Request", margin, cursor.y + 7);
-      cursor.y += 12;
+      pdf.text(form?.name || "Request", margin, cursor.y);
+      cursor.y += 8;
 
       // Control number
       if (controlNumber) {
-        pdf.setFontSize(9);
+        pdf.setFontSize(10);
         pdf.setFont("helvetica", "normal");
-        pdf.setTextColor(100, 100, 100);
+        pdf.setTextColor(80, 80, 80);
         pdf.text(`Control No. ${controlNumber}`, margin, cursor.y);
         pdf.setTextColor(0, 0, 0);
-        cursor.y += 6;
+        cursor.y += 7;
       }
 
       // Status badge
-      pdf.setFontSize(10);
-      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "bold");
       const statusColors: Record<string, [number, number, number]> = {
         SUBMITTED: [59, 130, 246],
         IN_REVIEW: [59, 130, 246],
@@ -547,13 +651,14 @@ export function ExportPdfButton({
       pdf.setTextColor(255, 255, 255);
       pdf.text(statusText, margin + 4, cursor.y + 1);
       pdf.setTextColor(0, 0, 0);
-      cursor.y += 10;
+      pdf.setFont("helvetica", "normal");
+      cursor.y += 9;
 
       // Meta info
       pdf.setFontSize(9);
       pdf.setTextColor(100, 100, 100);
       const metaLines = [
-        `Submitted by: ${initiator?.first_name || ""} ${initiator?.last_name || ""}`,
+        `Submitted by: ${initiator?.first_name || ""} ${initiator?.last_name || ""}`.trim(),
         `Business Unit: ${doc.business_units?.name || "—"}`,
         `Date: ${format(new Date(doc.created_at), "PPP 'at' p")}`,
       ];
@@ -562,8 +667,9 @@ export function ExportPdfButton({
         cursor.y += 5;
       });
       if (form?.description) {
-        pdf.text(`Description: ${form.description}`, margin, cursor.y);
-        cursor.y += 5;
+        const descLines = pdf.splitTextToSize(`Description: ${form.description}`, contentWidth);
+        pdf.text(descLines, margin, cursor.y);
+        cursor.y += descLines.length * 5;
       }
       pdf.setTextColor(0, 0, 0);
       cursor.y += 3;
@@ -578,6 +684,8 @@ export function ExportPdfButton({
         .filter((f: any) => !f.parent_list_field_id)
         .sort((a: any, b: any) => a.display_order - b.display_order);
 
+      const fileAppendix: AppendixFile[] = [];
+
       for (const field of topLevelFields) {
         const value = formData[field.field_key];
         await renderField(
@@ -589,7 +697,47 @@ export function ExportPdfButton({
           margin,
           contentWidth,
           supabase,
+          fileAppendix,
         );
+      }
+
+      // --- Appendix: File Attachments ---
+      if (fileAppendix.length > 0) {
+        pdf.addPage();
+        cursor.y = margin;
+
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(0, 0, 0);
+        pdf.text("Appendix: File Attachments", margin, cursor.y);
+        cursor.y += 4;
+
+        pdf.setDrawColor(220, 220, 220);
+        pdf.line(margin, cursor.y, pageWidth - margin, cursor.y);
+        cursor.y += 8;
+
+        for (const item of fileAppendix) {
+          checkPageBreak(pdf, cursor, margin, 20);
+
+          // Label
+          pdf.setFontSize(9);
+          pdf.setFont("helvetica", "bold");
+          pdf.setTextColor(50, 50, 50);
+          const labelLines = pdf.splitTextToSize(item.label, contentWidth);
+          pdf.text(labelLines, margin, cursor.y);
+          cursor.y += labelLines.length * 5 + 2;
+
+          // Clickable filename
+          const { data: { publicUrl } } = supabase.storage
+            .from("attachments")
+            .getPublicUrl(item.fileData.storage_path);
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(10);
+          pdf.setTextColor(37, 99, 235);
+          pdf.textWithLink(item.fileData.filename, margin, cursor.y, { url: publicUrl });
+          pdf.setTextColor(0, 0, 0);
+          cursor.y += 10;
+        }
       }
 
       // --- Footer ---
@@ -619,7 +767,7 @@ export function ExportPdfButton({
     } finally {
       setLoading(false);
     }
-  }, [doc, formFields, formData]);
+  }, [doc, formFields, formData, organizationName, controlNumber]);
 
   return (
     <Button

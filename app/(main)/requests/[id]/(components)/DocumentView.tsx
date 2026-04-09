@@ -192,6 +192,7 @@ export function DocumentView({
             formFields={form?.form_fields || []}
             formData={formData}
             controlNumber={controlNumber}
+            organizationName={(document as any).organizations?.name}
           />
         </div>
       </div>

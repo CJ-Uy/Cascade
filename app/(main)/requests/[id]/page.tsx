@@ -69,6 +69,10 @@ export default async function RequestDetailPage({ params }: PageProps) {
           id,
           name
         ),
+        organizations(
+          id,
+          name
+        ),
         initiator:profiles!initiator_id(
           id,
           first_name,

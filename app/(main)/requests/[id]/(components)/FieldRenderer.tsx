@@ -455,6 +455,12 @@ export function FieldRenderer({
       );
 
     case "date": {
+      // Empty object (cleared range picker stored as {})
+      if (typeof value === "object" && value !== null && !value.from && !value.to) {
+        return (
+          <p className="text-muted-foreground text-sm italic">No value provided</p>
+        );
+      }
       // Range value
       if (
         typeof value === "object" &&
@@ -517,6 +523,13 @@ export function FieldRenderer({
     }
 
     case "datetime": {
+      // Empty object (cleared range picker stored as {})
+      if (typeof value === "object" && value !== null && !value.from && !value.to) {
+        return (
+          <p className="text-muted-foreground text-sm italic">No value provided</p>
+        );
+      }
+
       const fmtDt = (iso: string) => {
         const d = new Date(iso);
         const h = d.getHours();
@@ -948,13 +961,20 @@ function GridCellRenderer({
                 Row {idx + 1}:{" "}
               </span>
               {cellConfig.columns &&
-                cellConfig.columns.map((col: any, colIdx: number) => (
-                  <span key={col.id}>
-                    {colIdx > 0 && ", "}
-                    <span className="font-medium">{col.label}:</span>{" "}
-                    {row[col.field_key] || row[col.id] || "-"}
-                  </span>
-                ))}
+                cellConfig.columns.map((col: any, colIdx: number) => {
+                  const cellVal = row[col.field_key] ?? row[col.id];
+                  const displayVal =
+                    !cellVal || typeof cellVal === "object"
+                      ? "-"
+                      : String(cellVal);
+                  return (
+                    <span key={col.id}>
+                      {colIdx > 0 && ", "}
+                      <span className="font-medium">{col.label}:</span>{" "}
+                      {displayVal}
+                    </span>
+                  );
+                })}
             </div>
           ))}
         </div>
@@ -966,31 +986,79 @@ function GridCellRenderer({
       }
 
       return (
-        <div className="space-y-0.5">
+        <div className="space-y-1.5">
           {cellConfig.columns &&
             cellConfig.columns.map((col: any) => {
               const fieldVal = value[col.field_key] || value[col.id];
+              const hasFile =
+                fieldVal &&
+                typeof fieldVal === "object" &&
+                fieldVal.storage_path;
+
+              if (hasFile) {
+                const supabase = createClient();
+                const {
+                  data: { publicUrl },
+                } = supabase.storage
+                  .from("attachments")
+                  .getPublicUrl(fieldVal.storage_path);
+                const isImage = fieldVal.filetype?.startsWith("image/");
+
+                return (
+                  <div key={col.id} className="text-xs">
+                    <span className="text-muted-foreground font-medium">
+                      {col.label}:
+                    </span>
+                    <div className="mt-1">
+                      {isImage ? (
+                        <div className="space-y-1">
+                          <a
+                            href={publicUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block"
+                          >
+                            <img
+                              src={publicUrl}
+                              alt={fieldVal.filename}
+                              className="border-border max-h-40 rounded border object-contain transition-opacity hover:opacity-90"
+                            />
+                          </a>
+                          <div className="text-muted-foreground flex items-center gap-1">
+                            <ImageIcon className="h-3 w-3" />
+                            <span className="truncate">{fieldVal.filename}</span>
+                            <a href={publicUrl} download={fieldVal.filename} className="ml-auto">
+                              <Button size="sm" variant="outline" className="h-5 px-1.5 text-[10px]">
+                                <Download className="mr-1 h-2.5 w-2.5" />
+                                Download
+                              </Button>
+                            </a>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="border-border bg-muted/50 flex items-center gap-1.5 rounded border px-2 py-1">
+                          <FileText className="h-3 w-3 text-blue-600" />
+                          <span className="flex-1 truncate">{fieldVal.filename}</span>
+                          <a href={publicUrl} download={fieldVal.filename}>
+                            <Button size="sm" variant="outline" className="h-5 px-1.5 text-[10px]">
+                              <Download className="mr-1 h-2.5 w-2.5" />
+                              Download
+                            </Button>
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div key={col.id} className="text-xs">
                   <span className="text-muted-foreground font-medium">
                     {col.label}:
                   </span>{" "}
-                  {fieldVal &&
-                  typeof fieldVal === "object" &&
-                  fieldVal.storage_path ? (
-                    <a
-                      href={
-                        createClient()
-                          .storage.from("attachments")
-                          .getPublicUrl(fieldVal.storage_path).data.publicUrl
-                      }
-                      download={fieldVal.filename}
-                      className="underline hover:no-underline"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {fieldVal.filename}
-                    </a>
+                  {typeof fieldVal === "object" && fieldVal !== null ? (
+                    <span>-</span>
                   ) : (
                     <span>{fieldVal || "-"}</span>
                   )}
