@@ -34,36 +34,72 @@ function checkPageBreak(
   }
 }
 
+function getImgFormat(filetype: string): string {
+  const ext = (filetype.split("/")[1] || "png").toUpperCase();
+  return ["JPEG", "JPG"].includes(ext) ? "JPEG" : "PNG";
+}
+
 async function fetchImageAsDataUrl(
   publicUrl: string,
   filetype: string,
 ): Promise<{ dataUrl: string; width: number; height: number; format: string } | null> {
+  // Approach 1: fetch → blob → FileReader → data URL
+  // This avoids canvas taint issues and works for Supabase public storage.
   try {
-    const response = await fetch(publicUrl);
-    const blob = await response.blob();
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-
-    const ext = (filetype.split("/")[1] || "png").toUpperCase();
-    const imgFormat = ["JPEG", "JPG", "PNG", "GIF", "WEBP"].includes(ext)
-      ? ext
-      : "PNG";
-
-    const img = new Image();
-    await new Promise<void>((resolve) => {
-      img.onload = () => resolve();
-      img.onerror = () => resolve();
-      img.src = dataUrl;
-    });
-
-    return { dataUrl, width: img.width, height: img.height, format: imgFormat };
+    const res = await fetch(publicUrl, { mode: "cors", credentials: "omit" });
+    if (res.ok) {
+      const blob = await res.blob();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      // Load from data URL (no CORS issue) to get natural dimensions
+      const dims = await new Promise<{ w: number; h: number }>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => resolve({ w: 0, h: 0 });
+        img.src = dataUrl;
+      });
+      if (dims.w > 0 && dims.h > 0) {
+        return { dataUrl, width: dims.w, height: dims.h, format: getImgFormat(filetype) };
+      }
+    }
   } catch {
-    return null;
+    // fall through to canvas approach
   }
+
+  // Approach 2: canvas with crossOrigin (fallback)
+  try {
+    const result = await new Promise<{ dataUrl: string; width: number; height: number; format: string } | null>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth;
+          const h = img.naturalHeight;
+          if (!w || !h) { resolve(null); return; }
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { resolve(null); return; }
+          ctx.drawImage(img, 0, 0);
+          const fmt = getImgFormat(filetype);
+          const mime = fmt === "JPEG" ? "image/jpeg" : "image/png";
+          resolve({ dataUrl: canvas.toDataURL(mime), width: w, height: h, format: fmt });
+        } catch { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = publicUrl;
+    });
+    if (result) return result;
+  } catch {
+    // both approaches failed
+  }
+
+  return null;
 }
 
 async function addImageToPdf(
@@ -79,10 +115,15 @@ async function addImageToPdf(
     .from("attachments")
     .getPublicUrl(fileData.storage_path);
 
+  console.log("[PDF] Rendering image:", fileData.filename, publicUrl);
   const imgResult = await fetchImageAsDataUrl(publicUrl, fileData.filetype);
+  console.log("[PDF] Image result:", imgResult ? `${imgResult.width}x${imgResult.height} ${imgResult.format}` : "FAILED");
+
   if (!imgResult || imgResult.width === 0 || imgResult.height === 0) {
     pdf.setFontSize(9);
-    pdf.text(`[Image: ${fileData.filename}]`, margin, cursor.y);
+    pdf.setTextColor(180, 0, 0);
+    pdf.text(`[Image failed to load: ${fileData.filename}]`, margin, cursor.y);
+    pdf.setTextColor(0, 0, 0);
     cursor.y += 6;
     return;
   }
@@ -96,7 +137,7 @@ async function addImageToPdf(
 
   checkPageBreak(pdf, cursor, margin, imgH + 10);
   try {
-    pdf.addImage(dataUrl, format === "JPG" ? "JPEG" : format, margin, cursor.y, imgW, imgH);
+    pdf.addImage(dataUrl, format, margin, cursor.y, imgW, imgH);
     cursor.y += imgH + 3;
   } catch {
     pdf.text(`[Image: ${fileData.filename}]`, margin, cursor.y);
@@ -362,39 +403,38 @@ async function renderField(
       pdf.setFont("helvetica", "normal");
       cursor.y += rowH;
 
-      // Rows
-      const tableStartY = cursor.y;
+      // Rows — variable height with text wrapping
       value.forEach((row: any, rowIndex: number) => {
-        checkPageBreak(pdf, cursor, margin, rowH);
-        if (rowIndex % 2 === 1) {
-          pdf.setFillColor(250, 250, 250);
-          pdf.rect(margin, cursor.y - 4, contentWidth, rowH, "F");
-        }
-        pdf.setFontSize(8);
-        pdf.text(String(rowIndex + 1), margin + 2, cursor.y);
-        columnFields.forEach((col: any, i: number) => {
-          const x = margin + numColW + i * dataColW;
+        const colLinesArr = columnFields.map((col: any) => {
           const cellVal = row[col.field_key];
           let displayVal = "—";
           if (cellVal !== null && cellVal !== undefined && cellVal !== "") {
             if (typeof cellVal === "object" && cellVal.filename) {
               displayVal = cellVal.filename;
             } else if (typeof cellVal === "object") {
-              const sel = Object.entries(cellVal)
-                .filter(([_, v]) => v)
-                .map(([k]) => k);
+              const sel = Object.entries(cellVal).filter(([_, v]) => v).map(([k]) => k);
               displayVal = sel.join(", ") || "—";
             } else {
               displayVal = String(cellVal);
             }
           }
-          const truncated =
-            displayVal.length > 30
-              ? displayVal.substring(0, 27) + "..."
-              : displayVal;
-          pdf.text(truncated, x + 2, cursor.y);
+          return pdf.splitTextToSize(displayVal, dataColW - 4) as string[];
         });
-        cursor.y += rowH;
+        const maxLines = Math.max(...colLinesArr.map((l: string[]) => l.length), 1);
+        const dynRowH = maxLines * 4.5 + 4;
+
+        checkPageBreak(pdf, cursor, margin, dynRowH);
+        if (rowIndex % 2 === 1) {
+          pdf.setFillColor(250, 250, 250);
+          pdf.rect(margin, cursor.y - 2, contentWidth, dynRowH, "F");
+        }
+        pdf.setFontSize(8);
+        pdf.text(String(rowIndex + 1), margin + 2, cursor.y);
+        columnFields.forEach((col: any, i: number) => {
+          const x = margin + numColW + i * dataColW;
+          pdf.text(colLinesArr[i], x + 2, cursor.y);
+        });
+        cursor.y += dynRowH;
       });
       cursor.y += 5;
       pdf.setFontSize(10);
@@ -426,23 +466,10 @@ async function renderField(
         break;
       }
 
-      const rowHeaderW = 30;
+      const rowHeaderW = 35;
       const gridColW = (contentWidth - rowHeaderW) / columns.length;
-      const gridRowH = 7;
-
-      // Column headers
-      checkPageBreak(pdf, cursor, margin, gridRowH * 2);
-      pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, cursor.y - 4, contentWidth, gridRowH, "F");
-      pdf.setFontSize(8);
-      pdf.setFont("helvetica", "bold");
-      columns.forEach((col: string, i: number) => {
-        const x = margin + rowHeaderW + i * gridColW;
-        const label = col.length > 15 ? col.substring(0, 12) + "..." : col;
-        pdf.text(label, x + 2, cursor.y);
-      });
-      pdf.setFont("helvetica", "normal");
-      cursor.y += gridRowH;
+      const lineH = 4.5;
+      const cellPad = 2;
 
       // Collect multi-field images/files to render after the table
       const pendingImages: {
@@ -458,75 +485,89 @@ async function renderField(
         fileData: { storage_path: string; filename: string; filetype: string };
       }[] = [];
 
-      // Data rows
+      // Helper: compute display value for a cell (also collects pending attachments)
+      const getCellDisplay = (cellValue: any, cc: any, rowStr: string, colStr: string): string => {
+        if (cellValue === null || cellValue === undefined || cellValue === "") return "—";
+        if (cc?.type === "multi-field" && typeof cellValue === "object") {
+          const parts: string[] = [];
+          (cc.columns || []).forEach((subCol: any) => {
+            const fv = cellValue[subCol.field_key] || cellValue[subCol.id];
+            if (fv?.storage_path && fv?.filetype?.startsWith("image/")) {
+              parts.push(`${subCol.label}: [see appendix]`);
+              pendingImages.push({ rowLabel: rowStr, colLabel: colStr, subLabel: subCol.label, fileData: fv });
+            } else if (fv?.storage_path) {
+              parts.push(`${subCol.label}: ${fv.filename} [see appendix]`);
+              pendingFiles.push({ rowLabel: rowStr, colLabel: colStr, subLabel: subCol.label, fileData: fv });
+            } else if (fv && typeof fv !== "object") {
+              parts.push(`${subCol.label}: ${fv}`);
+            }
+          });
+          return parts.join("\n") || "—";
+        }
+        if (typeof cellValue === "object" && (cellValue as any).filename) return (cellValue as any).filename;
+        if (typeof cellValue === "object") {
+          const sel = Object.entries(cellValue).filter(([_, v]) => v && typeof v !== "object").map(([_, v]) => String(v));
+          return sel.join(", ") || "—";
+        }
+        return String(cellValue);
+      };
+
+      // Column headers — use splitTextToSize so long headers wrap too
+      pdf.setFontSize(8);
+      pdf.setFont("helvetica", "bold");
+      const headerLineH = 4;
+      const headerLines = columns.map((col: string) => pdf.splitTextToSize(col, gridColW - cellPad * 2) as string[]);
+      const maxHeaderLines = Math.max(...headerLines.map((l: string[]) => l.length), 1);
+      const headerRowH = maxHeaderLines * headerLineH + cellPad * 2;
+      checkPageBreak(pdf, cursor, margin, headerRowH + 4);
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, cursor.y - cellPad, contentWidth, headerRowH, "F");
+      columns.forEach((_: string, i: number) => {
+        const x = margin + rowHeaderW + i * gridColW;
+        pdf.text(headerLines[i], x + cellPad, cursor.y);
+      });
+      pdf.setFont("helvetica", "normal");
+      cursor.y += headerRowH;
+
+      // Data rows with variable height
       rows.forEach((row: string, rowIndex: number) => {
-        checkPageBreak(pdf, cursor, margin, gridRowH);
+        const rowLabelLines: string[] = pdf.splitTextToSize(row, rowHeaderW - cellPad * 2);
+
+        // Pre-compute display values and line counts for each column
+        const colDisplayLines: string[][] = columns.map((_: string, colIndex: number) => {
+          const cellKey = `${rowIndex}-${colIndex}`;
+          const cc = columnConfigs[colIndex];
+          const displayVal = getCellDisplay(value[cellKey], cc, row, columns[colIndex]);
+          return pdf.splitTextToSize(displayVal, gridColW - cellPad * 2) as string[];
+        });
+
+        const maxLines = Math.max(rowLabelLines.length, ...colDisplayLines.map((l: string[]) => l.length), 1);
+        const rowH = maxLines * lineH + cellPad * 2;
+
+        checkPageBreak(pdf, cursor, margin, rowH);
+
+        // Row background
         if (rowIndex % 2 === 1) {
           pdf.setFillColor(250, 250, 250);
-          pdf.rect(margin, cursor.y - 4, contentWidth, gridRowH, "F");
+          pdf.rect(margin, cursor.y - cellPad, contentWidth, rowH, "F");
         }
+
         pdf.setFontSize(8);
         pdf.setFont("helvetica", "bold");
-        const rowLabel = row.length > 15 ? row.substring(0, 12) + "..." : row;
-        pdf.text(rowLabel, margin + 2, cursor.y);
+        pdf.text(rowLabelLines, margin + cellPad, cursor.y);
         pdf.setFont("helvetica", "normal");
 
         columns.forEach((_: string, colIndex: number) => {
           const x = margin + rowHeaderW + colIndex * gridColW;
-          const cellKey = `${rowIndex}-${colIndex}`;
-          const cellValue = value[cellKey];
-          const cc = columnConfigs[colIndex];
-          let displayVal = "—";
-
-          if (cellValue !== null && cellValue !== undefined && cellValue !== "") {
-            if (cc?.type === "multi-field" && typeof cellValue === "object") {
-              // Build a short text summary; collect images for after
-              const parts: string[] = [];
-              (cc.columns || []).forEach((subCol: any) => {
-                const fv = cellValue[subCol.field_key] || cellValue[subCol.id];
-                if (fv?.storage_path && fv?.filetype?.startsWith("image/")) {
-                  parts.push(`${subCol.label}: [img]`);
-                  pendingImages.push({
-                    rowLabel: row,
-                    colLabel: columns[colIndex],
-                    subLabel: subCol.label,
-                    fileData: fv,
-                  });
-                } else if (fv?.storage_path) {
-                  parts.push(`${subCol.label}: ${fv.filename}`);
-                  pendingFiles.push({
-                    rowLabel: row,
-                    colLabel: columns[colIndex],
-                    subLabel: subCol.label,
-                    fileData: fv,
-                  });
-                } else if (fv && typeof fv !== "object") {
-                  parts.push(`${subCol.label}: ${fv}`);
-                }
-              });
-              displayVal = parts.join(" | ") || "—";
-            } else if (typeof cellValue === "object" && (cellValue as any).filename) {
-              displayVal = (cellValue as any).filename;
-            } else if (typeof cellValue === "object") {
-              const sel = Object.entries(cellValue)
-                .filter(([_, v]) => v && typeof v !== "object")
-                .map(([k, v]) => String(v));
-              displayVal = sel.join(", ") || "—";
-            } else {
-              displayVal = String(cellValue);
-            }
-          }
-
-          const truncated =
-            displayVal.length > 20
-              ? displayVal.substring(0, 17) + "..."
-              : displayVal;
-          pdf.text(truncated, x + 2, cursor.y);
+          pdf.text(colDisplayLines[colIndex], x + cellPad, cursor.y);
         });
-        cursor.y += gridRowH;
+
+        cursor.y += rowH;
       });
       cursor.y += 5;
       pdf.setFontSize(10);
+
+      console.log("[PDF] grid-table pendingImages:", pendingImages.length, "pendingFiles:", pendingFiles.length);
 
       // Render collected images below the table
       if (pendingImages.length > 0) {

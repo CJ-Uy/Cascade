@@ -24,6 +24,23 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
 
+async function downloadFile(url: string, filename: string) {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objectUrl);
+  } catch {
+    window.open(url, "_blank");
+  }
+}
+
 interface FieldRendererProps {
   field: any;
   value: any;
@@ -608,34 +625,36 @@ export function FieldRenderer({
                 />
               </a>
               <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                <ImageIcon className="h-4 w-4" />
-                <span>{value.filename}</span>
-                <a
-                  href={publicUrl}
-                  download={value.filename}
-                  className="ml-auto"
+                <ImageIcon className="h-4 w-4 shrink-0" />
+                <span className="flex-1 truncate">{value.filename}</span>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="ml-auto h-7 w-7 shrink-0"
+                  onClick={() => downloadFile(publicUrl, value.filename)}
+                  title="Download"
                 >
-                  <Button size="sm" variant="outline" className="h-7">
-                    <Download className="mr-1 h-3 w-3" />
-                    Download
-                  </Button>
-                </a>
+                  <Download className="h-3 w-3" />
+                </Button>
               </div>
             </div>
           );
         } else {
           return (
             <div className="border-border bg-muted/50 flex items-center gap-2 rounded-md border px-3 py-2">
-              <FileText className="h-4 w-4 text-blue-600" />
-              <span className="flex-1 text-sm font-medium">
+              <FileText className="h-4 w-4 shrink-0 text-blue-600" />
+              <span className="flex-1 truncate text-sm font-medium">
                 {value.filename}
               </span>
-              <a href={publicUrl} download={value.filename}>
-                <Button size="sm" variant="outline" className="h-7">
-                  <Download className="mr-1 h-3 w-3" />
-                  Download
-                </Button>
-              </a>
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-7 w-7 shrink-0"
+                onClick={() => downloadFile(publicUrl, value.filename)}
+                title="Download"
+              >
+                <Download className="h-3 w-3" />
+              </Button>
             </div>
           );
         }
@@ -1025,26 +1044,32 @@ function GridCellRenderer({
                             />
                           </a>
                           <div className="text-muted-foreground flex items-center gap-1">
-                            <ImageIcon className="h-3 w-3" />
-                            <span className="truncate">{fieldVal.filename}</span>
-                            <a href={publicUrl} download={fieldVal.filename} className="ml-auto">
-                              <Button size="sm" variant="outline" className="h-5 px-1.5 text-[10px]">
-                                <Download className="mr-1 h-2.5 w-2.5" />
-                                Download
-                              </Button>
-                            </a>
+                            <ImageIcon className="h-3 w-3 shrink-0" />
+                            <span className="flex-1 truncate">{fieldVal.filename}</span>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="ml-auto h-5 w-5 shrink-0"
+                              onClick={() => downloadFile(publicUrl, fieldVal.filename)}
+                              title="Download"
+                            >
+                              <Download className="h-2.5 w-2.5" />
+                            </Button>
                           </div>
                         </div>
                       ) : (
                         <div className="border-border bg-muted/50 flex items-center gap-1.5 rounded border px-2 py-1">
-                          <FileText className="h-3 w-3 text-blue-600" />
-                          <span className="flex-1 truncate">{fieldVal.filename}</span>
-                          <a href={publicUrl} download={fieldVal.filename}>
-                            <Button size="sm" variant="outline" className="h-5 px-1.5 text-[10px]">
-                              <Download className="mr-1 h-2.5 w-2.5" />
-                              Download
-                            </Button>
-                          </a>
+                          <FileText className="h-3 w-3 shrink-0 text-blue-600" />
+                          <span className="flex-1 truncate text-xs font-medium">{fieldVal.filename}</span>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-5 w-5 shrink-0"
+                            onClick={() => downloadFile(publicUrl, fieldVal.filename)}
+                            title="Download"
+                          >
+                            <Download className="h-2.5 w-2.5" />
+                          </Button>
                         </div>
                       )}
                     </div>

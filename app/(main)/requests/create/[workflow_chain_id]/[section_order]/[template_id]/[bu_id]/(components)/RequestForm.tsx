@@ -284,6 +284,21 @@ export function RequestForm({
         </CardContent>
       </Card>
 
+      {/* Full-screen loading overlay while submitting */}
+      {isSubmitting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card flex flex-col items-center gap-4 rounded-xl px-10 py-8 shadow-2xl">
+            <Loader2 className="text-primary h-10 w-10 animate-spin" />
+            <div className="text-center">
+              <p className="text-base font-semibold">Submitting your request…</p>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Please wait — do not close this page
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="flex items-center justify-end gap-3">
         <Button
