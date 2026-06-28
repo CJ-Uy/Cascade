@@ -20,7 +20,12 @@
 
 # next.js
 /.next/
+/.open-next/
 /out/
+
+# cloudflare
+/.wrangler/
+.cf-*.log
 
 # production
 /build

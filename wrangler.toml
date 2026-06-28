@@ -1,0 +1,18 @@
+name = "agila"
+main = ".open-next/worker.js"
+account_id = "8527ec1369d46f55304a6f59ab5356e4"
+compatibility_date = "2026-06-28"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "CF_SMOKE_DB"
+database_name = "agila-phase1-smoke"
+database_id = "f47edba4-cc4b-4de8-ad32-e3c5ce770269"
+
+[[r2_buckets]]
+binding = "CF_SMOKE_BUCKET"
+bucket_name = "agila-phase1-smoke"

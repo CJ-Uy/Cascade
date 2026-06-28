@@ -1,7 +1,11 @@
 import { updateSession } from "@/lib/supabase/middleware";
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname === "/api/cf-smoke") {
+    return NextResponse.next();
+  }
+
   return await updateSession(request);
 }
 
