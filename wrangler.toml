@@ -1,17 +1,30 @@
-name = "agila"
+name = "agila-cf-beta"
 main = ".open-next/worker.js"
 account_id = "8527ec1369d46f55304a6f59ab5356e4"
 compatibility_date = "2026-06-28"
 compatibility_flags = ["nodejs_compat"]
+
+[[routes]]
+pattern = "agila-cf-beta.cjuy.dev"
+custom_domain = true
 
 [assets]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
 [[d1_databases]]
+binding = "AGILA_DB"
+database_name = "agila-cf-beta-db"
+database_id = "ffab6b1d-06ea-48c0-aeaa-936f22020967"
+
+[[d1_databases]]
 binding = "CF_SMOKE_DB"
 database_name = "agila-phase1-smoke"
 database_id = "f47edba4-cc4b-4de8-ad32-e3c5ce770269"
+
+[[r2_buckets]]
+binding = "AGILA_BUCKET"
+bucket_name = "agila-cf-beta-storage"
 
 [[r2_buckets]]
 binding = "CF_SMOKE_BUCKET"

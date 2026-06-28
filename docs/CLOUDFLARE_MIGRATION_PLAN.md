@@ -45,6 +45,16 @@ Phase 1 spike findings:
 - `wrangler.toml` needs explicit `account_id` because this machine has multiple Cloudflare accounts.
 - Supabase still runs during Phase 1; this does not prove Better Auth, D1 schema migration, or Supabase login submission yet.
 
+Current beta state:
+
+- Worker: `agila-cf-beta`.
+- Custom domain: `https://agila-cf-beta.cjuy.dev`.
+- Beta D1 database: `agila-cf-beta-db`, id `ffab6b1d-06ea-48c0-aeaa-936f22020967`.
+- Beta R2 bucket: `agila-cf-beta-storage`.
+- Supabase public-table mirror imported to D1: 24 tables, 844 rows, count-verified after import.
+- Supabase Storage mirror uploaded to R2: 10 objects from `avatars`, `attachments`, and `requisition_attachments`.
+- The deployed beta app still uses Supabase for product behavior. The D1/R2 mirror is a verified migration artifact, not yet the app source of truth.
+
 ## Current System Inventory
 
 Agila currently uses:
@@ -64,7 +74,7 @@ Observed repo facts:
 - 82 RLS policies.
 - 19 `actions.ts` files.
 - 10 API route files.
-- Storage buckets in use: `avatars`, `attachments`, `requisition_attachments`, `public`.
+- Storage buckets in use: `avatars`, `attachments`, `requisition_attachments`.
 - Realtime tables: `chats`, `chat_participants`, `chat_messages`.
 
 Core product areas:
