@@ -1050,8 +1050,8 @@
     "semantic_hash": ""
   },
   "cloudflare-env.d.ts": {
-    "mtime": 1782662497.0063672,
-    "ast_hash": "3bed661c36e6ec2a4f7570d0c48fffc6",
+    "mtime": 1782663061.8690197,
+    "ast_hash": "2eec22afb79fa2dde2046bc094161a62",
     "semantic_hash": ""
   },
   "components.json": {
@@ -1610,8 +1610,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1782660302.3504837,
-    "ast_hash": "bbf68b75fefc2f207fc31ca007cc39d5",
+    "mtime": 1782662919.541622,
+    "ast_hash": "f342f73e49ff938d57593666d11c9126",
     "semantic_hash": ""
   },
   "postcss.config.mjs": {
@@ -1695,8 +1695,8 @@
     "semantic_hash": ""
   },
   "docs/CLOUDFLARE_MIGRATION_PLAN.md": {
-    "mtime": 1782661913.784709,
-    "ast_hash": "92d3eb0af4463baf3408a5296fe7022a",
+    "mtime": 1782663744.6286056,
+    "ast_hash": "ff11715a59c4fe26b50f34e29282891f",
     "semantic_hash": ""
   },
   "docs/COOLIFY_QUICK_START.md": {
@@ -1782,6 +1782,26 @@
   "public/svgs/Logo.svg": {
     "mtime": 1763540297.182725,
     "ast_hash": "982dfac871feab172eceba850f3bf3b1",
+    "semantic_hash": ""
+  },
+  "lib/cloudflare/db.ts": {
+    "mtime": 1782662928.4175577,
+    "ast_hash": "185197b1435177a12d6097048f41bba5",
+    "semantic_hash": ""
+  },
+  "lib/cloudflare/schema.ts": {
+    "mtime": 1782662928.4175577,
+    "ast_hash": "98743b3b671a13a947910d9ae72db4fc",
+    "semantic_hash": ""
+  },
+  "scripts/mirror-supabase-storage-to-r2.mjs": {
+    "mtime": 1782663165.9206986,
+    "ast_hash": "fef56899ea51978fd8fde067fbdb1aed",
+    "semantic_hash": ""
+  },
+  "scripts/mirror-supabase-to-d1.mjs": {
+    "mtime": 1782663219.7642272,
+    "ast_hash": "a8c18245a732305de699ca5afebc83e4",
     "semantic_hash": ""
   }
 }
