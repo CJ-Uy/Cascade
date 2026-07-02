@@ -13,24 +13,25 @@ Digital mass document approval and review system for multi-tenant workflows.
 ## Local Development
 
 ```bash
-npm install
-npm run d1:migrate:local
-npm run dev
+corepack enable
+pnpm install
+pnpm run d1:migrate:local
+pnpm run dev
 ```
 
 ## Cloudflare
 
 ```bash
-npm run cf:typegen
-npm run cf:build
-npm run cf:preview
-npm run cf:deploy
+pnpm run cf:typegen
+pnpm run cf:build
+pnpm run cf:preview
+pnpm run cf:deploy
 ```
 
 Set/reset migrated D1 passwords:
 
 ```bash
-npm run d1:user:set-password -- --all --password password --remote
+pnpm run d1:user:set-password -- --all --password password --remote
 ```
 
 ## Project Map

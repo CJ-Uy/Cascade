@@ -5,13 +5,13 @@ Current platform: Cloudflare Workers via OpenNext, D1, R2, Drizzle, Next.js.
 ## Commands
 
 ```bash
-npm run dev
-npm run cf:typegen
-npm run cf:build
-npm run cf:preview
-npm run cf:deploy
-npm run d1:migrate:local
-npm run d1:migrate:remote
+pnpm run dev
+pnpm run cf:typegen
+pnpm run cf:build
+pnpm run cf:preview
+pnpm run cf:deploy
+pnpm run d1:migrate:local
+pnpm run d1:migrate:remote
 ```
 
 ## Data

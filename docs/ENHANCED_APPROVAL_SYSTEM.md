@@ -184,12 +184,11 @@ This document describes the enhanced approval system that provides approvers wit
 ### Step 1: Apply Database Migration
 
 ```bash
-# Ensure Supabase is running
-npm run dev
+pnpm run dev
 
 # Migration will be automatically applied on next db sync
 # Or manually apply:
-npm run d1:migrate:remote
+pnpm run d1:migrate:remote
 ```
 
 ### Step 2: Update Navigation Links
