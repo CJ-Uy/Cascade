@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getStoragePublicUrl, uploadStorageObject } from "@/lib/files/storage";
 import { revalidatePath } from "next/cache";
 
 export type UserProfileData = {
@@ -301,22 +302,18 @@ export async function uploadAvatar(
   const fileName = `${user.id}-${Date.now()}.${fileExt}`;
   const filePath = `avatars/${fileName}`;
 
-  // Upload to Supabase Storage
-  const { error: uploadError } = await supabase.storage
-    .from("avatars")
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: true,
-    });
+  const { error: uploadError } = await uploadStorageObject(
+    "avatars",
+    filePath,
+    file,
+    { cacheControl: "3600", upsert: true },
+  );
 
   if (uploadError) {
     return { success: false, url: null, error: uploadError.message };
   }
 
-  // Get the public URL
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from("avatars").getPublicUrl(filePath);
+  const publicUrl = await getStoragePublicUrl("avatars", filePath);
 
   // Update profile with new avatar URL
   const { error: updateError } = await supabase

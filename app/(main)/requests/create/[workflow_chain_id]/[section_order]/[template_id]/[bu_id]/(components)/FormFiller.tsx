@@ -581,7 +581,10 @@ export function FormFiller({
                   <div className="flex items-start gap-3">
                     <div className="relative">
                       <img
-                        src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/attachments/${fileData.storage_path}`}
+                        src={`/api/files/attachments/${fileData.storage_path
+                          .split("/")
+                          .map(encodeURIComponent)
+                          .join("/")}`}
                         alt={fileData.filename}
                         className="h-20 w-20 rounded object-cover"
                       />
@@ -1641,61 +1644,66 @@ function GridTablePreview({
                       }
                     />
                   )}
-                  {colType === "file-upload" && (() => {
-                    const uploadKey = `${rowIndex}-${colIndex}-${col.id}`;
-                    const isUploadingFile = uploadingCells.has(uploadKey);
-                    const fileData = multiData[col.id];
-                    return (
-                      <div className="space-y-1">
-                        {fileData?.storage_path && (
-                          <div className="border-border bg-muted/30 flex items-center gap-1.5 rounded-md border p-1">
-                            {fileData.filetype?.startsWith("image/") ? (
-                              <ImageIcon className="text-muted-foreground h-3 w-3 shrink-0" />
-                            ) : (
-                              <FileText className="text-muted-foreground h-3 w-3 shrink-0" />
-                            )}
-                            <span className="flex-1 truncate text-[10px] font-medium">
-                              {fileData.filename || "file"}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-4 w-4 shrink-0 hover:bg-red-100"
-                              type="button"
-                              onClick={() =>
-                                handleMultiFieldFileRemove(rowIndex, colIndex, col)
-                              }
-                            >
-                              <X className="h-2.5 w-2.5 text-red-500" />
-                            </Button>
-                          </div>
-                        )}
-                        <label className="border-muted-foreground/30 text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 flex cursor-pointer items-center justify-center gap-1 rounded-md border border-dashed px-2 py-1 text-[10px] transition-colors">
-                          <input
-                            type="file"
-                            className="hidden"
-                            disabled={isUploadingFile}
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0] || null;
-                              await handleMultiFieldFileUpload(
-                                rowIndex,
-                                colIndex,
-                                col,
-                                file,
-                              );
-                              e.target.value = "";
-                            }}
-                          />
-                          <Plus className="h-2.5 w-2.5" />
-                          {isUploadingFile
-                            ? "Uploading..."
-                            : fileData?.storage_path
-                              ? "Replace"
-                              : "Upload"}
-                        </label>
-                      </div>
-                    );
-                  })()}
+                  {colType === "file-upload" &&
+                    (() => {
+                      const uploadKey = `${rowIndex}-${colIndex}-${col.id}`;
+                      const isUploadingFile = uploadingCells.has(uploadKey);
+                      const fileData = multiData[col.id];
+                      return (
+                        <div className="space-y-1">
+                          {fileData?.storage_path && (
+                            <div className="border-border bg-muted/30 flex items-center gap-1.5 rounded-md border p-1">
+                              {fileData.filetype?.startsWith("image/") ? (
+                                <ImageIcon className="text-muted-foreground h-3 w-3 shrink-0" />
+                              ) : (
+                                <FileText className="text-muted-foreground h-3 w-3 shrink-0" />
+                              )}
+                              <span className="flex-1 truncate text-[10px] font-medium">
+                                {fileData.filename || "file"}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-4 w-4 shrink-0 hover:bg-red-100"
+                                type="button"
+                                onClick={() =>
+                                  handleMultiFieldFileRemove(
+                                    rowIndex,
+                                    colIndex,
+                                    col,
+                                  )
+                                }
+                              >
+                                <X className="h-2.5 w-2.5 text-red-500" />
+                              </Button>
+                            </div>
+                          )}
+                          <label className="border-muted-foreground/30 text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 flex cursor-pointer items-center justify-center gap-1 rounded-md border border-dashed px-2 py-1 text-[10px] transition-colors">
+                            <input
+                              type="file"
+                              className="hidden"
+                              disabled={isUploadingFile}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0] || null;
+                                await handleMultiFieldFileUpload(
+                                  rowIndex,
+                                  colIndex,
+                                  col,
+                                  file,
+                                );
+                                e.target.value = "";
+                              }}
+                            />
+                            <Plus className="h-2.5 w-2.5" />
+                            {isUploadingFile
+                              ? "Uploading..."
+                              : fileData?.storage_path
+                                ? "Replace"
+                                : "Upload"}
+                          </label>
+                        </div>
+                      );
+                    })()}
                   {(colType === "radio" ||
                     colType === "checkbox" ||
                     colType === "select") && (

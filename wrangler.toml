@@ -16,6 +16,7 @@ binding = "ASSETS"
 binding = "AGILA_DB"
 database_name = "agila-cf-beta-db"
 database_id = "ffab6b1d-06ea-48c0-aeaa-936f22020967"
+migrations_dir = "drizzle"
 
 [[d1_databases]]
 binding = "CF_SMOKE_DB"

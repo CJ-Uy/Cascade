@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1782981371812,
+      "tag": "0000_sudden_prima",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1782991832839,
+      "tag": "0001_supreme_vector",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782994638713,
+      "tag": "0002_motionless_the_initiative",
+      "breakpoints": true
+    }
+  ]
+}

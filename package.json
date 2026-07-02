@@ -11,12 +11,10 @@
     "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf:upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "cf:mirror:d1": "node scripts/mirror-supabase-to-d1.mjs",
-    "cf:mirror:r2": "node scripts/mirror-supabase-storage-to-r2.mjs",
-    "cf:mirror:all": "npm run cf:mirror:d1 && npm run cf:mirror:r2",
-    "db:setup": "node scripts/db-setup.js",
-    "db:reset": "npx supabase db reset",
-    "db:push": "npx supabase db push"
+    "d1:generate": "drizzle-kit generate",
+    "d1:migrate:local": "wrangler d1 migrations apply agila-cf-beta-db --local",
+    "d1:migrate:remote": "wrangler d1 migrations apply agila-cf-beta-db --remote",
+    "d1:user:set-password": "node scripts/set-d1-user-password.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -48,8 +46,6 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@supabase/ssr": "latest",
-    "@supabase/supabase-js": "latest",
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { removeStorageObjects, uploadStorageObject } from "@/lib/files/storage";
 
 export async function uploadFormFile(formData: FormData): Promise<{
   success: boolean;
@@ -58,13 +59,12 @@ export async function uploadFormFile(formData: FormData): Promise<{
   const fileName = `${user.id}-${Date.now()}.${fileExt}`;
   const filePath = `form-uploads/${fileName}`;
 
-  // Upload to Supabase Storage
-  const { error: uploadError } = await supabase.storage
-    .from("attachments")
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
+  const { error: uploadError } = await uploadStorageObject(
+    "attachments",
+    filePath,
+    file,
+    { cacheControl: "3600", upsert: false },
+  );
 
   if (uploadError) {
     return { success: false, fileData: null, error: uploadError.message };
@@ -98,10 +98,9 @@ export async function deleteFormFile(
     return { success: false, error: "Not authenticated" };
   }
 
-  // Delete from storage
-  const { error: storageError } = await supabase.storage
-    .from("attachments")
-    .remove([storagePath]);
+  const { error: storageError } = await removeStorageObjects("attachments", [
+    storagePath,
+  ]);
 
   if (storageError) {
     return { success: false, error: storageError.message };

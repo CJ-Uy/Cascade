@@ -1,6 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  getStoragePublicUrl,
+  removeStorageObjects,
+  uploadStorageObject,
+} from "@/lib/files/storage";
 import { revalidatePath } from "next/cache";
 
 export async function uploadCommentAttachment(formData: FormData): Promise<{
@@ -54,13 +59,12 @@ export async function uploadCommentAttachment(formData: FormData): Promise<{
   const fileName = `${user.id}-${Date.now()}.${fileExt}`;
   const filePath = `comment-attachments/${fileName}`;
 
-  // Upload to Supabase Storage
-  const { error: uploadError } = await supabase.storage
-    .from("attachments")
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
+  const { error: uploadError } = await uploadStorageObject(
+    "attachments",
+    filePath,
+    file,
+    { cacheControl: "3600", upsert: false },
+  );
 
   if (uploadError) {
     return { success: false, attachment: null, error: uploadError.message };
@@ -81,7 +85,7 @@ export async function uploadCommentAttachment(formData: FormData): Promise<{
 
   if (dbError) {
     // Clean up uploaded file if database insert fails
-    await supabase.storage.from("attachments").remove([filePath]);
+    await removeStorageObjects("attachments", [filePath]);
     return { success: false, attachment: null, error: dbError.message };
   }
 
@@ -144,12 +148,7 @@ export async function createCommentWithAttachments(
 export async function getAttachmentUrl(
   storagePath: string,
 ): Promise<{ success: boolean; url: string | null; error: string | null }> {
-  const supabase = await createClient();
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from("attachments").getPublicUrl(storagePath);
-
+  const publicUrl = await getStoragePublicUrl("attachments", storagePath);
   return { success: true, url: publicUrl, error: null };
 }
 
@@ -182,10 +181,9 @@ export async function deleteAttachment(
     return { success: false, error: "Unauthorized" };
   }
 
-  // Delete from storage
-  const { error: storageError } = await supabase.storage
-    .from("attachments")
-    .remove([attachment.storage_path]);
+  const { error: storageError } = await removeStorageObjects("attachments", [
+    attachment.storage_path,
+  ]);
 
   if (storageError) {
     return { success: false, error: storageError.message };

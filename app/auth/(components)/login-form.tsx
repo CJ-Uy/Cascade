@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,17 +17,18 @@ export function LoginForm({
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
     setIsLoading(true);
     setError(null);
 
     try {
-      const internalEmail = `${username.toLowerCase().trim()}@email.com`;
-      const { error } = await supabase.auth.signInWithPassword({
-        email: internalEmail,
-        password,
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username, password }),
       });
-      if (error) throw error;
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(data.error ?? "Invalid username or password");
 
       window.location.replace("/dashboard");
     } catch (error: unknown) {

@@ -1,0 +1,1 @@
+DROP TABLE `__supabase_mirror_metadata`;

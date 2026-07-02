@@ -1,4 +1,3 @@
-import { updateSession } from "@/lib/supabase/middleware";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
@@ -6,7 +5,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  return await updateSession(request);
+  const isPublic =
+    request.nextUrl.pathname === "/" ||
+    request.nextUrl.pathname.startsWith("/auth") ||
+    request.nextUrl.pathname.startsWith("/api/auth");
+
+  if (!isPublic && !request.cookies.get("agila_session")?.value) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/login";
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
