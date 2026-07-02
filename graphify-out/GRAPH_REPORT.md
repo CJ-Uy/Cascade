@@ -1,16 +1,16 @@
-# Graph Report - Cascade  (2026-06-29)
+# Graph Report - Cascade  (2026-07-02)
 
 ## Corpus Check
-- 354 files · ~295,477 words
+- 362 files · ~263,554 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3519 nodes · 6848 edges · 203 communities (169 shown, 34 thin omitted)
-- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 27 edges (avg confidence: 0.89)
+- 3389 nodes · 6808 edges · 206 communities (167 shown, 39 thin omitted)
+- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 32 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7499d299`
+- Built from commit: `2d7b3746`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -127,7 +127,6 @@
 - [[_COMMUNITY_Community 117|Community 117]]
 - [[_COMMUNITY_Community 118|Community 118]]
 - [[_COMMUNITY_Community 119|Community 119]]
-- [[_COMMUNITY_Community 120|Community 120]]
 - [[_COMMUNITY_Community 121|Community 121]]
 - [[_COMMUNITY_Community 122|Community 122]]
 - [[_COMMUNITY_Community 123|Community 123]]
@@ -203,13 +202,15 @@
 - [[_COMMUNITY_Community 194|Community 194]]
 - [[_COMMUNITY_Community 195|Community 195]]
 - [[_COMMUNITY_Community 198|Community 198]]
-- [[_COMMUNITY_Community 199|Community 199]]
 - [[_COMMUNITY_Community 200|Community 200]]
 - [[_COMMUNITY_Community 201|Community 201]]
 - [[_COMMUNITY_Community 202|Community 202]]
+- [[_COMMUNITY_Community 203|Community 203]]
+- [[_COMMUNITY_Community 204|Community 204]]
+- [[_COMMUNITY_Community 205|Community 205]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `createClient()` - 239 edges
+1. `createClient()` - 240 edges
 2. `cn()` - 236 edges
 3. `Button` - 137 edges
 4. `Badge()` - 68 edges
@@ -229,8 +230,8 @@
   app/(main)/auditor/documents/[id]/page.tsx → lib/supabase/auth.ts
 - `Workflow Engine` --conceptually_related_to--> `Dynamic Forms System`  [INFERRED]
   README.md → docs/DYNAMIC_FORMS_IMPLEMENTATION.md
-- `AdminLayout()` --calls--> `createClient()`  [EXTRACTED]
-  app/(main)/admin/layout.tsx → lib/supabase/server.ts
+- `getWorkflowChainsForBU()` --calls--> `createClient()`  [EXTRACTED]
+  app/(main)/management/approval-system/[bu_id]/workflow-chain-actions.ts → lib/supabase/server.ts
 
 ## Import Cycles
 - None detected.
@@ -240,91 +241,87 @@
 - **4-Tier Permission Enforcement Stack (Helper Functions + RLS + RPC + App Layer)** — docs_rls_policies_is_super_admin, docs_rls_policies_is_organization_admin, docs_rls_policies_is_auditor, docs_rls_policies_defense_in_depth, docs_rpc_functions_security_definer [INFERRED 0.95]
 - **Docker-Based Deployment Pipeline (CI/CD → GHCR → Coolify)** — github_workflows_docker_build_cicd_pipeline, github_workflows_docker_build_ghcr_registry, github_workflows_docker_build_coolify_deploy, docs_coolify_quick_start_coolify_deployment, docs_docker_deployment_dockerfile [EXTRACTED 1.00]
 
-## Communities (203 total, 34 thin omitted)
+## Communities (206 total, 39 thin omitted)
 
 ### Community 0 - "UI Component Library"
 Cohesion: 0.04
-Nodes (57): SignUpForm(), cn(), BreadcrumbEllipsis(), BreadcrumbItem(), BreadcrumbLink(), BreadcrumbList(), BreadcrumbPage(), BreadcrumbSeparator() (+49 more)
+Nodes (57): SignUpForm(), cn(), AlertDialogOverlay(), BreadcrumbEllipsis(), BreadcrumbItem(), BreadcrumbLink(), BreadcrumbList(), BreadcrumbPage() (+49 more)
 
 ### Community 1 - "App Layouts & Navigation"
-Cohesion: 0.07
-Nodes (53): AuditorLayout(), EmployeesPage(), ChatList(), ChatListProps, ChatWindow(), ChatWindowProps, CreateGroupModal(), CreateGroupModalProps (+45 more)
+Cohesion: 0.15
+Nodes (18): AddParticipantsRequest, ApiError, ChatResponse, ChatsResponse, ChatType, CreateChatRequest, MessageResponse, MessagesResponse (+10 more)
 
 ### Community 2 - "Shared UI Utilities"
 Cohesion: 0.05
-Nodes (50): NavigationProgress(), useIsMobile(), getMiddleInitial(), ProtectedLayout(), AdminBuSelector(), AnimatedSection(), AnimatedSectionProps, adminItems (+42 more)
+Nodes (55): BulkActionBar(), ApprovalRequest, BulkApprovalTable(), BulkApprovalTableProps, FormField, SIMPLE_FIELD_TYPES, useIsMobile(), AdminBuSelector() (+47 more)
 
 ### Community 3 - "API Routes & Server Actions"
 Cohesion: 0.05
-Nodes (60): activateWorkflowAction(), archiveWorkflowAction(), convertToDraftAction(), deleteWorkflowAction(), getForms(), getRoles(), getRolesWithDetails(), getWorkflowBuilderData() (+52 more)
+Nodes (54): createNotification(), CreateNotificationArgs, deleteNotification(), markNotificationAsRead(), POST(), AdminLayout(), addRequestComment(), approveRequest() (+46 more)
 
 ### Community 4 - "Package Dependencies"
-Cohesion: 0.03
-Nodes (59): dependencies, class-variance-authority, clsx, cmdk, date-fns, @dnd-kit/core, @dnd-kit/sortable, drizzle-orm (+51 more)
+Cohesion: 0.04
+Nodes (57): dependencies, class-variance-authority, clsx, cmdk, date-fns, @dnd-kit/core, @dnd-kit/sortable, drizzle-orm (+49 more)
 
 ### Community 5 - "Form Filling Engine"
-Cohesion: 0.09
-Nodes (31): FormField, FormFiller(), FormFillerProps, FormPreview(), dateToUTC8String(), toUTC8String(), computeAllFormulas(), Notification (+23 more)
+Cohesion: 0.08
+Nodes (34): FormField, FormFiller(), FormFillerProps, dateToUTC8String(), toUTC8String(), Notification, Command(), CommandDialog() (+26 more)
 
 ### Community 6 - "Approval Chain Builder"
-Cohesion: 0.09
-Nodes (41): AuditorDocument, DataTableProps, DataTableProps, columns, data, columns, data, columns (+33 more)
+Cohesion: 0.11
+Nodes (33): DataTableProps, DataTableProps, EmployeeTableProps, FieldRenderer(), FieldRendererProps, GridCellRenderer(), RepeaterCellRenderer(), Form (+25 more)
 
 ### Community 7 - "Activity Log & Audit Trail"
-Cohesion: 0.12
-Nodes (16): CreateAccountsClient(), adminResetPassword(), bulkDeleteAccounts(), clearUserReferences(), CreateAccountInput, CreateAccountResult, deleteUserAccount(), getRolesForBu() (+8 more)
+Cohesion: 0.24
+Nodes (13): CreateAccountsClient(), adminResetPassword(), bulkDeleteAccounts(), clearUserReferences(), CreateAccountInput, CreateAccountResult, deleteUserAccount(), getRolesForBu() (+5 more)
 
 ### Community 8 - "Approval History View"
 Cohesion: 0.14
 Nodes (12): ApprovalHistory(), ApprovalHistoryProps, CommentsSection(), CommentsSectionProps, DocumentDetails, DocumentDetailViewProps, DocumentHeader(), DocumentHeaderProps (+4 more)
 
 ### Community 9 - "Workflow Template Management"
-Cohesion: 0.47
-Nodes (3): WorkflowDetailsDialogProps, Workflow, WorkflowListProps
+Cohesion: 0.13
+Nodes (28): CreateGroupModalProps, ApprovalActionsProps, BulkActionBarProps, CompactWorkflowProgressProps, CreateBusinessUnitDialogProps, User, columns, data (+20 more)
 
 ### Community 10 - "Employee & Role Management"
-Cohesion: 0.09
-Nodes (30): ColumnsProps, BusinessUnit, ActionsColumnProps, historyColumns, HistoryRequest, InviteUserAction(), Notification, RequestsListProps (+22 more)
+Cohesion: 0.14
+Nodes (18): BusinessUnit, ActionsColumnProps, columns, data, columns, FormTemplate, ActionsColumnProps, ApprovalWorkflow (+10 more)
 
 ### Community 11 - "Organization Admin Dashboard"
-Cohesion: 0.08
-Nodes (38): BusinessUnitsPage(), checkOrgAdminRole(), BusinessUnit, BusinessUnitsSection(), BusinessUnitsSectionProps, ForgotPasswordForm(), Invitation, InvitationsCardProps (+30 more)
+Cohesion: 0.09
+Nodes (29): BusinessUnitsPage(), checkOrgAdminRole(), BusinessUnit, BusinessUnitsSection(), BusinessUnitsSectionProps, DeleteOrganizationButton(), ForgotPasswordForm(), LinkedRequest (+21 more)
 
 ### Community 12 - "Settings & Form Config"
 Cohesion: 0.07
-Nodes (42): formSchema, BusinessUnitFormValues, formSchema, User, EditBuDialogProps, EditBuFormValues, formSchema, EditOrganizationForm() (+34 more)
+Nodes (38): formSchema, BusinessUnitFormValues, formSchema, User, BusinessUnitFormValues, formSchema, User, EditOrganizationForm() (+30 more)
 
 ### Community 13 - "Workflow Lifecycle Actions"
-Cohesion: 0.12
-Nodes (18): getWorkflows(), WorkflowSection, archiveWorkflowChain(), deleteWorkflowChain(), getWorkflowChainDetails(), getWorkflowChainsForBU(), saveWorkflowChain(), updateWorkflowChainStatus() (+10 more)
+Cohesion: 0.09
+Nodes (21): WorkflowSection, getWorkflowChainDetails(), DashboardHeader(), Form, FormBuilderDialog(), FormBuilderDialogProps, FormCardView(), FormList() (+13 more)
 
 ### Community 14 - "Approval Actions UI"
 Cohesion: 0.10
-Nodes (43): WorkflowTemplatesClientProps, columns(), WorkflowTemplate, ApprovalActionDialogProps, ApprovalActions(), ApprovalActionsProps, BulkActionBarProps, CreateBusinessUnitDialogProps (+35 more)
+Nodes (35): BUDetails, BusinessUnitFormValues, formSchema, User, ApprovalActionDialogProps, DeleteOrganizationButtonProps, DeleteFormDialog(), DeleteFormDialogProps (+27 more)
 
 ### Community 15 - "Business Unit CRUD"
-Cohesion: 0.08
-Nodes (36): BusinessUnitFormValues, formSchema, User, BUDetails, BusinessUnitFormValues, formSchema, User, MessageInputProps (+28 more)
+Cohesion: 0.13
+Nodes (18): ACTION_BADGE_COLORS, ACTION_TYPES, AuditEntry, AccountRow, PasswordCharset, AdminBuSelectorProps, BusinessUnit, Organization (+10 more)
 
 ### Community 16 - "Root Layout & App Shell"
-Cohesion: 0.12
-Nodes (23): geistSans, metadata, RootLayout(), BusinessUnitDetailPage(), SettingsFormNew(), SessionProvider(), OrganizationDetailsPage(), createBusinessUnitForOrgAction() (+15 more)
+Cohesion: 0.16
+Nodes (19): BusinessUnitDetailPage(), DashboardPage(), OrganizationDetailsPage(), createBusinessUnitForOrgAction(), createOrganizationAction(), deleteBusinessUnitForOrgAction(), deleteOrganizationAction(), getBusinessUnitDetailsAction() (+11 more)
 
 ### Community 17 - "Document & BU Views"
-Cohesion: 0.36
-Nodes (6): AuditorDocumentsClientProps, FilterSidebar(), Alert(), AlertDescription(), AlertTitle(), alertVariants
+Cohesion: 0.22
+Nodes (7): AuditorDocument, AuditorDocumentsClient(), AuditorDocumentsClientProps, columns, DocumentTable(), DocumentTableProps, FilterSidebar()
 
 ### Community 18 - "Authentication UI"
-Cohesion: 0.43
-Nodes (5): ToggleGroup(), ToggleGroupContext, ToggleGroupItem(), Toggle(), toggleVariants
-
-### Community 19 - "Comments & Attachments"
-Cohesion: 0.11
-Nodes (15): Attachment, CommentThread(), CommentThreadProps, FieldRenderer(), FieldRendererProps, GridCellRenderer(), RepeaterCellRenderer(), FormCardView() (+7 more)
+Cohesion: 0.10
+Nodes (15): config, middleware(), updateSession(), Collapsible(), CollapsibleContent(), CollapsibleTrigger(), HoverCardContent(), Progress() (+7 more)
 
 ### Community 20 - "Workflow Chain Types"
-Cohesion: 0.08
-Nodes (27): TemplateSingleSelectTableProps, WorkflowChainTimelineProps, WorkflowTransitionUI, WorkflowSingleSelectTableProps, AddTransitionDialogProps, AvailableTargetWorkflow, getTriggerConditionColor(), getTriggerConditionLabel() (+19 more)
+Cohesion: 0.07
+Nodes (29): Role, MultiStepWorkflowBuilderProps, TemplateSingleSelectTableProps, WorkflowChainTimelineProps, WorkflowTransitionUI, WorkflowSingleSelectTableProps, AddTransitionDialogProps, AvailableTargetWorkflow (+21 more)
 
 ### Community 21 - "Grid Table Configuration"
 Cohesion: 0.10
@@ -347,8 +344,8 @@ Cohesion: 0.11
 Nodes (18): GetWorkflowChainDetailsResult, GetWorkflowChainsForBuResult, InitiatorType, TriggerCondition, WorkflowChain, WorkflowChainFormData, WorkflowChainInsert, WorkflowChainListItem (+10 more)
 
 ### Community 26 - "Dashboard Progress Views"
-Cohesion: 0.04
-Nodes (45): 1. Clone and Setup Environment, 1. Container Won't Start, 2. Build and Run with Docker Compose, 2. Environment Variables Not Loading, 3. Access the Application, 3. Port Already in Use, 4. Build Fails with "npm ERR!", 5. SWC Binary Issues (+37 more)
+Cohesion: 0.10
+Nodes (20): geistSans, metadata, RootLayout(), AuditorLayout(), EmployeesPage(), NavigationProgress(), TagManager(), AuthContextType (+12 more)
 
 ### Community 27 - "Form Builder Grid Columns"
 Cohesion: 0.06
@@ -363,28 +360,28 @@ Cohesion: 0.05
 Nodes (37): API Keys, API Reference, Approval Actions, Auditor Functions, Authentication, Authentication & Permissions, Business Unit & Organization, Chat API (+29 more)
 
 ### Community 30 - "Landing & Error Pages"
-Cohesion: 0.12
-Nodes (12): PageProps, blob1Path, blob2Path, blob3Path, NotFound(), FillRequestFormPage(), metadata, PageProps (+4 more)
+Cohesion: 0.17
+Nodes (9): PageProps, blob1Path, blob2Path, blob3Path, NotFound(), FillRequestFormPage(), DocumentView(), getStatusColor() (+1 more)
 
 ### Community 31 - "Document Approval View"
-Cohesion: 0.06
-Nodes (30): 5-Minute Deployment, Add Custom Domain, Advanced Configuration, App Won't Start, Build Fails, Built-in Monitoring, Common Commands, Coolify Quick Start Guide - Cascade (+22 more)
+Cohesion: 0.17
+Nodes (7): AboutSection(), blob1Path, blob2Path, blob3Path, HeroSection(), HomeNav(), ThemeSwitcher()
 
 ### Community 32 - "Workflow Builder Selectors"
 Cohesion: 0.07
 Nodes (26): 1. Sidebar Navigation, 2. Responsive Padding & Spacing, 3. Grid Layouts, 4. Data Tables, 5. Modal Dialogs & Sheets, 6. Form Layouts, 7. Typography & Text, 8. Navigation & Action Buttons (+18 more)
 
 ### Community 33 - "App Entry & Protected Routes"
-Cohesion: 0.17
-Nodes (7): AboutSection(), blob1Path, blob2Path, blob3Path, HeroSection(), HomeNav(), ThemeSwitcher()
+Cohesion: 0.09
+Nodes (20): BusinessUnitWithHead, createBusinessUnitsColumns(), BusinessUnitsTabNew(), BusinessUnitsTabNewProps, BusinessUnit, BusinessUnitsTabProps, User, DataTable() (+12 more)
 
 ### Community 34 - "Formula Engine"
-Cohesion: 0.29
-Nodes (13): colLetterToIndex(), evaluateFormula(), evaluateRowFormula(), extractSubFieldValue(), findSubFieldIdByLabel(), FormulaContext, getCellFormula(), indexToColLetter() (+5 more)
+Cohesion: 0.26
+Nodes (14): colLetterToIndex(), computeAllFormulas(), evaluateFormula(), evaluateRowFormula(), extractSubFieldValue(), findSubFieldIdByLabel(), FormulaContext, getCellFormula() (+6 more)
 
 ### Community 35 - "Dashboard Header & Data"
-Cohesion: 0.17
-Nodes (15): DocumentViewProps, WorkflowChainDetails(), WorkflowChainDetailsProps, checkOrgAdminRole(), checkOrgAdminRole(), OrganizationAdminPage(), OrganizationAdminPage(), ApprovalData (+7 more)
+Cohesion: 0.16
+Nodes (3): SettingsFormNew(), checkOrgAdminRole(), ButtonProps
 
 ### Community 36 - "Dev Tooling & Linting"
 Cohesion: 0.12
@@ -395,28 +392,28 @@ Cohesion: 0.19
 Nodes (13): Carousel(), CarouselApi, CarouselContent(), CarouselContext, CarouselContextProps, CarouselItem(), CarouselNext(), CarouselOptions (+5 more)
 
 ### Community 38 - "All Requests Page"
-Cohesion: 0.25
-Nodes (6): metadata, RequestHistoryPage(), requestsColumns, RequestsDataTable(), metadata, MyRequestsPage()
+Cohesion: 0.11
+Nodes (16): metadata, RequestHistoryPage(), AllRequestsClient(), FilterState, Request, REQUEST_STATUSES, CompactWorkflowProgress(), historyColumns (+8 more)
 
 ### Community 39 - "Super Admin BU Management"
+Cohesion: 0.27
+Nodes (8): buildSql(), buildWhere(), executeD1Query(), executeRpc(), ident(), QueryRequest, selectColumns(), POST()
+
+### Community 40 - "BU Forms Management"
+Cohesion: 0.25
+Nodes (12): ChatListProps, ChatWindowProps, ParticipantsModal(), ParticipantsModalProps, useParticipants(), Attachment, CommentThreadProps, Chat (+4 more)
+
+### Community 41 - "Misc Page Routes"
 Cohesion: 0.25
 Nodes (9): BusinessUnitsPage(), createBusinessUnit(), getBusinessUnitOptions(), getBusinessUnits(), getUsers(), columns, BusinessUnitDataTable(), CreateBusinessUnitDialog() (+1 more)
 
-### Community 40 - "BU Forms Management"
-Cohesion: 0.12
-Nodes (20): DashboardHeader(), FormActions(), FormActionsProps, Form, FormBuilderDialog(), FormBuilderDialogProps, FormList(), FormListProps (+12 more)
-
-### Community 41 - "Misc Page Routes"
-Cohesion: 0.10
-Nodes (14): args, counts, createTableSql(), env, exportedAt, insertMetadataSql(), insertRowSql(), quoteIdent() (+6 more)
-
 ### Community 42 - "Edit Business Unit Dialog"
-Cohesion: 0.46
-Nodes (7): assignUserToBusinessUnitAction(), checkOrgAdminAccess(), createBusinessUnitAction(), deleteBusinessUnitAction(), removeUserRoleAction(), updateBusinessUnitAction(), updateOrganizationSettingsAction()
-
-### Community 43 - "Form CRUD Actions"
 Cohesion: 0.11
 Nodes (9): columnFieldTypes, ColumnGroup, DateTimeFieldConfig, fieldTypeDisplay, FormBuilderProps, GridRowItem, GridSection, RowGroup (+1 more)
+
+### Community 43 - "Form CRUD Actions"
+Cohesion: 0.22
+Nodes (10): scope_type Enum (BU/ORGANIZATION/SYSTEM), Multi-Tenant Form Scoping, 4-Tier Hierarchical Permission System, Architecture Overview, Core Concepts, Request Flow, Scope System, System Architecture Overview (+2 more)
 
 ### Community 44 - "Docker & Deployment"
 Cohesion: 0.19
@@ -427,12 +424,12 @@ Cohesion: 0.20
 Nodes (11): Cascade Hybrid API (RPC + REST + Server Actions), Next.js REST API Routes, RPC Functions (Primary API Layer), field_type Enum, `form_fields`, `forms`, Dynamic Forms System, File Metadata Storage Pattern (+3 more)
 
 ### Community 46 - "Bulk Approval Components"
-Cohesion: 0.21
-Nodes (10): BulkActionBar(), ApprovalRequest, BulkApprovalTable(), BulkApprovalTableProps, FormField, SIMPLE_FIELD_TYPES, Tooltip(), TooltipContent() (+2 more)
+Cohesion: 0.08
+Nodes (27): getWorkflows(), ApprovalChainBuilder(), ApprovalChainBuilderProps, SortableStepProps, DOCUMENT_STATUSES, FilterSidebarProps, FormCardViewProps, HistoryRequest (+19 more)
 
 ### Community 47 - "Dashboard Tables & Invitations"
-Cohesion: 0.13
-Nodes (18): CompactWorkflowProgress(), CompactWorkflowProgressProps, activeRequestsColumns, ActiveRequestsTable(), approvedColumns, ApprovedRequestsTable(), DashboardRequest, needsRevisionColumns (+10 more)
+Cohesion: 0.19
+Nodes (12): activeRequestsColumns, ActiveRequestsTable(), approvedColumns, ApprovedRequestsTable(), DashboardRequest, needsRevisionColumns, NeedsRevisionTable(), PendingApprovalsTable() (+4 more)
 
 ### Community 48 - "User Role Management UI"
 Cohesion: 0.08
@@ -451,16 +448,16 @@ Cohesion: 0.08
 Nodes (24): 1. File Size Warnings, 2. File Type Validation, 3. Unique Filenames, 4. Error Handling, 5. Loading States, Architecture, Best Practices, Bucket Settings (+16 more)
 
 ### Community 52 - "Project Build Config"
-Cohesion: 0.12
-Nodes (16): scripts, build, cf:build, cf:deploy, cf:mirror:all, cf:mirror:d1, cf:mirror:r2, cf:preview (+8 more)
+Cohesion: 0.14
+Nodes (14): scripts, build, cf:build, cf:deploy, cf:preview, cf:typegen, cf:upload, d1:generate (+6 more)
 
 ### Community 53 - "Chart Components"
 Cohesion: 0.22
 Nodes (8): ChartConfig, ChartContainer(), ChartContext, ChartContextProps, ChartLegendContent(), ChartTooltipContent(), THEMES, useChart()
 
 ### Community 54 - "Notification System"
-Cohesion: 0.08
-Nodes (24): Acknowledgments, Additional Resources, Cascade, Contributing, Coolify Deployment, Core Capabilities, Core Documentation, Deployment (+16 more)
+Cohesion: 0.29
+Nodes (6): Cascade, Cloudflare, Local Development, Notes, Project Map, Stack
 
 ### Community 55 - "Auth Context & Session"
 Cohesion: 0.21
@@ -471,28 +468,28 @@ Cohesion: 0.05
 Nodes (41): `approval_step_definitions`, `approval_workflows`, Auto-Update Timestamps, `bu_membership_type`, Cascade Deletion Chains, `chat_type`, Check if user can initiate a specific form:, Database Schema Reference, Database Structure (+33 more)
 
 ### Community 57 - "PDF Export"
-Cohesion: 0.31
-Nodes (9): addImageToPdf(), AppendixFile, checkPageBreak(), ExportPdfButton(), ExportPdfProps, fetchImageAsDataUrl(), getImgFormat(), PdfCursor (+1 more)
+Cohesion: 0.36
+Nodes (8): addImageToPdf(), AppendixFile, checkPageBreak(), ExportPdfProps, fetchImageAsDataUrl(), getImgFormat(), PdfCursor, renderField()
 
 ### Community 58 - "Core DB Tables"
 Cohesion: 0.40
 Nodes (11): `business_units`, Core Domain Tables, `organizations`, `profiles`, `roles`, `user_business_units`, `user_role_assignments`, `workflow_chains` (+3 more)
 
 ### Community 59 - "Template & Draft Selection"
-Cohesion: 0.20
-Nodes (9): BusinessUnitWithHead, createBusinessUnitsColumns(), BusinessUnitsTabNew(), BusinessUnitsTabNewProps, BusinessUnit, BusinessUnitsTabProps, User, DataTable() (+1 more)
+Cohesion: 0.39
+Nodes (5): getCurrentUser(), DELETE(), GET(), PUT(), GET()
 
 ### Community 60 - "Debug & Diagnostics"
-Cohesion: 0.39
-Nodes (6): checkRequestApprovalStatus(), checkSectionInitiators(), debugReimbursementWorkflow(), debugSectionInitiatorUsers(), getNotificationsForUser(), manuallyTriggerNextSection()
+Cohesion: 0.46
+Nodes (7): assignUserToBusinessUnitAction(), checkOrgAdminAccess(), createBusinessUnitAction(), deleteBusinessUnitAction(), removeUserRoleAction(), updateBusinessUnitAction(), updateOrganizationSettingsAction()
 
 ### Community 61 - "Workflow Scoping"
 Cohesion: 0.06
 Nodes (31): SessionProvider Context (useSession hook), get_user_auth_context() RPC, `archive_workflow_chain(p_chain_id UUID)`, Auditor Functions, Best Practices, Checking User Permissions in TypeScript, Common Patterns, `create_notification(p_recipient_id UUID, p_message TEXT, p_link_url TEXT)` (+23 more)
 
 ### Community 62 - "Pagination Component"
-Cohesion: 0.20
-Nodes (7): args, env, isFolder(), listObjects(), manifest, supabase, totalObjects
+Cohesion: 0.38
+Nodes (4): signOut(), updateCurrentUserPassword(), POST(), POST()
 
 ### Community 63 - "Project Docs & Key Features"
 Cohesion: 0.12
@@ -506,49 +503,45 @@ Nodes (4): PeopleClient(), getOrganizationPeople(), OrganizationPerson, PeoplePa
 Cohesion: 0.10
 Nodes (19): 11.1 Must Have (MVP), 11. Acceptance Criteria, 12.1 Technical Dependencies, 12.2 Data Dependencies, 12. Dependencies, 14.1 Related Documents, 14.2 Glossary, 14. Appendix (+11 more)
 
-### Community 66 - "Auditor Tag Actions"
-Cohesion: 0.10
-Nodes (19): Architecture Overview, Cascade Documentation, Core Documentation, December 2024, Deployment Documentation, 📚 Documentation Index, Documentation Maintenance, Feature Documentation (+11 more)
-
 ### Community 67 - "Brand Identity"
 Cohesion: 0.38
 Nodes (7): Cascade, Cascade Logo Black, Dark Charcoal (#2C2D31), Mint Green (#6EFDB5), Off-White (#F0F7F4), Geometric Triangle Icon, Cascade Wordmark Text
 
 ### Community 68 - "BU Detail Page"
-Cohesion: 0.13
-Nodes (20): EmployeeDialog(), EmployeeDialogProps, Employee, EmployeeTable(), EmployeeTableProps, RoleDialog(), RoleDialogProps, CAPABILITY_CONFIG (+12 more)
+Cohesion: 0.11
+Nodes (22): EmployeeDialog(), EmployeeDialogProps, Employee, EmployeeTable(), RoleDialog(), RoleDialogProps, CAPABILITY_CONFIG, Role (+14 more)
 
 ### Community 69 - "DB Setup Scripts"
-Cohesion: 0.33
-Nodes (4): __dirname, __filename, setupSQL, supabase
+Cohesion: 0.29
+Nodes (6): AuthCompat, createCompatClient(), Executor, Filter, Order, QueryRequest
 
 ### Community 70 - "Legacy Requisition Types"
 Cohesion: 0.33
 Nodes (5): ApprovalStep, Requisition, RequisitionAttachment, RequisitionComment, RequisitionValue
 
 ### Community 71 - "CRUD API Route A"
-Cohesion: 0.05
-Nodes (19): POST(), AdminLayout(), RouteParams, RouteParams, saveOrSubmitRequest(), saveRequestAsDraft(), submitRequest(), NotificationsList() (+11 more)
+Cohesion: 0.39
+Nodes (6): checkRequestApprovalStatus(), checkSectionInitiators(), debugReimbursementWorkflow(), debugSectionInitiatorUsers(), getNotificationsForUser(), manuallyTriggerNextSection()
 
 ### Community 72 - "CRUD API Route B"
 Cohesion: 0.12
 Nodes (17): 6.1.1 New Tables, 6.1.2 Existing Tables (No Changes), 6.1 Database Schema, 6.2.1 Required Functions, 6.2.2 Security Requirements, 6.2 RPC Functions, 6.3.1 request_tags Policies, 6.3.2 requests Policies (+9 more)
 
 ### Community 73 - "Workflow Templates Page"
-Cohesion: 0.60
-Nodes (4): WorkflowTemplatesClient(), getTemplates(), getUserContext(), WorkflowTemplatesPage()
+Cohesion: 0.27
+Nodes (8): WorkflowTemplatesClient(), WorkflowTemplatesClientProps, columns(), ColumnsProps, getTemplates(), getUserContext(), WorkflowTemplate, WorkflowTemplatesPage()
 
 ### Community 74 - "ESLint Configuration"
 Cohesion: 0.40
 Nodes (4): compat, __dirname, eslintConfig, __filename
 
 ### Community 75 - "Form Templates Page"
-Cohesion: 0.60
-Nodes (4): FormTemplatesClient(), FormTemplatesPage(), getTemplates(), getUserContext()
+Cohesion: 0.27
+Nodes (8): FormTemplatesClient(), FormTemplatesClientProps, columns(), ColumnsProps, FormTemplate, FormTemplatesPage(), getTemplates(), getUserContext()
 
 ### Community 76 - "Next.js Middleware"
-Cohesion: 0.60
-Nodes (3): config, middleware(), updateSession()
+Cohesion: 0.22
+Nodes (11): ApprovalActions(), CommentThread(), DocumentViewProps, ExportPdfButton(), LinkedRequestsChain(), WorkflowChainDetails(), Separator(), Tabs() (+3 more)
 
 ### Community 77 - "Org Admin Role Actions"
 Cohesion: 0.50
@@ -559,40 +552,44 @@ Cohesion: 0.12
 Nodes (16): **`2025-12-15`**: Auditor Views Feature, **`2025-12-16`**: Complete Schema Restructure, **`2025-12-18`**: Request Creation and Workflow Improvements, **`2026-01-07`**: Request Chain Linking System, Benefits:, Benefits of the Restructure:, Changelog, Database Changes: (+8 more)
 
 ### Community 79 - "My Requests View"
-Cohesion: 0.12
-Nodes (9): ContextMenuCheckboxItem(), ContextMenuContent(), ContextMenuItem(), ContextMenuLabel(), ContextMenuRadioItem(), ContextMenuSeparator(), ContextMenuShortcut(), ContextMenuSubContent() (+1 more)
+Cohesion: 0.31
+Nodes (7): saveOrSubmitRequest(), saveRequestAsDraft(), submitRequest(), metadata, PageProps, RequestForm(), RequestFormProps
 
 ### Community 81 - "CRUD API Route C"
-Cohesion: 0.18
-Nodes (10): AuditorDocumentsClient(), DocumentDetailView(), assignTagToRequest(), createTag(), getAuditorRequestDetails(), getAuditorRequests(), getTags(), removeTagFromRequest() (+2 more)
+Cohesion: 0.20
+Nodes (9): DocumentDetailView(), assignTagToRequest(), createTag(), getAuditorRequestDetails(), getAuditorRequests(), getTags(), removeTagFromRequest(), AuditorDocumentsPage() (+1 more)
 
 ### Community 84 - "Request Submission Actions"
 Cohesion: 0.13
-Nodes (15): 10.1.1 Database Schema (Migration 1) ✅, 10.1.2 RPC Functions (Migration 2) ✅, 10.1.3 RLS Policies (Migration 3) ✅, 10.1.4 Testing ✅, 10.2.1 Session Provider Updates ✅, 10.2.2 Navigation Updates ✅, 10.2.3 Server Actions ✅, 10.2.4 Layout & Access Protection ✅ (+7 more)
+Nodes (15): 10.2.1 Session Provider Updates ✅, 10.2.2 Navigation Updates ✅, 10.2.3 Server Actions ✅, 10.2.4 Layout & Access Protection ✅, 10.3.1 Page Component ✅, 10.3.2 Client Component ✅, 10.3.3 Filter Sidebar ✅, 10.3.4 Request Table ✅ (+7 more)
 
 ### Community 85 - "Request Chain Linking"
 Cohesion: 0.18
-Nodes (8): ACTION_BADGE_COLORS, ACTION_TYPES, AuditEntry, getAuditLog(), getProfilesByIds(), Collapsible(), CollapsibleContent(), CollapsibleTrigger()
+Nodes (11): Chat Tables (`chats`, `chat_participants`, `chat_messages`), INSERT Policy, INSERT Policy, Policies, `request_history`, `requests`, SELECT Policy, SELECT Policy (+3 more)
 
 ### Community 86 - "Draft Redirect"
-Cohesion: 0.18
-Nodes (6): DrawerContent(), DrawerDescription(), DrawerFooter(), DrawerHeader(), DrawerOverlay(), DrawerTitle()
+Cohesion: 0.25
+Nodes (6): Draft, icons, Template, TemplateSelector(), TemplateSelectorProps, metadata
 
 ### Community 87 - "Edit Request Page"
 Cohesion: 0.17
 Nodes (12): CloseEvent, CustomEvent, EmailEvent, ErrorEvent, Event, ExtendableEvent, FetchEvent, MessageEvent (+4 more)
+
+### Community 88 - "Forms Access Testing"
+Cohesion: 0.13
+Nodes (12): activateWorkflowAction(), archiveWorkflowAction(), convertToDraftAction(), deleteWorkflowAction(), getForms(), getRoles(), getRolesWithDetails(), getWorkflowBuilderData() (+4 more)
 
 ### Community 102 - "Chat DB Schema"
 Cohesion: 0.17
 Nodes (11): Common Test Cases, Migration History, Overview, RLS vs RPC Functions, Row Level Security (RLS) Policies Reference, Security Audit Checklist, Table of Contents, Testing RLS Policies (+3 more)
 
 ### Community 103 - "Notifications DB Schema"
-Cohesion: 0.18
-Nodes (9): Development Commands, Environment Variables, Important Notes, Key Conventions, Project Overview, Quick Reference, Styling, Tailwind CSS 4 (+1 more)
+Cohesion: 0.33
+Nodes (5): Cascade Agent Notes, Commands, Compatibility Names, Data, Known Migration Work
 
 ### Community 108 - "Community 108"
-Cohesion: 0.18
-Nodes (11): Auditor Views, Chat System, Core Domain Models, Deprecated Tables (Do Not Use), Enhanced Approval System, Forms System, Notification System, Organization Invitations (+3 more)
+Cohesion: 0.40
+Nodes (5): Common Issues & Solutions, Issue 1: "Permission Denied" on SELECT, Issue 2: Infinite Recursion, Issue 3: Chat RLS Disabled, Issue 4: Auditor Access Not Working
 
 ### Community 109 - "Community 109"
 Cohesion: 0.18
@@ -603,12 +600,12 @@ Cohesion: 0.18
 Nodes (11): 5.1.1 Filter Sidebar, 5.1.2 Request Table, 5.1.3 Scope Filtering, 5.1 Requests List View (`/auditor/requests`), 5.2.1 Request Header, 5.2.2 Form Data Display, 5.2.3 Tag Management Section, 5.2.4 Approval History (+3 more)
 
 ### Community 111 - "Community 111"
-Cohesion: 0.22
-Nodes (10): scope_type Enum (BU/ORGANIZATION/SYSTEM), Multi-Tenant Form Scoping, 4-Tier Hierarchical Permission System, Architecture Overview, Core Concepts, Request Flow, Scope System, System Architecture Overview (+2 more)
+Cohesion: 0.67
+Nodes (3): `attachments`, INSERT Policy, SELECT Policy
 
 ### Community 112 - "Community 112"
-Cohesion: 0.18
-Nodes (11): Chat Tables (`chats`, `chat_participants`, `chat_messages`), INSERT Policy, INSERT Policy, Policies, `request_history`, `requests`, SELECT Policy, SELECT Policy (+3 more)
+Cohesion: 0.50
+Nodes (4): INSERT/DELETE Policy, `profiles`, SELECT Policy, UPDATE Policy
 
 ### Community 113 - "Community 113"
 Cohesion: 0.20
@@ -619,8 +616,8 @@ Cohesion: 0.20
 Nodes (10): `addRequestComment(requestId: string, content: string)`, `approveRequest(requestId: string, comment?: string)`, `cancelRequestByApprover(requestId: string, reason: string)`, `getEnhancedApproverRequests()`, `getRequestComments(requestId: string)`, `officialRequestClarification(requestId: string, question: string)`, `rejectRequest(requestId: string, reason: string)`, `requestPreviousSectionClarification(requestId: string, question: string)` (+2 more)
 
 ### Community 115 - "Community 115"
-Cohesion: 0.22
-Nodes (9): App Structure, Architecture Overview, Authentication & Authorization Model, Component Patterns, Custom Components, Navigation & Permissions, shadcn/ui Component Library, Supabase Integration (+1 more)
+Cohesion: 0.67
+Nodes (3): INSERT/UPDATE/DELETE Policies, SELECT Policy, `user_business_units`
 
 ### Community 116 - "Community 116"
 Cohesion: 0.22
@@ -631,16 +628,12 @@ Cohesion: 0.22
 Nodes (9): Authentication & Permission Functions, `get_administered_bu_ids()`, `get_my_organization_id()`, `get_user_auth_context()`, `get_user_organization_id()`, `is_auditor()`, `is_bu_admin_for_unit(p_bu_id UUID)`, `is_organization_admin()` (+1 more)
 
 ### Community 118 - "Community 118"
-Cohesion: 0.20
-Nodes (9): BuMembership, BusinessUnitData, getUserProfile(), RoleAssignment, RoleData, updateUserPassword(), updateUserProfile(), uploadAvatar() (+1 more)
+Cohesion: 0.14
+Nodes (20): deleteFormFile(), uploadFormFile(), createCommentWithAttachments(), deleteAttachment(), getAttachmentUrl(), uploadCommentAttachment(), getStoragePublicUrl(), removeStorageObjects() (+12 more)
 
 ### Community 119 - "Community 119"
 Cohesion: 0.25
 Nodes (7): API Reference, Enhanced Approval System Implementation Guide, Future Enhancements, Notification System, Overview, Support, When Clarifications are Requested
-
-### Community 120 - "Community 120"
-Cohesion: 0.29
-Nodes (7): Database, Database Types, Key Tables, Row Level Security (RLS), RPC Functions, Schema Overview, Workflow Chaining
 
 ### Community 121 - "Community 121"
 Cohesion: 0.29
@@ -679,12 +672,12 @@ Cohesion: 0.29
 Nodes (7): `approve_request(p_request_id UUID, p_comments TEXT)`, `get_approver_requests(p_user_id UUID)`, `get_initiatable_forms(p_user_id UUID)`, `get_request_workflow_progress(p_request_id UUID)`, `reject_request(p_request_id UUID, p_comments TEXT)`, Request Operations, `submit_request(p_form_id UUID, p_data JSONB, p_business_unit_id UUID)`
 
 ### Community 130 - "Community 130"
-Cohesion: 0.33
-Nodes (6): Adding a New Form Field Type, Adding a New Route for a Business Unit, Adding Real-time Features, Common Tasks, Creating a New Admin Feature, Working with Requisitions
+Cohesion: 0.67
+Nodes (3): INSERT/UPDATE Policies, `organization_invitations`, SELECT Policy
 
 ### Community 131 - "Community 131"
-Cohesion: 0.33
-Nodes (6): Client State Management, Data Fetching (Server Components), Data Flow Patterns, Form Handling, Real-time Pattern (Chat), Server Actions
+Cohesion: 0.18
+Nodes (10): buttonVariants, Calendar(), CalendarDayButton(), Pagination(), PaginationContent(), PaginationEllipsis(), PaginationLink(), PaginationLinkProps (+2 more)
 
 ### Community 132 - "Community 132"
 Cohesion: 0.33
@@ -711,8 +704,8 @@ Cohesion: 0.33
 Nodes (6): Business Unit & Organization Functions, `get_business_unit_options()`, `get_business_units_for_user()`, `get_org_admin_business_units()`, `get_org_admin_users()`, `get_users_in_organization()`
 
 ### Community 138 - "Community 138"
-Cohesion: 0.40
-Nodes (5): 10.3.1 Page Component ✅, 10.3.2 Client Component ✅, 10.3.3 Filter Sidebar ✅, 10.3.4 Request Table ✅, Sprint 3: Requests List View ✅ **COMPLETE**
+Cohesion: 0.29
+Nodes (8): MessageInput(), MessageInputProps, MessageList(), MessageListProps, useMessages(), useRealtimeMessages(), UseRealtimeMessagesProps, Message
 
 ### Community 139 - "Community 139"
 Cohesion: 0.40
@@ -731,8 +724,8 @@ Cohesion: 0.40
 Nodes (5): 1. Multi-Tenancy Enforcement, 2. Business Unit Isolation, 3. Hierarchical Permissions, 4. Defense in Depth, Core Security Principles
 
 ### Community 143 - "Community 143"
-Cohesion: 0.40
-Nodes (5): Common Issues & Solutions, Issue 1: "Permission Denied" on SELECT, Issue 2: Infinite Recursion, Issue 3: Chat RLS Disabled, Issue 4: Auditor Access Not Working
+Cohesion: 0.25
+Nodes (7): archiveWorkflowChain(), deleteWorkflowChain(), getWorkflowChainsForBU(), saveWorkflowChain(), updateWorkflowChainStatus(), WorkflowChain, WorkflowSection
 
 ### Community 144 - "Community 144"
 Cohesion: 0.40
@@ -743,12 +736,12 @@ Cohesion: 0.40
 Nodes (5): ❌ Deprecated Functions (Do Not Use), `get_initiatable_templates(p_user_id UUID)`, `get_requisitions_for_bu(p_bu_id UUID)`, `get_templates_for_bu(p_bu_id UUID)`, Legacy/Deprecated Functions
 
 ### Community 146 - "Community 146"
-Cohesion: 0.29
-Nodes (5): ApprovalChainBuilder(), ApprovalChainBuilderProps, Role, SortableStepProps, MultiStepWorkflowBuilderProps
+Cohesion: 0.33
+Nodes (5): ChatList(), ChatWindow(), CreateGroupModal(), useChats(), useUsers()
 
 ### Community 147 - "Community 147"
-Cohesion: 0.50
-Nodes (4): Authentication Helpers, Critical Security Patterns, File Upload Pattern, Layout-Level Route Protection
+Cohesion: 0.43
+Nodes (5): InviteUserAction(), RoleToggleAction(), RoleToggleActionProps, columns, UserWithRoles
 
 ### Community 148 - "Community 148"
 Cohesion: 0.50
@@ -771,8 +764,8 @@ Cohesion: 0.50
 Nodes (4): Migration Fails, Notifications Not Sending, RPC Function Not Found, Troubleshooting
 
 ### Community 153 - "Community 153"
-Cohesion: 0.50
-Nodes (4): INSERT/DELETE Policy, `profiles`, SELECT Policy, UPDATE Policy
+Cohesion: 0.33
+Nodes (5): ArrayFieldDefault, InferredItemField, Template, TemplatesData, TemplateValue
 
 ### Community 154 - "Community 154"
 Cohesion: 0.67
@@ -814,10 +807,6 @@ Nodes (3): 9.1 Scope Levels, 9.2 Fetching Forms by Scope, 9. Multi-Tenant Scopin
 Cohesion: 0.67
 Nodes (3): Database Schema Changes, New Enum Values (request_action), New RPC Function: `get_enhanced_approver_requests()`
 
-### Community 164 - "Community 164"
-Cohesion: 0.67
-Nodes (3): `attachments`, INSERT Policy, SELECT Policy
-
 ### Community 165 - "Community 165"
 Cohesion: 0.67
 Nodes (3): `business_units`, INSERT/UPDATE/DELETE Policies, SELECT Policy
@@ -846,17 +835,13 @@ Nodes (3): INSERT/UPDATE/DELETE Policies, `roles`, SELECT Policy
 Cohesion: 0.67
 Nodes (3): INSERT/UPDATE/DELETE Policies, SELECT Policy, `user_role_assignments`
 
-### Community 172 - "Community 172"
-Cohesion: 0.67
-Nodes (3): INSERT/UPDATE/DELETE Policies, SELECT Policy, `user_business_units`
-
 ### Community 173 - "Community 173"
 Cohesion: 0.67
 Nodes (3): INSERT/UPDATE/DELETE Policies, SELECT Policy, `workflow_chains`
 
 ### Community 174 - "Community 174"
-Cohesion: 0.67
-Nodes (3): INSERT/UPDATE Policies, `organization_invitations`, SELECT Policy
+Cohesion: 0.40
+Nodes (5): 10.1.1 Database Schema (Migration 1) ✅, 10.1.2 RPC Functions (Migration 2) ✅, 10.1.3 RLS Policies (Migration 3) ✅, 10.1.4 Testing ✅, Sprint 1: Database Foundation & Backend Infrastructure ✅ **COMPLETE**
 
 ### Community 175 - "Community 175"
 Cohesion: 0.67
@@ -867,32 +852,32 @@ Cohesion: 0.67
 Nodes (3): `request_tags` Policies, `tags` Policies, `tags`, `request_tags`
 
 ### Community 198 - "Community 198"
-Cohesion: 0.40
-Nodes (4): createNotification(), CreateNotificationArgs, deleteNotification(), markNotificationAsRead()
-
-### Community 201 - "Community 201"
 Cohesion: 0.50
-Nodes (3): AllRequestsClient(), AllRequestsPage(), metadata
+Nodes (4): Alert(), AlertDescription(), AlertTitle(), alertVariants
+
+### Community 200 - "Community 200"
+Cohesion: 0.20
+Nodes (15): fromBase64(), getUserAuthContext(), hashPassword(), NativeUser, normalizeEmail(), pbkdf2(), signInWithPassword(), timingSafeEqual() (+7 more)
 
 ## Knowledge Gaps
-- **2008 isolated node(s):** `supabase`, `BusinessUnit`, `BusinessUnitsSectionProps`, `DeleteOrganizationButtonProps`, `formSchema` (+2003 more)
+- **1868 isolated node(s):** `supabase`, `BusinessUnit`, `BusinessUnitsSectionProps`, `DeleteOrganizationButtonProps`, `formSchema` (+1863 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **34 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **39 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `createClient()` connect `API Routes & Server Actions` to `Approval Chain Builder`, `Activity Log & Audit Trail`, `Organization Admin Dashboard`, `Workflow Lifecycle Actions`, `Root Layout & App Shell`, `Landing & Error Pages`, `Dashboard Header & Data`, `All Requests Page`, `Super Admin BU Management`, `BU Forms Management`, `Edit Business Unit Dialog`, `Dashboard Tables & Invitations`, `Workflow Timeline UI`, `Debug & Diagnostics`, `People Directory`, `BU Detail Page`, `Community 198`, `CRUD API Route A`, `Community 199`, `Workflow Templates Page`, `Community 201`, `Form Templates Page`, `Org Admin Role Actions`, `CRUD API Route C`, `Request Chain Linking`, `Community 118`?**
-  _High betweenness centrality (0.027) - this node is a cross-community bridge._
-- **Why does `cn()` connect `UI Component Library` to `App Layouts & Navigation`, `Shared UI Utilities`, `Form Filling Engine`, `Approval Chain Builder`, `Employee & Role Management`, `Organization Admin Dashboard`, `Settings & Form Config`, `Workflow Lifecycle Actions`, `Approval Actions UI`, `Business Unit CRUD`, `Document & BU Views`, `Community 146`, `Comments & Attachments`, `Workflow Chain Types`, `Grid Table Configuration`, `Legacy Requisition Components`, `Authentication UI`, `Dashboard Header & Data`, `Carousel Component`, `Form CRUD Actions`, `Bulk Approval Components`, `Chart Components`, `My Requests View`, `Request Chain Linking`, `Draft Redirect`?**
-  _High betweenness centrality (0.023) - this node is a cross-community bridge._
-- **Why does `Button` connect `Employee & Role Management` to `UI Component Library`, `App Layouts & Navigation`, `Shared UI Utilities`, `Form Filling Engine`, `Approval Chain Builder`, `Activity Log & Audit Trail`, `Workflow Template Management`, `Organization Admin Dashboard`, `Settings & Form Config`, `Workflow Lifecycle Actions`, `Approval Actions UI`, `Business Unit CRUD`, `Document & BU Views`, `Community 146`, `Comments & Attachments`, `Workflow Chain Types`, `Grid Table Configuration`, `Dashboard Header & Data`, `Carousel Component`, `BU Forms Management`, `Form CRUD Actions`, `Bulk Approval Components`, `Dashboard Tables & Invitations`, `Workflow Timeline UI`, `PDF Export`, `Template & Draft Selection`, `Debug & Diagnostics`, `BU Detail Page`, `Request Chain Linking`?**
-  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `createClient()` connect `API Routes & Server Actions` to `Activity Log & Audit Trail`, `Organization Admin Dashboard`, `Settings & Form Config`, `Workflow Lifecycle Actions`, `Approval Actions UI`, `Community 143`, `Root Layout & App Shell`, `Landing & Error Pages`, `App Entry & Protected Routes`, `Dashboard Header & Data`, `Community 164`, `All Requests Page`, `Misc Page Routes`, `Community 172`, `Bulk Approval Components`, `Dashboard Tables & Invitations`, `Workflow Timeline UI`, `Debug & Diagnostics`, `People Directory`, `BU Detail Page`, `DB Setup Scripts`, `Community 199`, `CRUD API Route A`, `Workflow Templates Page`, `Community 203`, `Form Templates Page`, `Community 205`, `Community 204`, `My Requests View`, `Org Admin Role Actions`, `CRUD API Route C`, `Draft Redirect`, `Forms Access Testing`, `Community 118`?**
+  _High betweenness centrality (0.034) - this node is a cross-community bridge._
+- **Why does `cn()` connect `UI Component Library` to `Shared UI Utilities`, `Community 131`, `Form Filling Engine`, `Approval Chain Builder`, `Workflow Template Management`, `Employee & Role Management`, `Organization Admin Dashboard`, `Settings & Form Config`, `Workflow Lifecycle Actions`, `Approval Actions UI`, `Business Unit CRUD`, `Authentication UI`, `Workflow Chain Types`, `Grid Table Configuration`, `Legacy Requisition Components`, `Dashboard Header & Data`, `Carousel Component`, `BU Forms Management`, `Edit Business Unit Dialog`, `Bulk Approval Components`, `Chart Components`, `Community 198`, `Community 201`, `Next.js Middleware`?**
+  _High betweenness centrality (0.030) - this node is a cross-community bridge._
+- **Why does `Button` connect `Bulk Approval Components` to `Shared UI Utilities`, `Community 131`, `Form Filling Engine`, `Approval Chain Builder`, `Workflow Template Management`, `Community 138`, `Organization Admin Dashboard`, `Settings & Form Config`, `Workflow Lifecycle Actions`, `Approval Actions UI`, `Business Unit CRUD`, `Employee & Role Management`, `Document & BU Views`, `Community 147`, `Workflow Chain Types`, `Grid Table Configuration`, `App Entry & Protected Routes`, `Dashboard Header & Data`, `Carousel Component`, `All Requests Page`, `BU Forms Management`, `Edit Business Unit Dialog`, `Dashboard Tables & Invitations`, `Workflow Timeline UI`, `PDF Export`, `BU Detail Page`, `CRUD API Route A`, `Workflow Templates Page`, `Form Templates Page`, `Next.js Middleware`, `My Requests View`?**
+  _High betweenness centrality (0.020) - this node is a cross-community bridge._
 - **What connects `supabase`, `BusinessUnit`, `BusinessUnitsSectionProps` to the rest of the system?**
-  _2010 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1870 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `UI Component Library` be split into smaller, more focused modules?**
-  _Cohesion score 0.040626040626040624 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.03790772847487511 - nodes in this community are weakly interconnected._
 - **Should `App Layouts & Navigation` be split into smaller, more focused modules?**
-  _Cohesion score 0.06666666666666667 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.14624505928853754 - nodes in this community are weakly interconnected._
 - **Should `Shared UI Utilities` be split into smaller, more focused modules?**
-  _Cohesion score 0.05141242937853107 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.046153846153846156 - nodes in this community are weakly interconnected._
