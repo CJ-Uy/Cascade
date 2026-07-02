@@ -189,7 +189,7 @@ npm run dev
 
 # Migration will be automatically applied on next db sync
 # Or manually apply:
-npx supabase db push
+npm run d1:migrate:remote
 ```
 
 ### Step 2: Update Navigation Links

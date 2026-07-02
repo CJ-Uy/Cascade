@@ -273,7 +273,7 @@ Acceptance checks:
 
 Rollback:
 
-- Keep Docker/Coolify deployment untouched until Workers path is verified.
+- Docker/Coolify deployment has been removed after the Workers path was verified.
 
 ## Phase 2: Add Local Service Boundaries
 
